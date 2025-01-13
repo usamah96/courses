@@ -1,0 +1,142 @@
+Basics
+---------------------
+
+npm install -g typescript
+
+-Use tsc script.ts to compile TS file into JS
+-Use tsc --init to create tsconfig.json file which will hold all the files
+needed to be compiled from TS to JS
+-By running tsc, typescript will look into tsconfig.json file and convert all
+the TS files into JS
+
+---------------
+Types
+
+*Unlike JS, we cannot do this in TS
+let myName = "Usama";
+myName = 20; // Error
+
+
+*Typescript donot differentiate between integer and float
+23 and 23.01 are both considered as number
+
+
+*If we dont initialize value while declaring varaible, the variable will be
+considered as 'any' type
+let myName;
+myName = "Usama";
+myName = 20
+-No Error -> Same as JS
+
+
+
+*Setting up a tuple
+-If you have a format to store in a array like first element to be string and
+second element to be number then
+let a : [string, number] = ["Usama", 24]
+-Any other format will cause an error
+
+
+*Setting up enums to make numbers more expressive
+enum Color { Blue, Gray, Green }
+-We can also specify our own value like
+enum Color { Blue, Gray = 100, Green }
+-After specifying the value, the next value will be increment of previous value as
+Green will now contain 101 until you explicitly specify some other value
+
+
+*Setting up functions as types
+-If we have a function with 2 arguements both are numbers and the function returns
+back a number, we can assign that function to a particular variable like,
+function multiply(value_1: number, value_2: number): number{
+    return value_1 * value_2;
+}
+-We can assign any varaible with a function like,
+let mul = multiply;
+and then,
+mul(2, 4);
+-But here, we havnt specified any type to mul so we can also assign any other 
+function to mul without any errors. For strict typing, we can do
+let mul: (val_1: number, val_2: number) => number;
+mul = multiply;
+-Now we can only assign mul with a function that has 2 arguements both are numbers
+and it returns a number. Any other function assigning will result in error.
+
+
+*Setting up objects as types
+-If we initialize the object with some key value pairs, we cannot reassign it
+with different key value pairs as at initialized time the types are defined by the
+typescipt
+let obj = {name: "Usama", age: 24}
+obj = {firstName: "Usama", lastName: "Abubakar"} // Error
+-We can assign object with its type for strict typing in future
+let obj: {name: string, age: number} = {name: "Usama", age: 24}
+
+
+*Defining the type alias
+-We can define the complex type that is used at multiple places as an alias so
+that if anything is changed, we have to do it at one place
+type Complex = {data: number[], output: (all: boolean) => number[]};
+-This is an object type with data as array of numbes and output as function that
+takes boolean arguement and returns back array of numbers
+-Now we can do such like,
+let complexObj_1: Complex = {
+  data: [1,2,3],
+  output: function(all: boolean){ return this.data; }
+}
+let complexObj_2: Complex = {
+  data: [4,5,6],
+  output: function(all: boolean){ return this.data; }
+}
+
+
+*Setting up Union Types
+-If we are unsure of our type and the data could be in between string and number,
+we can define the type as union like
+let age: number | string;
+age = 24;
+age = "24";
+age = true; //Error
+
+*Setting up unknown type
+-Unknown type is a bit restrictive than any type
+-With any type TS give up and says do whatever you want
+-With any we have some typing check like,
+let userInput: unknown;
+-We can now assign anything to unknown like any
+userInput = 5;
+userInput = "Usama";
+-But when we do this,
+let userString = "Usama Abubakar"
+userInput = userString // TS will give error because string cannot be assigned
+to type unknown
+-But if userInput is of type any,
+userInput = userString // No Error because any is way flexible than any other type
+-Ther error goes away if userInput is of type unknown and we put this in a check like
+if(typeof userInput === "string"){
+  userInput = userString
+}
+-TS will detect the typeof check and here it is now sure that userInput is of
+type string so it will allow userString to be assigned to userInput
+
+
+*New Type in TS 2.0
+
+-The 'never' type is used with a function when a function never returns anything.
+-It is not like 'void' type. Like when a function throw an exception
+function neverReturns(): never {
+  throw new Error('Error Thrown');
+}
+
+-With previous version of TS we can assign any variable of any type to 'null',
+-With TS 2.0 we have the new feature of 'null' as its own type.
+-To enable it go to tsconfig.json and under compiler options add a key value 
+pair of "stringNullChecking" to true. Now If we do
+let age = 24;
+age = null // Error because number cannot be assiged as null.
+Similarly If we do
+let nullValue = null;
+nullValue = 24 // Error null cannot be assigned as number
+-We have to make use of union operator for the usage of null as,
+let age: number | null = 24;
+age = null;

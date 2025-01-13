@@ -1,0 +1,291 @@
+Performance
+--
+
+So as we know latency is a key part in our system performance, there are 2 types of latencies
+  1) Serial Latency
+  2) Concurrent Latency
+  
+In Serial Latency, there occurrs multiple latencies which include
+
+1) Network Latency which can be occurred due to several reasons
+  .Data Transfer
+    The data is being transferred from the client's web browser to the server which goes through multiple hops in a network. Also there can
+	be multiple servers on backend which intra-connect with each other to provide the response so there is also some delay there but the time
+	duration for intra-server communication is much faster then internet communication.
+  .TCP Connection
+    Before every request/response there is always a 3-way handshake between the browser and the server which is done so there also occurrs
+    some latency
+  .SSL/TLS
+    The security layer agreement is also done on top of TCP connection so this is another overhead if the server is using TLS/SSL protocol.
+	The client and the server after a 3-way handshake agrees on some terms like exchanging keys, encryption decryption technique to allow
+	send and receive secure data over the network.
+
+How to minimize the network latency?
+So there are mainly 2 overheads in network latency which are to minimized
+  .Connection Based (TCP, SSL/TLS)
+    In this we can minimize latency by using Connection Pooling which means to reuse the connection which are created before and not created
+	new connection everytime like when accessing database from our restful service, connection pooling will minimize latency. So our restful
+	service connecting to the database will have connection pooling to our database and similarly if there is another service communicating 
+	with our restful service using http protocol then that service will have connection pooling to our restful service.
+	Also there should be a way for connection pooling when connecting from client to server. This is automatically done by the browsers if they
+	are using Http protocol version > 1.1 which is known as Persistent Connection.
+  .Data Transfer Based 
+    In this we can minimize latency by caching strategies in order to cache the unchanged/static data both on the server side like when
+	retrieving the data from the database and cache the data based on user session and also on the client server side like caching javascript
+	files and css files. (discussed in detail in caching lecture) 
+	Another way is to use effecient data formats like when communicating between services internally (intra-communication), we can use
+    binary protocol which uses binary data for transmission instead of http protocol which uses ascii code. One such example is using RPC
+    based protocl like gRPC provided by google and thrift protocol. One thing to keep in mind is that when using protocol other than http
+    it will remove interoperability because http is popular so we can use RPC based protocol to our service which is not directly exposed
+    to client and is used internally. When using binary protocol our service will no longer be called as REST service so keep in mind that
+	when there is a need to transfer huge amount of data that affects network latency only then used RPC based protocol.
+    Another way is to used compression mechanism like when sending data from client, the client can compress that data and convert it into
+    binary format so that data is reduced in size and when the server receives the data it can unzip it and process it. Also same can be done
+    vice cersa. Obviously there is compression overhead but that overhead is not that much costly than the actual network latency overhead.
+	Lastly, we can use SSL Session Caching which means that once client creates a connection with server and agrees on some terms on what
+	encryption technique they will use along with other parameters, the next time the same client wants to have a connection with the server,
+	the server uses the cached data to prevent the roundtrips which is needed to create SSL connectionetw.
+	
+	
+2) Memory Latency, which can be occured due to several reasons
+   .Finite Heap Memory
+     Every process running will take some amount of heap memory as there only some amount of heap memory. So any process exceeding that amount
+	 will bound to fail. One problem occurrs realted to garbage collectors like when using java when the provess is about to exit the memory
+	 then garbage collector aggresively runs which decreases the performance. IF the GC runs for a certain amount of time then it will badly
+	 affects the user as latency will be much higher at that time
+   .Large Heap Memory
+     So if a process taking very large heap memory it means it using extra memory which is allocated to it from the hard disk. It means that
+	 alot of swapping will be done between hard disk and physical memory (RAM) which will reduce performance. It means that also GC will have
+	 to analyze the large heap memory and search for objects that are not being utilized
+   .GC Algorithm
+     Runtimes that supports GC comes with multiple options for GC algorithm each designed for special cases. So the choice has to be made
+	 for GC algorithm because if a choice is not made correctly then large amount of data will suffer in terms of performance
+   .Finite Buffer Memory
+     This is related to database as any Read/Write operation is done on buffer memory. Like if we want to update any record so first that
+	 record will be fetched from disk to memory then that update operation will be performed and then written back to disk. So if the buffer
+	 memory has a shortage due to ineffecient schema or due to poor allocation then this will reflect on to performance. It is really critical
+	 as it governs that how many operations per second you can do at a perticular time on the database which reflects the throughput of the
+	 database.
+	 
+How to minimize Memory Latency?
+   .Avoid Memory Bloat
+     We should try that our process and our code base should take as less memory as possible because if our code base has little instructions
+	 then the back and forth between RAM and processor will be lesser. Obviously there is no control to our code base and to object allocations
+	 but we should try to avoid creating un-neccessary objects.
+   .Weak/Soft references
+     Useful when our process is large and contain many objects and there is a chance that it will go out of heap memory. So we can create
+	 weak references and what will happen is that when our process is close to getting maximum heap allocation then the GC will check for
+	 objects and all weak references will be reclaimed
+   .Multiple Smaller Process
+     It is better to break process into multiple smaller processes rather to have 1 big process. Lets say we have a 50GB of RAM and our JVM
+	 occupies 40GB of ram space. The problem is that 40GB is too much for GC to run effeciently. This will break performance. So multiple smaller
+	 processes can be made. It is useful when doing batch processing and distributing the tasks to multiple JVMs intead of giving responsibility
+	 to single JVM process.
+   .GC Algorithms
+     There are multiple GC algorithms provided by the runtime like GC algorithm which runs separately. The process running is stopped for a
+	 while and only GC runs at that time and then the process resumes its work. On the other hand one GC algorithm runs besides the process
+	 and there is either no pause or a very short pause of process. So if there is server that takes requests and gives back response, and if
+	 we chose first GC algorithm, then it will affect the performance because if the process stops for GC then at that period of time all the
+	 user requests will be queued. Similarly when doing batch processing there is no livliness and real-time so we can chose 2nd GC algorithm
+	 because our main goal is to complete the task effectively.
+   .Normalization
+     Alway prefer normalization because this technique allows preventing duplicate data in the database, and it will eventually helps in
+	 storing less data in the buffer memory. So in less memory we can store more data. There is always the case that if we have complex 
+	 joins to read data, generate report we do denormalization but if do this only if is required otherwise always prefer normalization as
+	 it increases the performance.
+	 Check 'Computer Over Storage' Term
+	 
+	 
+3) Disk I/O Latency, which is the slowest because disk access is the slowest
+   Every component has to do disk I/O because they have to do Logging
+   The penalty of disk I/O in logging is not that much high as it is discussed alter.
+   The penalty for disk I/O is high in
+     .Web Content Files
+	   Occurss in web application because it has to access javascript files, css files and image files
+	 .Database
+	   Occurss in databases because either the data comes from disk and is written to the disk.
+	   
+How to minimize Disk I/O Latency
+   .Logging
+     As mentioned above that logging disk I/O is not that much critical because in logging, the write operation to log files is sequential 
+	 I/O. There are 2 types of Disk I/Os, one is Random Disk I/O which is slowest and other is sequential which is the fastest. So due to its
+	 sequential in nature, the logging disk I/O penalty is not that much.
+	 What we need to make sure is that to do batch I/O instead of context switches which means that if we have to log 4 statements then try to
+	 log that 4 statements in one go rather than first computing then logging and then computing and then logging and so on.
+	 Another thing is to make sure to do Async logging which means that if current thread needs to to logging then it should transfer the loggingt
+	 task to another thread and the current thread should not block and retains the CPU cycles.
+   .Web Content Files
+     Any web application displays the content through static files or dynamic files which can be js, css, images, etc
+	 What we can do is to introduce a Reverse Proxy in between our web app and the server and what that Reverse Proxy will do is to store
+	 the static contents. All the dynamic contents will be fetched from the disk and static contents from Proxy. If some static content is not
+	 available inside the proxy then it will first fetch from disk and then server it. It is also known as Web Content Caching.
+	 Another two optimizing features Reverse Proxy provides are Page Cache, which means that whatever pages are read recently remains in the
+	 RAM and in physical memory of the system. Other feature is Zero Copy which means that when files are copied from disk over the network
+	 then that copy is done in kernal mode instead of user mode which makes copying faster. So Reverse proxy generally makes these feature
+	 useful in performance optimization
+   .DB Disk Access
+     One major approach is to avoid disk access is to do caching on server level to avoid going to the database for the read operation
+	 Another approach is to do schema optimization. We can denormalize our data if the disk I/O is very much and memory is not the factor
+	 for us so if our data is spreaded into multiple tables, we can reduce it into 1 or 2 tables by denormalizing it. But always prefer
+	 normalization and go for denormalization only if there is a special case. With schema optimization, it will go hand in hand with
+	 query optimization also so to write queries in such a way to get maximum data in one go.
+	 Another approach is to do indexing on proper columns to avoid full table scans
+	 Last thing could be to install SSDs instead of regular disk as they are much faster. As we do Random I/Os on database then prefer those
+	 hard disks that offer High IOPS (Input Output Per Seconds) and also with RAID architecture (Redundant Array of Integrated Disk) that 
+	 offers parallel access to data as data is duplicated across multiple stripes/partitions
+	 
+	 
+
+4) CPU Latency, which can be occurred due to 2 reasons
+    .Ineffecient Algorithm
+	  This reasons is totally based on the programmer because if the algorithm is badly written then obviously if will take more CPU cycles
+	  to execute the task.
+	.Context Switch
+	  Context switching occurrs if there are mutiple proccesses and multiple threads running on the same system. Lets say if there are 2 
+	  processes and process 1 requests for CPU whether for disk I/O or any network call. So when the time quantum of process 1 will ends then
+	  OS will save the process 1 state into Process Control Block 1 and now its time for process 2 to start execution. For that OS will restore
+	  process 2 state from Process Control Block 2. So this saving and restoring time is extra time and if context switch occurrs more
+	  frequently then a 100ms process might take 200ms to complete execution
+	 
+How to minimuze CPU latency?
+As a programmer, we can help reduce the frequency of context switches and improve system performance by designing out software in a way that 
+minimizes unnecessary blocking or idle time for processes. This can be achieved by using techniques such as non-blocking I/O, asynchronous 
+programming, and multithreading to keep the CPU busy and avoid waiting for external resources.
+For example, if our software needs to wait for data from a network or disk, rather than blocking the current process until the data arrives, 
+we can use asynchronous I/O to allow the CPU to continue processing other tasks while waiting for the data to become available. Similarly, 
+if our software needs to perform multiple tasks concurrently, we can use multithreading to divide the work among multiple threads and avoid 
+idle time for the CPU.
+Also,
+  .Effecient Algorithm
+    Write effecient algorithm and effecient queries as much as possible so that the task takes as less cpu cycles as it can
+  .Batch/Async I/O
+    Lets say in a single task we are going to the database multiple times. This will not increase network overhead/latency but will also
+	involves context switching multiple times as CPU have to be evicted multiple times. In this scenario try to batch all the read and write
+	operations and execute the database task in one go.
+	Also the application does logging which is a separate I/O and its purpose is to track any issues and debugging for future. In this scenario
+	we can do asynchronous operation and give the logging task to a different thread so that our main thread is not affected.
+  .Optimal Thread Pool Size
+    The size of the thread pool determines the maximum number of threads that can be created in the application, and a larger thread pool size 
+	can help increase the concurrency and parallelism of the application. The thread pool size should be the right number as it should be 
+	not very less and not very large.
+	A larger thread pool size means that there are more threads that need to be scheduled for execution by the operating system. This can result 
+	in a higher frequency of context switches.
+	Also apart from context switch, more threads means more memory consumption and less availability of shared resources will result in longer
+	waiting time for the other threads.
+	
+	
+	
+Apart from Serial LAtency, we also encounter Parallel Latency
+By reducing parallel latency we can increase concurrency and before understanding Parallel Latency we will have to make an asumption that we 
+have already taken care of Serial Latency
+	
+1) Amdhal's Law For Concurrent Task
+
+We know that in our system, we have some piece of code that runs in synchronized (serial) fashion and most of our code is run in concurrent
+fashion.
+
+Consider Example that we have a system in which there is only serial code which means that it will accept 1 request at a time and consider
+if each request takes 1second to complete than 3 requests will be completed in 3 seconds. If we initially have 1 processor and we increase the
+number of processor, the throughput will remain same and the system will still accept 1 request per second as the code is serial.
+The graph will be completely flat because increasing number of processor won't affect throughput.
+
+In a system where there is no synchronized code and we have 1 processor which fulfills 1 request per second then increasing the number
+of processors will obviously increase throughput as the system now can entertain more requests per second.
+The graph will be increasing in linear fashion because as number of processor increases, throughput increases.
+
+But in an application, we have parallel code and we have serial code as well.
+In this scenario the graph will increase as number of processor increases and at some point it will become flat at a particular number of
+processors. 
+What Amdhal's law help us is that to identify how much our system is affected by the serial code we have written in our system.
+
+**Refer to Graph For Above Calculation**
+If our system has 5% serial code, then at 2048 processors the thoroughput becomes constant.
+Similarly if our system has 10% serial code, then at 512 processors the throughput becomes constant. Adding more processor won't affect
+Similarly if our system has 25% serial code, then at 64 processors the throughput becomes constant. Adding more processor won't affect
+And if our system has 100% serial code, the graph will be flat and adding more processor won't affect.
+**Refer to Graph For Above Calculation**
+
+
+2) Gunther's Law For Scalability
+
+There are 2 reasons in which the concurrency of a system is compromised which are
+  .Queueing, which occurrs when there is serial code and the threads waits for other thread to release the lock of the critical region
+  .Coherence
+  
+Amdhal's law deals with queueing and Gunther's law deal with both queueing and coherence effect
+
+So what coherence actually means is that lets say we have a process which is running with multiple threads which access some shared resource
+and that resource is a variable. In Java if this is the case then what we do is we define that variable as a volatile variable because we
+want that variable to be of same value across all the threads.
+If one thread makes any changes to that variable then that changes is refreshed across all thread and this is called coherence. This
+refreshing changes comes with a cost and considering this example if number of users increases and number of threads and processor
+increases then obviously the coherence affect will also increases and eventually it will affect our performance.
+
+So considering this law, we need to minimize the queueing effect in addition to minimizing the coherence affect too which is discussed
+in later sections in detail
+
+**Refer To Graph**
+So when considering Amdhal's Law, at some point the graph `becomes flat when we increase number of processors but in this scalability law
+the graph comes down as the coherence affect increases.
+**Refer To Graph**
+
+
+
+Apart from Coherence there is also Contention and these 2 are biggest killers of concurrency
+So there are some areas where our system can face Content
+  .Listen/Accept Queue
+    Lets say we have a multi-threaded system and there are already so many threads currently processed by our application and also there are
+    many more incoming threads/requests. So if our application os overloaded and cannot bear much load then the incoming request will be
+    queued in a Listen Queue. If there are not enough processors to accept the request then our request will be queued at Accept Queue.
+    The request reaching Accept Queue means that it is passed from Listen Queue and waiting for the processor to be accepted now. But if
+    the request does not reach the Listen Queue then the user will face immediate error. Requests waiting at Listen/Accept Queue will
+    definitely face latency as they are not processed yet. So if these queues are so long then it means that many requests can be queued,
+    so this is one place our system can face Contention which is at the Network Level.
+  .Thread Pool
+    Whenever a requests comes in, it will need a thread to be processed by the system but if our fixed size thread pool does not have enough
+	number of threads then our system will face contention at the Thread Pool level.
+  .Connection Pool
+    So if our request is assigned a thread then it should have a connection with our backend database to process it and if our database is 
+	running out of connections then it cannot accept many connections and in this way the contention will faced at Connection Pool level.
+	Every request/thread requires a new connection from pool and once the request is completed then connection is released to be re-used by
+	another request/thread.
+  .Locks
+    This is the highest factor of contention as threads wait in a blocked queue if any other thread has already acquired the lock.
+	
+
+There are several approaches we can follow to minimze contentions,
+  .We know that as number of requests increases, the number of CPU resources increases, Disk access increases and Network also increases.
+   For CPU related stuff is discussed later but for Disk and Network we have to make sure that Serial Latency Problem has been taken care of
+   and apart from this, nothing more we can do other than doing Vertical scaling. In Vertical scaling we can install disks that supports RAID
+   operation, SSDs which is costly but will provide performance. For network we will have to manage high bandwidth to support good and fast
+   transfer of data.
+  .For thread pool size, we have to select an optimal number for thread pool based on thread waiting time and amount of time it has taken the
+   CPU. Both these values are calculated based on load testing. Lets say there is no Wait time (No locks, no database calls, etc) and there
+   is 100% CPU time in which the response is based on calculations so the thread pool size should be equal to the number of CPUs available which
+   will be ideal. The reason for this is that each processor core can only execute one thread at a time. If we have more threads than 
+   available cores, the threads will compete for CPU time, which can result in performance degradation due to context switching and increased 
+   overhead. On the other hand, if we have fewer threads than available cores, some of the cores may be idle, which represents a waste of 
+   resources.
+   But since our application will have wait time (acquiring locs, serial code, database calls) which means that thread pool size
+   will certainly be higher than the number of CPUs available but how much higher will depend upon how much wait time is there in our code.
+  .For connection pool size, we generally set the connection pool equal to the thread pool size because each thread will have to take atleast
+   one connection everytime. The connection pool size should be a slight higher than the thread pool size to support distributed connections
+   also in a transaction
+  .To minimize lock contention we have 2 approaches
+    1) We can reduce the duration for which the lock has been taken which can be done in several ways
+	  .Don't write code in the synchronized block which is not needed to be synchronized 
+	  .Split the locks to lower granuality like if previously we are taking lock on a whole object, we can reduce it to taken locks on
+	   parts of object in lower chunks in same block of code so that if some other part of object needs to be acquired by other thread then the
+	   lock is available to it while the current thread works on some other part of object while taking the lock.
+	  .Striping the lock for each partition of data like Concurrent HashMap does. What id does is that it divides the whole HashMap into
+	   different sections lets say 16 sections and each section has some part of data with individual lock. If certain operation is to be done
+	   on the HashMap, then the lock is not taken on whole HashMap rather the lock is taken to that specific section only where the data is present.
+	   In this way, other sections are available for other threads to work on it.
+	2) Replace Exclusive locks with Cordination Mechanism
+	  .We can use separate locks for Read and Write operation which means that if any thread has taken a Read lock, then other threads who
+	   only want to read the data can take read lock simultaneously and do the work but the write lock will not be available at that time.
+	   Similarly if a write lock is taken by any thread then no thread is allowed to take either read or write lock. This will minimize the 
+	   lock contention in such a way that reader threads will not block reader threads but only writer thread will block all other threads.
+	   If we dont use this approach then single thread will block all other thread irrespective of the fact it is reading or writing.
+	  .Also we can use AtomicVariables and Compare and Swap Method (Discussed Later)
+	  

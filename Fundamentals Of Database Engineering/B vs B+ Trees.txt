@@ -1,0 +1,34 @@
+Fundamentals of Database Engineering
+--
+
+=> B vs B+ Trees
+
+B Trees are the balanced trees which were introduced to address the problem of full table scan. So this is a technique which 
+database uses in order for fast retrievals of rows.
+
+B Trees has a degree which is denoted by 'm' which means number of childs. 
+B Trees has nodes which contains m-1 elements and each element has a key and a value
+The value in the element is the pointer to the row and the key is what we are searching for.
+The data pointer can point to either a primary key or a tuple
+   .In Mysql the pointer points to the PK
+   .In Postgres the pointer points to the tuple/row_id
+   .Every databse does this differently
+A single node represents a whole disk page so if page size is 8K then it must find a way to store 8K elements in that node.
+
+The limitations of B Trees include,
+  1) Elements in node store both keys and values which means that it requires a lot of space. If the index is created on id and you
+     only want to retrieve the id then the value field goes useless because the key of node is the id.
+	 Think twice when creating index on string or uuid because that takes more space in key field. More space means less values can
+	 be stored. Less value means more nodes. More nodes means more pages. More pages means more I/O and more I/O means slow reading.
+	 
+  2) Range queries are slow because in B Trees, it jumps all around to find values.
+     Example => Select * from employees where id between 4 and 9
+	 
+These limitations are solved with B+ Trees which are similar to B-Trees but the differences are,
+  .They store only keys in the internal nodes (middle elements). Since they only store keys it saves space so internal nodes contains
+   more keys.
+  .Values are stored only in leaf nodes
+  .Leaf nodes are linked with each other so it is a great fit for range queries.
+  
+  
+ 

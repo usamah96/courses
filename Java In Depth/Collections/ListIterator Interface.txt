@@ -1,0 +1,38 @@
+List Iterator Interface
+---
+
+-Like Iterator interface was generic to all the collections, ListIterator is specific to List interface implementations like ArrayList
+-ArrayList defines an inner class that implements ListIterator interface.
+
+public interface ListIterator<E> extends Iterator<E>{
+  boolean hasNext();
+  E next();
+  void remove();
+  void add(E e);
+  void set(E e);
+  boolean hasPrevious();
+  E previous();
+  int nextIndex();
+  int previousIndex();
+}
+
+-In addition to Iterator methods, ListIterator interface provides more functionality related to list operations. It is much more richer
+interface than iterator interface. It has bidirectional access, means we can go forward and backward in our list with hasPrevious and
+previous implementations.
+
+Cursor
+..
+-The cursor lies in between the elements and not on the specific element. If we call next() on the veriy first element then the cursor will
+move in between 0 and 1 index. The next() call will move it in between 1 and 2 and so on...
+-So if we call next() from the very start we get the element at index 0. Calling next() again will get the element at index 1 and our cursor
+is in between 1 and 2. 
+-Now if we call previous() we will again get the element at index 1 because now the index is in between 0 and 1. We have to call next() again
+to get the element at index 0.
+-The add() will add a new element at the current cursor position
+-The set() will replace the element that was fetched using next() or previous()
+
+For executing set(), the preceeding call should be either next(), previous() or set() itself. We cannot call set() at the very start
+of our list because there is nothing to set. It will throw IllegalStateException. The set() will check what was the element that was
+fetched previously with next() or previous() and it will replace that element with new element.
+Similarly with remove(), the preceeding call must be either next() or previous(). The element which was fetched with these 2 methods will
+be removed().

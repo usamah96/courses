@@ -1,0 +1,332 @@
+Scalability
+--
+
+Scalability is nothing but Performance under variable load
+We know that in Performance, we measure latency and throughput under a fix load to check how our system is performing under that load.
+Scalability is a subset of Performance in which we measure throughput only under variable load to check the ability of a system by adding
+more hardware capacity. We check the scalability by both scaling up and scaling down the system.
+
+We can scale our system in 2 possible ways
+  1) Vertical Scalability
+     .In this technique, we increase the power/capacity of our hardware. Lets say we were first using 4 Cpu machine with 16 GB Ram and due 
+	  increase in the load or increase in users, our hardware does not support the load, we increase our hardware power to 32 CPU and 
+	  256 GB Ram. 
+	 .In this approach it is easier to scale because we just need to purchase a new machine and replace the old one but it can provide only
+	  limited scalability because the cost increases exponentially. Also there is a limit capacity for any given hardware to support number
+	  of CPUs and RAM and in this case even though we have the money to buy such hardware but unfortunaltely that hardware will not exist.
+	  
+  2) Horizontal Scalability
+     .In this technique, we increae the number of machines of the same CPU and Ram. Lets say we started with 4CPU machine with 16GB Ram and
+	  when want to scale the system, we install 2 more hardware with same capacity so now we have 3 machines that support 4 CPU with 16GB of
+	  RAM.
+	 .In this approach it is slight harder to achieve because all the system will need to be in sync and maintained with each other (discussed
+	  later)
+	 .Also in this approach the scalability is unlimited because we can add 10 or 20 more hardware of the same capacity and the cost increases
+	  in linear fashion. If we install 10 machines then the cost will increase 10 times and not 100 times like in Vertical Scaling.
+	 .In this approach it is easier to scale down the system and is also cost effective because if we have bought the system from any cloud
+	  provider then we can simply stop using some of the machines if our system load decreases and in this way cost will be reduced.
+	  
+
+One thing in horizontal scaling is that as we have multiple machines serving the request to the client, these machines may have separate
+ip addresses and port that are dynamic and can change over time of the system is restarted. So it is impossible to configure those ip
+addresses on client level and client cannot remember it. Here a new concept introduces which is called 'Reverse Proxy' which sits near the
+internal services running and acts as a Load Balancer in between and client only remembers the ip address of it. The responsibility of the 
+Reverse Proxy is to route the request to the internal services running.
+
+
+
+There are 2 principals on which the Scalability of a Software System depends upon.
+..
+1) Decentralization
+   .It means that one worker should not be responsible for doing the entire work. This approach is for monolithic application which is the
+    anti-apptern of scalability. In a decentralized approach, there should be more workers of different kinds and all should participate
+	in doing the entire work.
+
+2) Independence
+   .Decentralization provide us more workers but Independence says that these workers should work independently. These workers might be working
+    on some shared resources and modifying that resources so they will be needing a cordinator that will help these workers cordinate with
+	each other. With this, the cordinator becomes the bottleneck after some time. Lets say if there are 100 workers initially and there 
+	is some load on cordinator, then increasing the workforce to 1000 will increase the load on cordinator by 10 times and at some point in
+	time our system will fail because cordinator will fail to respond. So in such scenario if we can make workers work independently or
+	minimize the cordination work then we can maximize the independent work by the workers.
+	
+	
+	
+	
+Lets consider a system and try to scale it.
+Consider a system where we have,
+  A Web browser that communicates with the Web Application
+  The Web Application communicates with Business Application
+  The Business Application communicates with the Database Server
+  
+In order to scale up this system, the first thing to start with is 'Modularity'
+Modularity is applied to business logic so here our main target whould be the Business Application where all our logic residers. There are
+some business logic on web application level as well but if we compare both, more than maximum logic is at our Business Application.
+
+To ensure Modularity, we must take care that our business logic written is not tightly coupled which means that it should be lossely
+coupled. If we have an Order Management Application, then our modules like User Module, Caralog Module, Order Module, Inventory Module, etc
+all should be written in such a way that they are not tighlty coupled with each other so that in future we can totally divide those modules
+into decoupled separate services.
+Also to make sure that our API Protocol Layer which communicates with Business Application and the Database Layer which is accessed by
+Business Application are also not tightly coupled so that if we want to modify them we can do it freely.
+
+
+The second thing is Replication
+Replication is done to handling increase workload
+It is applied at all levels as we run multiple instances of our application in different machine
+
+Lets say there are 3 machines which is running our web application, 3 machines running our Business Application and 2 instances of our
+Databases on the backend. This is called Replication
+
+In Replication there are 2 ways of replication
+  .Stateless Replication, in which only the code is replicated.
+     .This is applied to our Business Application as no user related is saved on server. The data is only there at the server when the
+	  request is being processed. As soon as the requests complete all the data is being removed. 
+  .Stateful Replication, in which not only the code is replicated but the data is also replicated.
+     .This is applied to the database level because we need to make sure that both the instances run on the same software and all the data
+	  is in sync with each other. If some write operation is done on one instance then it should be synced with other as well.
+	 .This can also be applied to Web Application Layer.
+	 
+
+
+Web Application Stateful Replication
+  .We can use stateful replication in web application layer when low latency is required. Lets say we have our web app running on 3 different
+   nodes and when the user requests its user profile info, we will first go to Load Balancer which will routes the request to Node 1 of web
+   application which will communicates with backend server which will retrieve the data from the database and provide it to the client.
+   Before sending back the data to the client, the web application will store that user related information in a session and give that session
+   an id lets say the id is 101. Now that session id and the node number will be sent back to the client and this information will be stored
+   inside the cookie of the web browser. The next time the same user wants to retrieve the information, it will send the cookie information
+   that is session id and node number to the Load Balancer which will routes the request to the same node where that particular user information
+   is stored. In this way the network call to backend server and hops will be reduced as response will be directly served from web application.
+   The reason for storing node number is to tell load balancer where the user information is stored because other nodes (node 2 and node 3)
+   does not store that user session.
+  .In this apporach there are 2 limitations
+    1) Scalability Limitation
+	   .Our machine will be limited in memory because each session will occupy some meory and that session is a long live session. If our
+	    machine memory is 500Mb and each session stores user information that is approximately 1MB then we cannot store more than 500 user
+		information and cannot server more than 500 requests concurrently. We will have to horizontal scale more to support more requests.
+	2) Reliability Limitation
+	   .What if the user related information is stored on node 1 and that node 1 goes down. The Load Balancer will know that Node 1 is not
+	    available and when requests comes in with cookie information to route that request to node 1, the load balancer will have to route
+		that request to node 2 or node 3 because node 1 is not available. This will ensure latency to all those 500 users.
+	   .Another issue is that if a particulat user has updates some information and that information is stored on node 1 user session and 
+	    not propageted to the database yet, then if node 1 goes down all that information will be lost as node 2 and node 3 does not have the
+		updated user data. For this to avoid we can use clustering which means that all the changes should be broadcasted to all nodes so that
+		every node will make a copy of user data but that is not the recommended approach to do. The recommended approach is to go with stateless
+		architecture.
+		
+Web Application Stateless Replication
+  .We can use stateless replication in web application for higher scalability
+  .Considering the same example in the stateful replication, there is one issue using the stateless replication which is that there will be 
+   high latency as we will have to get to the backend server and database everytime when retrieving the information. But there are 2 work 
+   around solutions for it
+     1) Using the shared cache (Memcache or Redis) for which all nodes will connect to get the information. The latency will be slight high
+	    only for the network call and getting the data from the cache server but not as much as going to the database.
+	 2) Using the browser cookie to store the information as a cache but cookies has some limitaitons that it cannot store large amount of data.
+	    So if data size increases, we will have to eventually go to the server and database. But if data size is smaller and lesser properties
+		related to user, we can store that in cookies also.
+		
+		
+Business Layer Stateless Replication
+  .It is the same concept discussed in Web Application Stateless Replication and there is no motivation to fo for Stateful Replication in
+   this system also.
+  .One issue that arises is that when using some shared resource across multiple nodes, the locking mechanismg will not work because locking
+   mechanism is on thread level on the same system. In this approach we will have to follow some rule like to have a separate row in a 
+   database for locking and when accessing the shared resource we can take a lock on that row and when finished accessing the resource we
+   can release the lock to synchronize with every nodes running concurrently.
+   
+   
+Database Stateful Replcation
+  .We do database scaling in a horizontal fashion and create more read replicas for our master database.
+  .Generally in scaling we have 1 backup database, 1 master database and multiple read replicas
+  .For having multiple read replicas it provides us higher read scalability
+  .For having 1 backup database it provides us higher availability as if master goes down then backup will be turned on.
+  .This is generally the procedure for RDBMS and for NoSql databases it is discussed earlier.
+  
+  
+Database Replication Types
+Generally there are 2 database replication types,
+  1) Master-Slave Configuration, also known as Primary Secondary Configuration
+     .In this approach, there is 1 master database which supports read and write operations and atleast 1 secondary database which is also
+	  known as read-replica which supports only read operation
+	 .This approach can be further categorized into 2 configuration which we can do
+	   a) Asynchronous
+	      .In async master-slave configuration, if any write operation is done on the master database then the client is immediately 
+		   acknowledged after a successful transaction and behind the scenes an async transaction is run which updates all the read-replicas.
+		   In this approach, we have low write latency as the main transaction that is needed to be completed is only the master database.
+		   There are 2 issues with this approach. One is that the data will be eventually consistent because there will be a slight delay
+		   in updating the read-replicas and in the meantime some read transaction is executed on them then the data fetched will be stale or
+		   inconsistent. Other issue is that if somehow our master database goes down and if we dont have any backup then our only option is to
+		   promote any of the read-replica to become the master database and if there are any write transactions not propagated to the read replicas
+		   then that data will be lost forever.
+	   b) Synchronous
+	      .In sync master-slave configuration, if any write operation is done on the master database, then the same write operation will also
+		   be done in all the read-replicas in synchronous fashion and if all the transactions are completed only then the client will be
+		   acknowledged about the successful transaction. In this approach obviously we will have high write latency as we will have to
+		   wait to update master and all read replicas but the advantage is that our data will be consistent all the time. One issue in this
+		   approach is that since the transaction is in synchronous fashion then if any read-replica goes down then our write operations will 
+		   be unavailable because the update will be done successfully on master but it will fail on read replica as it is unavailable. Similarly
+		   if master goes down then writes will be unavailable too.
+	.With master-slave configuration, we will have high read availability as read operations are distributed across multiple instances.
+	 We will have high read scalability as if our read load is high we can install multiple read replicas
+	.We can use async master-slave configuration if our application has many read operation and we want to perform faster reads, and we can
+	 use sync master-slave configuration when doing backup. So we can combine both of them to create a high performance database design.
+	 We do backup with sync master-slave as any write operation will also update the backup database so if in any time master goes down we
+	 immediately shift to backup database.
+	 
+   2) Master-Master
+      .In this approach there is no single master database. All the instances are master databased and the form of communication between
+	   them is also asynchronouse only.
+	  .If some write operatios is done on instance 1 then updates are propagated to instance 2 in async fashion and similarly vice versa.
+	  .With this approach there can be write conflicts because at the same time on same record the data can be changed by different transactions
+	   which will result in a problem
+	  .With write conflicts there will also be transaction ordering issues as when both instances when completing transactions then at the time
+	   of reconcile/restore there will be transaction ordering issues.
+	  .With this approach we will get high availability as all databases support read and write operations 
+	  .It can be used where the users of the applications are world wide because we can put one instance in Asia for asian users, one instance
+	   in Europe of Europe users and so on. But to keep in mind that there should be some business rules in order to handle all the write
+	   conflicts that can occur. 
+	  .Since the specific instance is placed on specific location we will get very low latency compare to Master Slave configuration where alla
+	   the users has to go to Europe if master is placed there.
+	   
+	   
+Now all of the replication is done at the web layer, business layer and the database layer it means that we can now support more users and
+more load from the client. But lets say we are running a monolithic application which is based on order management and it has several modules
+like order module, inventory module, catalog module, notification module. This application is running on 3 separate instances/machines to
+serve the clients. Whenever the requests comes from the client it will be for any one of those modules in any of those machine. Besides user 
+requests, there will be some other load also like there are multiple warehouses which periodically checks for inventory and upon some 
+conditions run some operations on inventory module. So this is some extra load other then the clients. One solution could be to assign 
+separate instance for inventory module and the warehouse will use that module only but thats not possible in a monolithic application as all 
+the modules need to be deployed in order to work which will obviously takes up memory, database connection, etc.
+These are operational issues and it ultimately becomes scalability issues and this can be fixed if we break our application into smallers
+specialized service and design in a microservice architecture.
+
+With specialized service we get multiple benefits like,
+  .Independent Scalability as every individual service can be scaled up if there is more load to it.
+  .Independent Technology as every individual service can be developed using separate language
+  .Independent Deployment as if there are changes to a specific module then only that module needs to be deployed.
+  .Internal Service communication can be used faster using binary protocol like gRPC
+With these advantages we also get a drawback to manage all these services and to remember the addresses and ports for all these service.
+To resolve this issue we need to introduce a center point of contact which is the Aggregator Or Gateway Service
+
+Using Message Queues has different advantages like connecting 2 different interfaces in a client server application and they are not 
+compatible and delivering messages from client to server reliably, but there is one big advantage related to scalability which is related to 
+database in this architecture is that if we are using a Master Slave configuration and we have one master and other read-replicas then there 
+will be heavy load on master for write operations. Here we can use Message Queues to offload some of the write operations on databases.
+
+We can use message queues where in our application we have heavy write oriented operation like creating an order for the user. We can take
+order from the user in order-service and send back the acknowledgment that the order is received. We then now in the background can process
+it by validating it and performing some additional checks and pushing that order into the message queue. The order-processing-service will
+pull that order from the queue, will do the heavy operation like checking inventory, updating inventory, creating order into the database
+and finally notifying the user via notification-service that the order has been created. Here async operations help us sending back the
+response faster to the client
+
+How does asynchronous processing help us scale our system?
+Lets say we have order-servie and order database which it interacts and it supports 10k requests per second. Anything above 10k requests
+will be rejected. So in a 24-hour day there are peak times and non peak times. Peak time refers to some hours where requests are very high
+like 20k requests per second or 30k requests per second and in non peak times there are not more than 5k requests per second. So if we
+follow simple solutio without message queues, the all 10k requests which are extra on peak time will all be rejected. We will have to come
+up with the solution to serve those 10k requests as well. Here we can use message queues to store that requests in a queue which are above 
+the threashold of the server and database and later on in non peak hours pull that requests from the queue and process it. Other solution
+is to vertically scale our database to support more requests per second but that will obviously be costly and at some point that number
+will also be reached at peak hours. The peak hours are very less like 1 or 2 hour so in 22 non peak hours our high performance database will be
+under utilized. So using message queues prevents us spending money and adding more power but allow us to effeciently and intelligently 
+utilize all the capabilities of our server and database.
+
+As we know that when dealing with specialized services, we cannot make full load to only one instance of the database which does everythin.
+Instead in a microservice architecture we define every database for each individual service like order-database, catalog-database,
+inventory-database so that each module operates on its individual database.
+When we split our monolith app into microservice architecture it is known as Vertical Partitioning of the system into separate domains with
+separate database. Now since the data is now split up into different databases, any service which goes into multiple databases will have to
+compromise ACID transaction because the instances are different like if order-service updates data in order-database and inventory-database
+then the ACID transactions will be maintained inside order-database only and inventory-database only but not combined in a single transaction.
+
+In Vertical Partitioning of the system, we are limited to a fixed number of scalability. Like if our monolith application is divided into
+10 different modules then the maximum vertical partitioning scalability we can achieve is 10 as we can have 10 independent modules each
+with its own databae.
+To achive more, we need to do Horizontal Partitioning at the Database level. This can be done in 2 ways
+  1) Range Partitioning
+     .It means that we divide our records into multiple instances like if we have order-database, we create 2 instances for order database.
+	  Instance 1 will hold records with id range 1-199. Instance 2 will hold on range 200-299 and Instance 3 will hold 300-399 and so on.
+	  At the time of read-write operation we will have to apply logic on from where to retrieve or write the data.
+	 .There are several issues with this approach which is why it is not much popular with RDMS as by breaking order-database into multiple
+	  instances we further compromised the ACID transaction. Previously it was limited to single database now it is further divided as records
+	  are splitted up in different nodes.
+	 .Other issue is that if any node goes down or if we add/remove any node then the range will also need to be adjusted and all the records
+	  needs to be re-arranged
+	 .These are the reason it is not a popular approach in RDBMS but it is useful when using NoSql database structure.
+  2) Hash Partitioning
+     .This is just for undertanding purpose and is not implemented like this in practical. In practical, the concept of consistent hashing
+	  is used
+	 .With hash partitioning, we apply the hash the specific id of the record and take the module with number of nodes available and then
+	  read-write the data on that specific node.
+	 .In this approach also we have to compromise the ACID transaction as data is splitted up
+	 .One advantage of using consistent hashing is that when we add/remove nodes then there is minimal effort to re-arrange the data.
+We can achieve ACID using 2PC in horizontally partitioned databases. It's just that 2PC won't scale, which goes against the very reason 
+(scalability) for which one would partition a database (discussed in microservice transaction)
+
+Now with horizontal database partitioning, how would the service know which instance to connect? Lets say the service revecies a request
+to get the order with id 256. Then how would the service know where 256 order is located?
+There are 3 ways we can achieve this
+  1) Prodivde the service with Client Library (couch db, memcach comes with client library). The service gives the data to client library
+     which is cluster aware and it provides the node number where the data will possibly resides.
+  2) There is a separate router component deployed as a separate server in a machine which can be connected by any client. THis router 
+     component is also cluster aware so it will determine which node to connect. NoSql database implements this approach
+  3) The service can connect to any node lets say node 1 and then that node will connect to the actual node where the data resides lets
+     say node 3. This approach is implemented in dbs like Cassandra or DynamoDb
+	 
+	 
+The Horizontal Scaling Methods Discussed uptil Now,
+  1) Breaking monolith into specialized services / micro-services
+  2) Replication (Stateful and Stateless)
+  3) Partitioning (Vertical and Database Partitioning)
+  4) Async Calls
+  5) Caching
+  
+When dealing with Large Scale System, other than horizontal scaling there are other aspects also like Load Balancing, AutoScaling, Discovery
+Service, etc
+
+1) Load Balancer
+   .See Load Balancer file
+   
+2) Discovery Service
+   .It is the registery for all the healthy instances
+   .When we are running multiple services which are hosted on multiple machines, it is difficult to manage all the ip addresses and port to
+    which they are exposed to. 
+   .Discovery Service is a separate component that stores useful information like how many services are there in total, what are their IP
+    addresses and if the specific instance is healthy or not.
+   .Whenever a service is started, it registers itself to discovery service and time to time it sends heart beat to it to tell the discovery
+    service that it is alive.
+   .In this approach, we can remove all the load balancers which were introduced in between internal services and add a single load balancer
+    and embed into api-gateway from where all the requests needs to be routed.The load balancer between browser and web application and 
+	between web application and api-gatway will remain the same.
+   .What api-gateway will do is query the discovery service to ask how many instances are there for specific service and discovery service
+    will return back all 10 20 or 100 instances of a specific service where the request needs to be routed. The embedded load balancer will
+	then decide at which instance the requests needs to be routed depending upon the algorithm it is executing on.
+   .Similarly, if an order-service needs to communicate with inventory-service then it will fetch all instances of inventory-service running
+    from discovery service and then randomly decides to which instance it needs to route the request. In this scenario we can also embed
+	load balancer at individual service level to balance the load.
+   .If we are using kubernetes management then we might not need discovery service but traditionally we wll always need it in this type of
+    architecture.
+	
+	
+3) Auto Scaling
+   .It is term given by cloud vendors
+   .It is just a framework that automatically scales the application when it senses that the application is under severe load.
+   .This will be needed if we are building highly scalable application like if we are currently working on 50 instances and we assume that
+    in the next 5 minutes we will have to double the instances then manual scaling will not be possible as time frame is very less. Here
+	automation will take place to avoid human errors also
+   .Working of AutoScaling System
+     Suppose we have 2 instances running for our Web Application and users are routed through a Load Balancer. There is a separate component
+	 that is connected to these instances which will continuously ping and monitor the health of them in the form of CPU load, Network latency,
+	 Disk usage and other factors as well. This Monitor and Health Component will give monitoring feedback to AutoScaler component which 
+	 is also a separate component hosted in the system. What AutoScaler will do is to check if the load on the instance has crosses the
+	 threshold specified by the user. If we have set up the configuration like no instance should cross 80% load and as soon as any instance
+	 crosses 80% then AutoScaler will pull out new image of our web application through any virtual machine or container and will start a 
+	 brand new instance. This new instance will be assigned an IP address that AutoScaler will register it into Load Balancer/Reverse Proxy 
+	 and now we will have 3 instances in total in our system. Similarly after a period of time if the load on our system comes down, then 
+	 AutoScaler will remove any of the instance and de-register it from the Load Balancer to make full use of all the instances.
+	 
+	 
+	 
+	 

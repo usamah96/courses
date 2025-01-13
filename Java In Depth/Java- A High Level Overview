@@ -1,0 +1,34 @@
+Java- A High Level Overview
+---
+
+Came into existance in 1996
+
+The versions release in Java were ins and out. Since Java 10, the releases happened in years
+   .Java 6: December 2006
+   .Java 7: July 2011
+   .Java 8: March 2014
+   .Java 9: September 2017
+   
+These releases contain big features with small features that is why it took so much time in it.
+From Java 10 every release takes only 6 months and they release few small feature in it. As of December 2021, the latest release is Java 17
+launched in September 2021.
+
+Java 1 -> 250 Classes only (Slowest)
+Java 1.1 -> 500 Classes (Little bit faster)
+Java 2 -> More than 1500 classes (Introduction of JIT compiler)
+Java 5 -> 2500 classes (Introduction of multi-threading, generics)
+Java 6 -> Not much change in the language but JVM changes happened
+Java releases: https://docs.oracle.com/javase/specs/
+
+.Some of the releases include JVM changes and not the language changes
+.Some of the releases also contain some preview features which means if the developer does not like that change it will be removed in the next
+ release. And if it worked good then it is made permanenet in the next releases like switch expresssion was introduced as a preview feature in Java 12.
+
+Install Java 17 From https://www.linuxuprising.com/2021/09/how-to-install-oracle-java-17-lts-on.html
+Download jdk 17 From https://www.oracle.com/java/technologies/downloads/ and set the class path enviroment variables
+
+The classpath refers to the path where all the java files are located
+If the classpath is not there then Moven On
+If the classpath contains a dot "." then Move On
+If the classpath does not contain a dot "." then add a dot "." in it.
+The dot "." means the current directory

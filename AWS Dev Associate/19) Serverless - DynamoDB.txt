@@ -1,0 +1,275 @@
+DynamoDB
+--
+
+So in a traditional architecture we have users as clients and on our infra level we have ALB that takes requests from our client. Under 
+the hood we have multiple EC2 instances running that talks with Amazon RDS to read/wrtie data and fulfil the requests. With this, we have 
+a strong requirement how our data should be modeled and we have the ability to use joins, aggregations and complex computations. We get the 
+ability to vertical scale (more CPU, RAM, IO) and also horizontal read scale (adding more EC2 instances or RDS read replicas). 
+The limitation is that we have the limit to add read replicas and also we dont get horizontal write scaling because of ACID and transactions.
+
+With NoSQL database, it is non-relational and distributed. Typically it includes DynamoDB and MongoDB which does not support query language,
+aggregations, joins (limited support) and all the data needed for a query should be present in one row.
+With DynamoDB we get,
+  - High availability with multi az replications
+  - Scales to massice workloads
+  - Support million of requests per second and 100s of TB storage
+  - Enables event driven programming using Streams
+  - Low cost with auto scaling capabilites
+  - Standatd Infrequest Access tier can allow to store data that is not read or written. It is cost effective
+  - No validations like NOT NULL. We can add attributes over time dynamically
+  
+
+
+It is made up of tables and each table contains a PK (which must be defined at the creation level). The rows are called document or items
+and each item has attributes which corresponds to columns in relational db. The max size of row/document/item can be 400KB and the data 
+type supported are
+  .Scalar Types, String, Number, Boolean, Binary and Null
+  .Document Types, List and Map
+  .Set Types, String Set, Number Set, Binary Set 
+  
+
+Wen can choose PK in 2 ways
+  1) Partition Key which can be any attribute like user_id (hashed) and this id must be unique for every record.
+  2) Partition Key + Sort Key where the combination must be unique for each item.
+  
+  
+  
+HandsOn
+***
+
+When going into DynamoDB service, we have the option to Create Table. We donot create databases as it is already created for us.
+We give table name, partition key with its datatype, sort key as optional field.
+When choosing Customized Settings, we get multiple options to customize
+In Table Class, we most of the time choose standard option but if we wish to just store our data without accessing it like there are no reads or writes 
+then we can choose Infrequest Access (IA) option.
+In read write capacity settings, we choose provisionsed as it is within the free tier
+We will disable auto scaling and set 2 read and write capacity
+We can leave other options as default and create the table.
+***
+
+After creating the table, we can create items (records) where the partition key and sort key cannot be null and beside it any attribute we can add.
+  
+With read and write capacity, we control our table's capacity.
+  .With provisionsed read/write capacity, we specify the number of read and write per second and we will have to plan beforehand. If we decide 10 read 
+   capacity and 5 write capacity then we will have to pay for it every hour. We can setup auto scaling to meet the demand. If we are going above the 
+   dedinfed read and write capacity then the throughput can be exceeded temorarily using the Burst Capacity but if burst capacity is also exhausted then 
+   we will get ProvisionedThroughputExceededException. We thn need to do exponential backoff retry technique to resolve this.
+  .With on demand capacity, no planning needed because the read and write capacity are scale up and down based on workload. This is more expensive then 
+   the provisionsed capacity mode approx 3 times
+
+
+With write capacity uit (WCU), one WCU per second gives us a maximum of 1KB per item and if an item is larger than 1KB then more WCU will b consumed.
+If we have 10 items each of size 2KB per second then total WCU required will be 20
+If we have 6 items each of size 4.5KB per second then total WCU required will be 30. 4.5 will be rounded to 5KB
+If we have 120 items each of size 2KB per minute then total WCU required will be 4 WCU.
+
+For reads, we need to define 2 kind of read modes which are Strongly Consistent and Eventually Consistent. In DynamoDB, we obviously have servers behind 
+the scenes but we donot see them or manageme them and that is why it is called serverless architecture. There are multiple managed hidden servers where 
+data gets replicated if write operation is done on any one of the server. When reading the data, it is most likely that we read data from server 1 or 
+server 2 or server 3. With eventual consistency, we might get stale data if we read just after the write operation because the replication might not 
+just happened immediately. For strong consistent read, it is a much expensive call and consumes twice the normal RCU. We need to set the ConsistentRead 
+parameter to true when executing api calls like GetItem, BatchGetItem, Query, Scan.
+
+With read capacity unit (RCU), one RCU represents one Stongly COnsistent Read per second or 2 Eventually Consistent Read per second with an item size of 
+4KB. If item is more than 4KB then more RCU will be consumed
+If we have 10 strongly consistent read per second with item size 4KB then 10(4/4) = 10 RCU is needed
+If we have 16 eventually consistent read per second with item size 12KB then (16/2)(12/4) = 24 RCU is needed
+If we have 10 strongly consistent read per second with item size 6KB then 10(6/4) = 20 RCU needed.
+
+
+Partitions and Throttling
+..
+The tables in dynamodb are separated into multiple partitions and each partition can live onto different server. Whenever any write operation is performed
+the partition key and the sort key goes through a hashing algorithm which decide on which partition the data must go.
+
+We can compute how many partitions our table has by these formulas,
+  - (Total RCU / 3000) + (Total WCU / 3000)
+  - Total Size / 10GB
+  - Ceil(Max(Partition by Capacity, Partition By Size))
+  
+The total RCU and WCU are evenly separated acorss different partitions which brings us to throttling.
+For throttling there can be many reasons like,
+  - Hot Keys, one partition is read too much because of any popular item
+  - Hot partition
+  - Very large item, as RCU and WCU are consumed when items are large.
+The solutions can be
+  - Exponential Backoff which is already implemented when using any SDK
+  - More number of partitions
+  
+  
+  
+HandsOn
+***
+
+We can go to the tables and in additional settings we can set the RCU and WCU for it. We can utilize the capacity calculator to define our avg item size,
+read and write per second to calculate how many RCU and WCU we will need along with how much cost it will take for a period of one month
+
+An alternative way to turn on auto-scaling and to define the min capacity units and max capacity units along with target utilization. So if we have 
+set min capacity to 1 and max to 10 with target utlization to 70% then if my table is consuming 7 RCU then the desired capacity units will be raised to 
+10.
+***  
+
+
+Writing Data,
+  -PutItem, it creates a new item or fully replaces an old one. Just like POST requests
+  -UpdateItem, it edits and existing item or creates a new one if nothing found. The difference between UpdateItem and PutItem is that UpdateItem is used 
+   to update partial fields unlike PutItem which replaces the whole item.
+  -Conditional Write, accepts a write/update/delete only if any condition is met otherwise throw the error.
+ 
+Reading Data,
+  -GetItem, reads based on PK and PK can be hashed or hashed + range. By default the read is eventually consistent but we can switch to strongly consistent 
+   and it will take more RCU and latency as well. We can use ProjectionExpression to fetch only certail fields.
+  -Query, return the item based on
+     *KeyConditionExpression, where partition key is required with equality operator and sort key is optional with equality and comparison operators
+	 *FilterExpression, where we can apply additional filtering after the Query operation and before the data is returned. It can only be used with non 
+	  key attributes
+	We have to specify the limit of data to be returned or a max of 1MB of data can be returned with the feature of pagination.
+  -Scan, it should only be used if want to export the data because it consumes a lot of RCU and scans the entire data upto 1MB with the use of pagination 
+   if want to continue scanning. For faster scan we can use Paralled Scan with multiple worker threads. We can also use ProjectionExpression to limit 
+   fields and FilterExpression to filter data on server side but that will not impact the RCU count.
+   
+Deleting Data,
+  -DeleteItem, where it deletes an item and has also the ability to perform conditional deletes.
+  -DeleteTable, where whole table and items are deleted. It is much faster then calling DeleteItem on all items individually.
+  
+With Batch Operation, we can save latency by reducing the number of api calls and operations can b done in parallel. Part of batch can fail and we can 
+try again later
+  -BatchWriteItem, we can use ipto 25 PutItem / DeleteItem in one call. We cannot use UpdateItem in this scenario. If any item is failed, then we get it 
+   back as UnprocessedItem and we can then use exponential backoff strategy to retry it.
+  -BatchGetItem, returns data from more than one table for about 100 items and upto 16MB of data. Items that are not retrieved are fetched as 
+   UnproccessedKeys.
+
+
+
+Indexes
+..
+We can create 2 type of indexes in our table
+
+1) LSI - Local Seconday Indexes
+
+This index is similar to the sort key and can be of type String, Number or Binary. We can have to 5 LSI per table and must be defined at the table creation 
+time. We can create LSI on all or on some attributes.
+
+So if we have a table with user_id as PK and game_id as SK and other attributes like game_ts, score, result, etc, then we can query the result based on 
+user_id and game_id but we cannot query based on user_id and game_ts. For that we need to filter the result on client side manually. To be able to query 
+on game_ts attribute too, we need to create LSI on game_ts field and now we can query using user_id and game_ts as game_ts correspond to additional sort 
+key.
+
+2) GSI - Global Seconday Indexe
+
+This index is similar to partition key or partition key + sort key and allow us to introduce more partition key or sort key to be able to create a new 
+view of the data. It is used to speed up queries based on non key attributes and can be of type String, Number or Binary.
+We can create GSI on all or on some attributes. We can add or modify the GSIs after the table creation too.
+
+So if we have a similar table and we want to query using game_id and game_ts then we cannot do that because we have to define any partition key in our 
+query. So we can create a GSI on game_id and game_ts field too. game_id fild will then serve as sort key (created before) and 
+partition key (created via GSI) both and game_ts will serve as a new sort key created via GSI. Now we can query using game_id and game_ts.
+
+For LSI, the WCU and RCU are being used from the main base table but in GSI, if the writes are throttled for the new partition key and sort key then 
+it will also affect the main base table too. So we have to be careful by choosing our GSI and assign the capacity units carefully.
+
+
+
+PartiQL, DAX, Streams, Transactions, Session State, Operations, Fine-Grained Access
+..
+With PartiQL, we can write SQL to select, insert, update and delete data from DynamiDB, We cannot do joins but normal operations are applicable.
+Some of the operations are Insert, Update, Select and Delete.
+
+It also supports batch operations.
+
+With DAX (DynamoDB Accelarator), we can use fully managed and highly available cache which provides with microsecond latency for our read queries. It solves 
+the hot key problem where if one of they key is read too many times they we may get throttling in our RCU. So if the data against this key is cached then 
+throttling against RCU is preserved.
+
+We get a default 5 minutes TTL in our DAX cache and inside our DAX cluster we can get upto 10 nodes. It is recommended to enable Multi AZ feature in prod
+so we get minimum 3 nodes per AZ.
+
+Our application connects with DAX cluster and DAX connects with DynamoDB to serve the data.
+
+We can use DAX and ElastiCache in our architecture both as a combination where DAX comes into picture when we want to do simple queries and scan to 
+store individual objects and it is very fast when used in this way. Where as if we want to perform some calculations and aggregations then we can store 
+the result in ElastiCache instead of recomputing everything again if used with DAX.
+
+Creating a DAX cluster is not free. Once DAX is created then it gives is the auto generated endpoint which can then be used to fetch results.
+
+With DynamoDB streams, we get records of item level modifications like insert, update or delete and the stream data is available upto 24 hours.
+We can send this data to Kinesis Data Stream for longer retention, read by lambda function to do something useful or store it in some other durable 
+location for some future analytics or react to real time changes like sending welcome email to customers.
+
+We can enable what kind of data we want in our stream like
+  -KEYS_ONLY: only they key attributes of the modified item
+  -NEW_IMAGE: the entire item after it was modified
+  -OLD_IMAGE: the entire item before it was modified
+  -NEW_AND_OLD_IMAGE: the entire item before and after it was modified
+  
+These stream are just like Kinesis Data Stream and that is why Kinesis Client Library (KCL) works well with it too. We dont have to provision the shards 
+as it is all automated by AWS itself.
+
+When using DynamoDB Stream with Lambda, we need to create a DynamoDB Trigger and define our lambda function to invoke. If no lambda function is created 
+then we can create with some configuration like from which table to read the stream, what is the largest number of record to read at once (batch size), 
+to read the stream from the start or to read after the time of creation. 
+Now DynamoDB will trigger the lambda function upon any actions.
+
+DynamoDB also supports transactions where we get the ACID feature across modifying multiple entities. With transactions, we utilize twice the more RCU 
+and WCU because dynamodb performs 2 operations for every item. One is prepare and other is commit.
+
+With DynamoDB, we can also store the session state as a cache for which the web application can use to store user sessions. There are also multiple 
+options to store session state but how they are different from DynamoDB
+  - ElastiCache, it is a great choice but it is in-memory while dynamodb is serverless. They both support key value pairs
+  - EFS, it is a network drive whereas dynamodb is a database. it must be attached to the EC2 instances to share the data among them
+  - EBS and Instance Store, can only be used for local caching and not shared cache because they are specific to one EC2 instance.
+  - S3, it is mainly used for large objects and not meant for storing small objects. It has a higher latency compare to ElastiCache and DynamoDb.
+  
+  
+For distributing load evenly across a partition key,
+One strategy for distributing loads more evenly across a partition key space is to add a random number to the end of the partition key values. Then you 
+randomize the writes across the larger space.
+
+For example, for a partition key that represents today's date, you might choose a random number between 1 and 200 and concatenate it as a suffix to the 
+date. This yields partition key values like 2014-07-09.1, 2014-07-09.2, and so on, through 2014-07-09.200. Because you are randomizing the partition key, 
+the writes to the table on each day are spread evenly across multiple partitions. This results in better parallelism and higher overall throughput.
+
+However, to read all the items for a given day, you would have to query the items for all the suffixes and then merge the results. For example, you would 
+first issue a Query request for the partition key value 2014-07-09.1. Then issue another Query for 2014-07-09.2, and so on, through 2014-07-09.200. 
+Finally, your application would have to merge the results from all those Query requests.
+
+We can integrate DynamoDB with S3 in two most popular ways
+  1) If we want to store large objects in our dynamodb database like images, videos etc. What we do is we first store the large object into s3 bucket, 
+     and we just store the object metadata info inside our document like image url. When the client request for the data, it will fetch metadata from 
+	 dynamodb table and then reference the object from s3 using the metadata retrieved.
+  2) We can index s3 object metadata by using the flow like -> Whenever we upload any object in s3, a lambda function gets invoked whos responsibility
+     is to store the object's metadata into dynamodb table from where the client application can request it. We can search the data by data, total storage 
+	 used by customer, find all objects within a range from dynamodb table where all this info is stored.
+	 
+In this way, we utilized s3 to store large objects for which it is built for and utilized dynamodb to store small objects for which it is built for.
+
+
+For cleaning dynamodb table we have 2 options
+  1) Scan + Deleteitem API which is very slow and consumes RCU and WCU and is expensive
+  2) Drop the table and then recreate a new one which is fast effecient and cheap
+  
+For copying a table into another table we have 3 options
+  1) Using aws data pipeline service which launches amazon EMR cluster. EMR cluster reads data from dynamodb table and wrtie into s3 bucket. In the second
+     step it reads from s3 buket and wrtie data into new table.
+  2) backup and restore, it take some time but will not involve any new service
+  3) Scan = PutItem or BatchWriteItem into another table, we will have to wrtie some code
+  
+  
+We can specify fine grained access to the users accessing our dynamodb table
+If there is a client application (web or mobile) which need to access dynamodb table then we cannot create a user for it in aws account, give IAM 
+permission and allow access to dynamodb table because this is ineffecient and contains security risk. What we do is allow the client to login via any 
+identity provider like Amazon Cognito User Pools, google, facebook, open id connect, saml, etc which returns back temporary aws credentials containing 
+IAM role
+
+This role will contain a condition that will limit the api access to dynamodb to access only that data which the user or client owns. With the help 
+of Web Identity Federation or Congnito Identity Pools, each user gets its own aws credentials.
+
+The role will contain a policy where in Actions there will be apis like dynamodb;GetItem, dynamodb:PutItem, etc which define what apis the client can 
+access. Also the policy will contain a condition like,
+ "Condition": {
+   "ForAllValues:StringEquals": {
+     "dynamodb:LeadingKeys": ["${cognito-identity.amazonaws.com:sub}"]
+   }
+ }
+This condition specifies row level access for users based on the Primary Key. Also we can extend it to limit specific attributes the user can see.
+The cognito identity pseudo variable will be replaced at runtime based on specific user

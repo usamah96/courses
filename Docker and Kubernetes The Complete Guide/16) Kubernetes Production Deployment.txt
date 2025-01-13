@@ -1,0 +1,174 @@
+Kubernetes Production Deployment
+--
+
+The prod deployment flow
+  - Creating a Git Repo
+  - Tie the repo with Travis
+  - Creating Google clod project
+  - Enable billing for project
+  - Add deployment script to repo
+  
+Google cloud free credits => https://cloud.google.com/free
+
+
+The Travic Config File Flow
+ - Install Google Cloud SKDK CLI
+ - Configure SDK with Auth Info
+ - Login To Docker
+ - Build test version of image
+ - Run tests
+ - If tests are successful, run a script to build all images, tag them push them to docker hub
+ - Apply all config files in k8s folder
+ - Imperatviely set latest images on deployment.
+ 
+..
+sudo: required
+services:
+ - docker
+before_intall:
+ - curl https://sdk.cloud.google.com | bash > /dev/null;
+ - source $HOME/google-cloud/sdk/path.bash.inc
+ - gcloud components update kubectl
+ - gcloud auth activate-service-account --key-file service-account.json
+..
+
+Uptil here, we have defined to install google cloud cli, source some of its configuration, updated te kubectl command and configure auth info using the service account 
+json file which can be created from google cloud console.
+
+After downloading the service account file, we should encrypt this and tie it with travis because this file contains sensetive informatin. Now to encrypt this,
+we should install travic CLI and using travis CLI we can encrypt this file. At the time of usage, we will decrypt this file in our travis config file.
+
+To install travis CLI, we should install Ruby on our local machine but installing ruby in windows or linux is very difficult. For the workaround what we can do 
+is use any image from docker hub that has ruby pre-installed and we just need to work with travis CLI.
+ "docker run -it -v ${pwd}:/app ruby:2.3 sh"
+  This command is using ruby version 2.3 image from docker hub and with 'sh' we go inside the container 
+  After that we can go into /app directory inside the container becuse we have used volumes to map our local directory into the container's /app directory. If we 
+  do ls in /app directory we will see files and folders from our local machine. We should place our service-account.json file here.
+ "gem install travis"
+  This command will install travis cli
+ "travis login --github-token <TOKEN> --com"
+  We will now login with github in travis CLI
+ "travis encrypt-file service-account.json -r USERNAME/REPO --com"
+  This will encrypt the file and create a new file service-accouunt.json.enc. Also travis will indicate to add openssl command into our before_install script which 
+  we will need to copy and paste.
+  
+We can then exit our container and delete the plain service-account json file. We are now safe to push encrypted service-account json file to github.
+
+We can continue our travis config file
+..
+before_install:
+ - openssl aes-256-cbc -K ........ -d (this is the command that travis will use to decrypt our file)
+ ...
+ ...
+ ...
+ ...
+ - gcloud config set project skillful-berm-214822 (telling gcloud which project to use. We can click on all project and fetch the project id)
+ - gcloud config set compute/zone us-central1-a (telling gcloud what is our cluster zone)
+ - glocud container clusters get-credentials multi-cluster (telling gcloud what is our cluster name)
+ - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin (login into docker using username and password from travis env variables)
+ - docker build -t usamaa96/react-test -f ./client/Dockerfile.dev ./client (building an image so that tests can be run)
+ 
+scripts:
+ - docker run usamaa96/react-test npm test -- --coverage (overiding the default command to run the test and printing out coverage to get indication if all tests ran successfuly or not)
+
+deploy:
+ provider: script
+ script: bash ./deploy.sh
+ on:
+  branch: master
+..
+
+We will create a new script that will handle the deployment because in last project we used elasticbeanstalk as our provider but travis does not provide any
+provider for kubernetes so we have to write our own custom solution. The series of command will be in deploy.sh
+
+..
+// Building all the images
+docker build -t usamaa96/multi-client -f ./client/Dockerfile ./client
+docker build -t usamaa96/multi-server -f ./server/Dockerfile ./server
+docker build -t usamaa96/multi-worker -f ./worker/Dockerfile ./worker
+
+// Pushing all images to docker hub
+docker push usamaa96/multi-client
+docker push usamaa96/multi-server
+docker push usamaa96/multi-worker
+
+// Preparing cluster
+kubectl apply -f k8s
+
+// Imperatviely setting image on deployment
+kubectl set image deployments/server-deployment server=usamaa96/multi-server (This will not work because image was built wit latest version and here also the latest 
+version is applied, so kubernetes wil say i was already running the latest image so there is no change
+..
+
+We need some unique version number with our image everytime we deploy  and that can be done using the commit hash of github.
+We can build our image using,
+  "docker build -t usamaa96/multi-client:lastest -t usamaa96/multi-client:$GIT_SHA" -f ./client/Dockerfile ./client"
+We can use 2 tags for our latest image one with latest and other with commit hash
+
+The benefit of using commit hash is that if we have any problem in our cluster, we can see what version of image is running and from that we can fetch the 
+commit hash. After fetching commit hash we can directly checkout to that commit and debug our application locally.
+Also we have used latest tag too because in our kubernetes config files, we are using the latest image names so whenever any new engineer run kubectl apply -f k8s, 
+he will automatically get the latest image and no commit hash to remember.
+
+To get the latest commit hash from github we use command "git rev-parse HEAD". We can store this in env variable in our travis config file so that we dont have 
+to execute this command everytime
+
+..
+env:
+ global:
+  - GIT_SHA=$(git rev-parse HEAD)
+  - CLOUDSDK_CORE_DISABLE_PROMPTS=1 (this is the variable to disable all the prompts shown by gcloud command like are you sure you want to do this? (Y/N)
+  
+Modifying the deploy.sh file to cater both latest and commit_hash versions
+..
+docker build -t usamaa96/multi-client:latest -t usamaa96/multi-client:$GIT_SHA -f ./client/Dockerfile ./client
+docker build -t usamaa96/multi-server:latest -t usamaa96/multi-server:$GIT_SHA -f ./server/Dockerfile ./server
+docker build -t usamaa96/multi-worker:latest -t usamaa96/multi-worker:$GIT_SHA -f ./worker/Dockerfile ./worker
+
+docker push usamaa96/multi-client
+docker push usamaa96/multi-server
+docker push usamaa96/multi-worker
+
+docker push usamaa96/multi-client:$GIT_SHA
+docker push usamaa96/multi-server:$GIT_SHA
+docker push usamaa96/multi-worker:$GIT_SHA
+
+kubectl apply -f k8s
+
+kubectl set image deployments/server-deployment server=usamaa96/multi-server:$GIT_SHA
+kubectl set image deployments/client-deployment server=usamaa96/multi-client:$GIT_SHA
+kubectl set image deployments/worker-deployment server=usamaa96/multi-worker:$GIT_SHA
+..
+
+We are done with all our deployment scripts. We need to add one secret value into google cloud which is for password. We will use kubectl command to create a secreti
+in the same way we created in our local kubernetes cluster.
+In Google Cloud Shell from console we can issue these commands to create a secret.
+ gcloud config set project skillful-berm-214822
+ gcloud config set compute/zone us-central1-a 
+ glocud container clusters get-credentials multi-cluster 
+ kubectl create secret generic pgpassword --from-literal PGPASSWORD=mypgpassword123
+ 
+After that we can go into configuration and can see our secret created.
+
+One more configuration which needs to be done is the ingress service which we created as an add-on to our kubernetes cluster using minikube. Similarly we need 
+to do this as a separate service in google cloud because our cluster dont know what nginx-ingress is.
+We already have ingress config file in our project but additionally we have to setup Load Balancer Service that will be pointed by Google Cloud Load Balancer and 
+also manage a Deployment object with nginx pod that will do the actual routing.
+For all this additional setup we can use 'Helm' which is a program which can administer 3rd party software inside our kubernetes cluster. So all these additional 
+steps will be used as a 3rd party service using helm.
+
+We can go to official helm documentation and under 'From script' section, we can copy the commands and run inside google cloud shell to configure helm.
+$ curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+$ chmod 700 get_helm.sh
+$ ./get_helm.sh
+
+After installing helm into our cluster we can install ingress nginx using the following command
+helm upgrade --install ingress-nginx ingress-nginx --repo https://kubernetes.github.io/ingress-nginx --namespace ingress-nginx --create-namespace
+
+After installing it, we can see 2 workloads under the workload section whic are
+  1) nginx ingress controller which will read our nginx config file and setup nginx
+  2) default backend which is useful for health checks
+  
+We can go to Networking and LoadBalancer to see our Google Cloud Load Balancer created with ip address that can be used to access our application
+
+Finally, here we can commit our changes and push all to master and then travis will be triggered for rest of the work.

@@ -1,0 +1,27 @@
+State
+---
+
+Fun with finite state machines
+
+Motivation
+--
+-Example of a telephone. What can we do with it depends on its current state. If its ringing or we want to make ca call, we 
+need to pick it up. If the phone is hanging up or busy, we put down the handset.
+-Changes of state can be explicit or a response to event which is an Observer pattern.
+
+It is a pattern in which object's behavior determined by its state. Something needs to be triggered to change the object's
+state. A formalized construct which manages the state and transitions is called a state machine.
+
+-Example of a Light Swithc where its state can be turned on or off. This approach is mentioned in the Gang of Four but
+its a very classical implementation which is not used in the industry.
+
+-Example of a document which can be in different states, like,
+DRAFT: When a document is created or when it is not set for reviews, and the changes are still going on.
+IN REVIEW: When a document is set for a review.
+APPROVED: When a document is approved.
+REJECTED: When a document is rejected.
+-Managing these states for a document will be an essential feature of our Document Manager. The transition in the states of the 
+document depends upon the action that are taken on the document. For example, it will move into APPROVED state when it’s current 
+state is IN REVIEW.
+-What’ll happen when the document is moved to APPROVED state if the current state is DRAFT? Well, it shouldn’t be allowed and
+we’ll have to handle all such cases as well. Let’s start building our Document Manager.

@@ -1,0 +1,65 @@
+Proxy
+---
+
+An interface for accessing a particular resource
+
+Motivation
+--
+-Consider an example when you are calling foo.bar().
+-This assumes that foo is in the same process as bar().
+-What if later on we decide to pull all the foo related operation into a separate process like moving to a clound
+-So can we avoid changing our code?
+-We can use Proxy pattern for this which gives us the same interface but an entirely different behavior.
+-In this example the proxy acts as an local object but accesses the remote object. This type is called the communation proxy
+-We can build multiple type of proxies like logging, virtual, guarding etc.
+
+In other words
+-There are situations in which a client does not or can not reference an Object directly, but wants to still interact with the 
+object. A proxy object can act as the intermediary between the client and the target object. The proxy object has the same 
+interface as the target object.
+
+
+Protection Proxy
+..
+-To access the main object, we built a protection proxy that performs some operation to verify whether the criteria is meet
+to access the main object or not
+-Example of a Car and Driver that the driver should be atleast of agr 16 or 18 to drive the car. So we have a drive() method in
+our car class. We make a CarProxy that acts as a Car but additionaliy verifies the driver's age also.
+
+Propert Proxy
+..
+-We can use property proxy for logging purposes
+-Like we want to log everytime whenever any of our class property is setted a new value
+-We want to built a property proxy for this and replace all our properties to our customized property proxy.
+
+
+Dynamic Proxy
+-This type of proxy is commonly used by the framework builders and to implement this, costly operations are required because
+the proxies are built on runtime to decide which class to intercept.
+-Like we want to keep the record of all the calls of a particular class and print how many times a function is called.
+-In this example we look at a Human interface that has 2 abstract methods walk and talk
+-A person class implements this interface and overrides the methods
+-Now we build a LoggingHandler that will implement the InvocationHandler provided to us by java.refletct
+-This InvocationHandler has the invoke method that we will override and intercept all calls made to the Human or Person instance.
+-Also before invoking we will keep track of the count in a Map and whenever the toString is called we will simpley return
+the Map instead of actual toString() call.
+-We have to make a generic method to link our LoggingHandler with our Person class 
+-For this we use a static method in built-in proxy class which is newProxyInstance
+-Now when we call walk or talk, the invoke method is called and from there we call the specific method
+
+Known Use Cases
+..
+Dynamic proxies are known to be used for at least the following purposes:
+  1) Database Connection and Transaction Management
+       .When we call execute() the spring framework performs other operations also like settingAutoCommit to false etc... 
+       then calls the real action to save data in database
+  2) Dynamic Mock Objects for Unit Testing
+       .Can be used to Mock a class like intercepting all calls and defining our own return types so that actual method is not called
+  3) AOP-like Method Interception
+
+
+
+Proxy vs Decorator
+-Proxy provides us indetical interfaces whereas Decorator enhances the interface
+-Decorator has a reference to the underline object to which it is decorating to, the proxy dos not have to
+-Proxy might not be working with materialized object. It can be built at the runtime

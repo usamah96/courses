@@ -1,0 +1,48 @@
+Shape and Geometric Shape
+---------------
+
+public interface Shape{
+  void draw();
+  void resize();
+  String description();
+}
+
+class Rectangle implements Shape{}
+class Circle implements Shape{}
+
+class Drawing{
+
+  List<Shape> shapes = new ArrayList<>();
+  
+  static void addShape(Shape shape){
+    shapes.add(shape);
+  }
+  static void drawShapes(){
+    shapes.forEach(s -> s.draw());
+  }
+  public static void main(String[] args){
+    addShape(new Rectangle());
+    addShape(new Circle()); 
+  }
+}
+
+
+public interface GeometricShape{
+  double area();
+  double perimeter();
+  void drawShape();
+}
+
+class Triangle implements GeometricShape{}
+class Rhombus implements GeometricShape{}
+
+-Now combining Shape and GeometricShape
+
+class GeometricShapeObjectAdapter implements Shape{
+
+    private GeometricShape gs;
+    
+    public GeometricShapeObjectAdapter(GeometricShape gs){ this.gs = gs; }
+    @Override
+    public void draw(){ this.gs.drawShape(); }
+}

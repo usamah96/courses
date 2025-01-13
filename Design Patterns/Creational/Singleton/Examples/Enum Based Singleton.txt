@@ -1,0 +1,57 @@
+Enum Based Singleton
+-----------
+
+Example 1
+..
+enum Singleton{
+  INSTANCE;
+  private int value;
+
+  EnumBasedSingleton(){ value = 42; }
+  public void setValue(int val){ value = val; }
+  public int getValue(){ return value; }
+}
+
+
+Implementation 1
+..
+class Main{
+  public static void main(String[] args){
+    Singleton s = Singleton.INSTANCE;
+    s.setValue(111);
+    String fileName = "test.bin";
+    saveToFile(s, fileName);
+    Singleton s1 = readFromFile(fileName);
+    sout(s1.getValue())  // Will print 111;
+  }
+}
+
+Implementation 2
+..
+class Main{
+  public static void main(String[] args){
+    String fileName = "test.bin";
+    Singleton s1 = readFromFile(fileName);
+    sout(s1.getValue())  // Will print 42;
+  }
+}
+
+-In the first implementation, we set the enum value to 111 and then serialized the enum to a file.
+-Here only the enum type is serialized and not the value.
+-When we retrieved the enum from a file, we get the value as 111 because originally we set the instance value to 111.
+-In the second implementation, we removed the saveToFile code in order to prove that the value is not saved
+-When we retrive the enum from file, we get the value 42 because 111 was not saved in the implementation 1. So as originally we
+did not set any value, the constructor set the value as 42 and we see 42 as a result.
+
+
+Example 2
+..
+enum Singleton{
+   INSTANCE;
+
+   private final Connection connection;
+   
+   Singleton(){ connection = new Connection(); }
+   public static Singleton getInstance(){ return INSTANCE; }
+   public Connection getConnection(){ return connection; }
+}

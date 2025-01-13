@@ -1,0 +1,745 @@
+Functional Programming - Lambdas And Streams
+---
+
+Functional Programming is a paradigm just like Object Oriented Programming which is all about programming using functions
+FP helps us in writing code that is easily parallizable in a multi core system
+FP helps in writing compact and effecient code
+Very good in writing compilers
+
+Java 8 introduces FP constructs like Lambdas
+    .Passing of functions inside a method argument 
+    .Returning of a function from the argument
+Apart from objects and variables, now functions are also a First-Class Citizens
+
+Example 1
+Set<String> set = new TreeSet<String>(new Comparator<String>(){
+   public int compare(String s1, String s2){
+      return s1.lenght() - s2.length();
+   }
+})
+Could be written as
+Set<String> set = new TreeSet<String>((s1, s2) -> s1.length() - s2.length());
+
+
+Example 2
+If we want to filter the books by rating and then group all the books by its category, we would have first checked if the book rating is
+greater than some value, then get the book category and put that corresponsing book into the list of books and store it inside the Map
+
+This style of programming is imperative programming where we tell how to do the job.
+
+This could be done as
+Map<Category, List<Book>> booksByCategory = books.stream().filter(b -> b.getRating() >= 4.5).collect(groupingBy(Book::getCategory));
+
+Here we have used streams to write some compact and effecient code
+This style of pramming where we are chaining things is called Declarative Programming where we dont care what is done under the hood. WE just want
+the work to be done. We only care about the WHAT part and not the HOW part
+
+
+
+
+
+
+
+
+Lambdas
+--
+Lambdas are used to pass the behavior of the object which encapsulates its functionality
+Lambda is basically an anonymous function which can be passed around. SO it basically known as lambda expression
+
+Only Functional Interfaces can be passed as a Lambda expression otherwise we would get a compilation error
+
+If we define the body with braces, then it is represented as a statement
+If we define the body without braces, then it is represented as a expression
+Example
+
+1) () -> {} 
+   .Statement
+     
+2) () -> "java"
+   .Expression
+     
+3) () -> { return "java"; }
+   .Statement
+     
+4) () -> return "java"
+   .Not a valid expression
+     
+5) () -> { "java" }
+   .Not a valid statement
+   
+
+
+We know that Anonymous classes plays the role of Lambdas then what are the differences between them
+
+-With anonymouse classes, we have to associate it with the object (new Comparator<String>)
+   .Overhead of loading the class
+   .We have to use new keyword, super type name and also the method names which makes it verbose
+-With lambdas no associated object is there
+   .Based on byte code instruction known as invokedynamic
+   .More compact representation with no new keyword, super type name and method name
+-With anonymous classes, they are instantiated every time they are being used until and unless they are made singleton
+-With lambdas the memory is allocated only for one method
+-With anonymous class they can have multiple methods from which that class is inheriting or implementing the interface
+   .Can work with interfaces, classes, abstract classes
+-With lambads it only works with functional interface
+   .Cannot be even abstract class with single abstract method
+   
+If we are using anonymous class with methods defined, then the method in the actual class will be hidden by the anonymous class.
+Example
+class A{
+  public void test(){...}
+}
+someObject.someMethod(new A(){
+  public void test(){...}
+})
+someMethod(A a) will use the test() method defined in the anonymous class instead of the actual class
+
+
+
+Example Functional Interface
+
+interface Test{
+  void test();
+  default void anotherTest(){}
+  String toString();
+}
+This interface will qualify to be functional interface as
+   1) Only one abstract method is there
+   2) anotherTest() is the default method so no problem
+   3) toString() is indeed an abstract method but still every class inhertis toString() from Object class so no problem here either.
+
+
+
+
+Sometimes we need to access variables inside the lambda expression defined either in the local method or on the enclosed class in which the
+lambdas are defined. Lambdas or anonymous class capturing enclosed variables are termed as Closures.
+
+1) If the variable is defined inside a method then it should be defined as final
+     .Before Java 8, the variable must be defined with final keyword but with Java 8 and onwards the final is implicitly added if the variable is
+      captured inside the lambda. If we try to change that variable either inside the lambda or outside it, it will give compilation error.
+      
+Example
+public class go(){
+    int count = 0;
+    
+    for(int i=0; i<5; i++){
+      new Thread( 
+       () -> log.info(count) 
+       ).start();
+    }
+    
+    count++; -> Invalid because count is implicitly final
+}
+One reason why the count value is made final because suppose the go() method runs and when it comes at last line where we are incrementing the
+count, we then have to find all the threads we have made and increment the count there because the count variable is shared among all of them. So
+it would have been very complex task to do.
+Another reason is that go() method if executed completely and if one of the thread changed the value of the count but the count initially does not
+exists because the method go() is completed and popped out of stack and no count is there any more as it is local variable.
+So language designers made it simple by making the captured variable final
+
+
+2) If the variable is defined inside a class whether instance or static variable then no final keyword is needed
+      .Outside method variables can be used inside the lambda expression but it is recommended not to do this as it is not thread safe
+      
+Example
+
+class Lambda{
+  
+  int a = 1;
+  static int b = 1;
+  
+  public class go(){
+    new Thread( () -> a++ ).start();
+    new Thread( () -> b++ ).start();
+  }
+}
+
+One more difference to highlight between lambdas and anonymous classes is that in lambdas we cannot shadow the local variable but in anonymous
+classes we can.
+Example
+
+public void go(){
+   
+   int count = 0;
+   new Thread( () -> { int count = 1; } ).start(); -> Invalid as lambda cannot shadow the variable;
+   
+   new Thread( new Runnable(){
+     
+     int count = 1; -> Valid
+     public void run(){...}
+   })
+}
+
+
+
+
+
+
+
+
+
+Functional Interfaces
+..
+They define a single abstract method and lambdas work with them
+Other than lambda expression, functions could be method references too
+
+There are some Functional Interfaces with some Senatices like
+Comparator and Comparable used with sorting purposes
+Callable and Runnable used with thread
+
+Java 8 introduces some Functional Interfaces without the Semantics and they define only the structure. The semantic will be dependent upon the
+context in which they are used
+
+An example to use Functional Interface
+Suppose we download the web pages and we perform 2 steps
+  1) Filter out web pages for some category
+  2) Strip out html tags from those filtered web pages
+We can make use of Predicate for filtering out as it can give us boolean value if there are filtered web pages or not and secondly we can make use
+of Function to strip out html tags
+
+Predicate<T> -> It takes Object of type T and returns a boolean
+Function<T,R> -> It takes Object of type T and returns Object of type R
+
+If Using Function<T,R> the argument and return type is same we can make use of UnaryOperator<T>
+So, Function<String, String> can be replaced with UnaryOperator<String> sinche UnaryOperator is the interface that extends Function
+
+Since Function is a Functional Interface, it can also hold some static or default methods. One method is andThen() that takes in Function and
+return back Function to chain the interfaces.
+
+Function<String, String[]> functionOne = s -> s.split("-");
+Function<String[], String> functionTwo = s -> s[s.length() - 1];
+
+We can now do,
+String value = "Hello-This-Is-Java-In-Depth";
+value = execute(value, functionOne.andThen(functionTwo));
+
+public String execute(String value, Function<String, String> myFunc){
+  return myFunc.apply(value);
+}
+
+
+Since Function takes one argument and returns back one value, BiFunction takes 2 argument and returns one value
+BiFunction<T,U,R>
+Similarly,
+We also have BiPredicate that takes in 2 arguments and returns a boolean
+We have Supplier that takes no argument and returns a value
+We have Consumer that takes one argument and returns void
+We have all the Bi versions of it
+
+If we want to deal with primitives then jva.util.functions package also provides us the speciality for primtives also like
+IntToDouble that takes in int and returns a double
+If we use Function<Integer, Double> then implicit boxing will occur and that we dont want to happen
+
+Refer To Link for all the Specialization of Functional Interface
+    .https://docs.oracle.com/javase/8/docs/api/java/util/function/package-summary.html
+
+
+
+
+
+
+
+
+
+Method References
+..
+A reference to a method
+Instead of lambdas we can also pass method references as an argument
+
+3 types of method references
+General convention is -> <target-type><delimiter><method-name>
+
+1) Static method
+     .We give class name followed by delimiter and then the method name
+     .No need to pass the argument as it is implicit
+Example
+Function<String, String> myFunc = Indexer::methodName;
+
+
+2) Object Reference
+     .We give object reference followed by delimiter and then method name
+     .No need to pass the argument as it is implicit
+Example
+Consumer<String> printConsumer = System.out::println;
+Or
+String doc = "Hello"
+Function<String, Boolean> func = doc::contains;
+
+
+
+3) Instance Method with Class name
+     .We give class name followed by delimiter and then the method name
+     .The class name will identify the first parameter, the second paramter is implicit and the rest would have to be passed as argument
+Example
+BiFunction<String, String, Boolean> biFunc = String::contains;
+
+
+
+
+
+
+
+
+Constructor References
+..
+Used for constructing objects
+Can also be assigned to functional interfaces
+
+General convention is -> <class-name><delimiter><new>
+
+We can have overloaded constructors in our class, so what constructor to load will be dependent upon the context in which it is being used
+
+Examples
+
+1) Supplier<String> supplierCtor = String::new 
+      .No Arg ctor is used that will return new String();
+      .Similar to the lambda () -> new String()
+      
+2) Function<String, String> functionCtor = String::new
+      .One arg ctor is used that will return new String(arg);
+      .Similar to the lambda s -> new String(s)
+      
+3) BiFunction<Integer, Float, HashMap> biFuncCtor = HashMap::new
+      .Two arg ctor is used of Hashmap that takes in capacity and load factor. new HashMap<>(c, lf)
+      .Similar to the lambda (c, lf) -> new Hashmap<>(c, lf)
+      
+4) Consumer<String> consumerCtor = String::new
+      .Since consumer does not return anything so it is point less using in constructor reference.
+      
+      
+If we have multiple arguments to our constructors then we must create our own functional interface
+
+
+
+
+
+
+
+
+
+Stremas
+..
+Referred to as one of the best use cases for using lambdas, method references and functional interfaces
+It is an interface that has many method that makes use of functional interfaces
+It perform operations as SQL like operations on collections which is declarative
+Stream do not work with collections only. It can be used with arrays, file input output, comma separated list of values, etc
+We get better abstraction with declarative programming using streams
+
+In streams we have terminal operations and non terminal operations
+   .Terminal operations are considered to be oprations that ends the stream and are lazy 
+   .Non terminal operations are considered to be operations that transforms one stream into another stream and are eager. It retuens non-stream value
+    like void, boolean, Optional, any non-stream object
+
+The term lazy means that, they will not be executed until and unless eager operation is executed.
+Example
+
+List<Integer> values = new ArrayList<>();
+values.stream()
+   .filter(v -> v > 1)
+   .map(v -> v * 2)
+   .map(v -> v *3)
+   .forEach(System.out::print)
+   
+Here filter and map both are intermediate operations or non-terminal operations and they will not get executed until the terminal operation
+forEach gets executed. Its helpful to pass the stream areound your application
+Example
+
+List<Integer> values = new ArrayList<>();
+Stream<Integer> stream = values.stream()
+   .filter(v -> v > 1)
+   .map(v -> v * 2)
+   .map(v -> v *3)
+print(stream)
+
+public void print(Stream<Integer> stream){
+  stream.forEach(System.out::print)
+}
+
+Now once the terminal operation is executed the stream is closed and we cannot execute some other operations on it. We will get IllegalStateException
+Example
+public void print(Stream<Integer> stream){
+  stream.forEach(System.out::print)
+  stream.forEach(System.out::print) -> IllegalStateException
+}
+
+
+Stream Operations Classification
+1) Non Terminal
+     .Filtering
+     .Mapping
+     .Slicing
+2) Terminal
+     .Match & Finding
+     .Reduction
+     .Collect
+     
+     
+Slicing Operation
+1) distinct
+2) limit
+3) skip
+
+-The distinct() method calls the equals method internally. So if working with custom java objects we need to override equals method and define
+ our logic there
+ 
+-The limit method takes in integer and it will break the stream pipeline after the provided integer value. It is also reffered to as the short-circuit
+ method. It will take only the top first n elements
+ 
+-The skip() method takes in integer and does the opposite of limit(). It will skip the first top n elements. Like limit, it will not direclty jump 
+ to the (n + 1)th element. It will pass the first n elements but will not include in the stream.
+ 
+ 
+--------------------------------
+Example execution flow of streams
+List<Integer> numbers = Arrays.asList(1, 2, 3, 4, 5, 6, 7, 8);
+numbers.strem()
+  .filter(n -> n%2)
+  .map(n -> n * n)
+  .limit(2)
+  .collect(Collectors.toList());
+  
+Streams are pull-based. Only a terminal operations (like the collect) will cause items to be consumed.
+Conceptually this means that collect will ask an item from the limit, limit from the map and map from the filter, and filter from the stream.
+
+collect
+  limit (0)
+    map
+      filter
+        stream (returns 1)
+      /filter (false)
+      filter
+        stream (returns 2)
+      /filter (true)
+    /map (returns 4)
+  /limit (1)
+  limit (1)
+    map
+      filter
+        stream (returns 3)
+      /filter (false)
+      filter
+        stream (returns 4)
+      /filter (true)
+    /map (returns 16)
+  /limit (2)
+  limit (2)
+  /limit (no more items; limit reached)
+/collect
+--------------------------------
+
+
+**All the matching operations, finding operations and limit() are short circuit operations (&&, ||) which means that if any condition is
+matched then the subsequent elements are not processed
+
+
+Matching Operations
+Matching stream elements to some criteria and if it matches then returns a boolean value
+1) anyMatch
+2) allMatch
+3) noneMatch
+
+
+Finding Operations
+Finds an element in the stream but dont take any parameter
+Used with and without filter operations
+1) findAny
+2) findFirst
+
+Typically in a single thread application findAny and findFirst will return the first matching element. findAny will be returning the first element
+most of the time but still there is no guarentee
+So what to use? If we are using parallelStream() instead of stream() and there is no requirement for the first element to be fetched then it is
+recommended to use findAny() less computation is required in compare with findFirst(). With findFirst() more work to be done because multiple
+cores will be utilized in parallelStream(), the stream will be partitioned among the cores so the elements need to be in synched only then the
+first element can be fetched. So more computation will be there.
+
+Both these methods returns Optional which is also introduced in Java 8. It helps in a safe check before accessing the encapsulated element.
+We can use Optional in many ways
+Example
+
+Optinal.of(new String());
+
+Optional.of(null)
+   .Will throw NullPointerException
+
+Optional.ofNullable(new String())
+   .Will inject the value if it is present otherwise null
+
+Optional.isPresent()
+   .To check whether the value is present or not
+
+.Optional.orElse()
+   .Returns the element if present otherwise returns what we have passed inside it
+   
+.Optional.orElseGet()
+   .Returns the element if present otherwise returns what is returned by the Supplier
+   
+Differene between orElse and orElseGet is that using orElse still executes the operation defined in it even if the element is present whereas
+orElse calls the supplier function only if the element is not present.
+
+Example
+class A{
+   String value
+   
+   public A(){
+     log.info("Default")
+   }
+   public A(String v){
+     this.value = v;
+   }
+   public static A getInstance(){
+      return new A();
+   }
+}
+
+Execution
+A a = new A("Testing")
+Optional<A> obj = Optional.of(a);
+
+obj.orElse(new A()).value
+   It will print Default and then Testing
+   Even if the obj is not null the default ctor is called as it is defined in the orElse argument.
+   
+obj.orElseGet(A::getInstance)
+  It will only print Testing
+  It did not called the supplier as obj was not null
+  
+
+
+
+
+
+Reduction Operations
+
+Can be classified in 2 types
+
+1) reduce() method
+-The reduce is used to reduce the stream of elements into a single value like summing, finding max or min or avergae etc..
+-It does the immutable reduction.
+
+We have the reduce() method takes in a functional interface BinaryOperator<T> which is nothing but a function that takes 2 arguments and returns 
+a single value and all types will be same as the T implies. The reduce() returns an Optional.
+
+If we are using the reduction operation in a parallel setup then the operation must be associative in nature otherwise we may get incorrect
+results
+We know that + operation is associative so if in parallel setup the stream is break down into multiple cores, we will get the desired result
+
+Example
+Stream = a, b, c, d
+Distribution could be
+  .(a + b) + (c + d)
+  .a + (b + c + d)
+  .(a + b + c) + d
+All will give the same result
+
+Arrays.stream(new Integer[]{5,4,2,6,5}).reduce(Integer::sum).ifPresent(System.out:print);
+
+But if reduction operation like avg() is used then it will give incorrect result because it is non-associative.
+
+We have another overload of reduce() method that takes Identity as first argument and then the BinaryOperator<T>
+  .The identity is the first value that will be added to the first element of the stream and then the result will be added to the second element
+   of the stream and so on. If the stream is empty then identity is returned
+   
+String[] values = {"A", "B", "C"}
+String identity = "";
+String concatenated = Arrays.stream(values).reduce(identity, (s1, s2) -> s1 + s2);
+
+This overloaded of reduce() returns the actual value and not Optional.
+
+Now we know that this type of string concatenation does not provide good performance and we have to use StringBuilder for this. For this we need
+to use other overloaded version of reduce() that takes identity T as first argument, BiFunction<T,U,T> as second argument which act as accumulator and 
+BinaryOperator<T> as thord argument which act as combiner
+  .Accumulator does the exact concatenarion operation and the combiner is used to combine the results generated from multiple cores if used in a
+   parallel way
+   
+Example
+String[] values = {"A", "B", "C"}
+Distribution
+  Core 1: Identity and A
+  Core 2: Identity and A,B
+
+We pass StringBuilder as first argument and String as second argument which concatenates and returns back StringBuilder reference. Now since when
+both the cores are finished executing both will return back StringBuilder and then at the end we need to combine the result. Then we need the combiner
+which will combine both the StringBuilders.
+
+String[] values = {"A", "B", "C"}
+StringBuilder identity = new StringBuilder();
+StringBuilder concatenated = Arrays.stream(values).reduce(identity, (sb, s) -> sb.append(s), (sb1, sb2) -> sb1.append(sb2));
+
+**If your are dealing with same types then use the 2nd reduce overloaded. If you are dealing with multiple types then use 3rd reduce overloaded.
+  As in parallelisim multiple segments (cores) are used and each core will produce its own result. If we are dealing with multiple types then we
+  have to use the combiner that will merge the results
+
+
+2) collect() method
+-Used to collect the elements into a container (List, Set, Map, etc)
+-It does the mutable reduction
+
+We have the collect() method that takes Consumer<R> as the firtst argument that act as a container of elements, BiConsumer<R,T> as a second 
+argument that act as a accumulator and BiConsumer<R,R> as a third argument that act as a combiner
+
+Example
+String[] values = {"A", "B", "C"}
+StringBuilder identity = () -> new StringBuilder() Or StringBuilder::new;
+StringBuilder concatenated = Arrays.stream(values).reduce(identity, (sb, s) -> sb.append(s), (sb1, sb2) -> sb1.append(sb2));
+
+
+
+We also have overloaded collect() method that takes in Collector interface as an argument. We have a helper class Collectors that contain
+some predifined reduction methods. As with the first overloaded method we have the Supplier, Consumer in the form of container, accumulator and
+combiner. Similary this version of collect() method also calls some Collector interface methods that returns accumulator, combiner.
+
+Example
+String[] values = {"A", "B", "C"}
+String result = Arrays.stream(values).parallel().collect(Collectors.joining())
+
+Here joining() will return a instance of Collector that would contain instructions to perform predefined reduction
+
+
+
+
+The Mutable Reduction vs Immutable Reduction
+..
+-We know that reduce() is immutable reduction and collect() is mutable redction
+-With immutable reduction we mean that, the identity we use as a first argument is shared among all the segments (core) if we are using it in a 
+ parallel way. If one segment changes the identity then it will get affected on all the cores
+-With mutable reduction we mean that, every segment (core) will get its own container and nothing will get affected
+
+Example Reduce() method
+
+String[] values = {"A", "B", "C"}
+StringBuilder identity = new StringBuilder()
+StringBuilder concatenated = Arrays.stream(values).parallel().reduce(identity, (sb, s) -> sb.append(s), (sb1, sb2) -> sb1.append(sb2));
+
+Here the StringBuilder() object is shared among all the segments. If lets say our stream is sliced into 2 segments A and A,B then both the
+segment will get the initial identity string builder shared object. If segment one appends A into string builder object and if segment two appends
+A into string builder object, then both of them will see "AA" as the final result as the object is shared which is incorrect result. Also the
+second problem is that when both the segment generated its result and the combiner merges the result, it will merge string builder with itself 
+because both the object has the same reference as it is shared. So we will not get the desired output in parallel() way as we get with non parallel
+way.
+
+Now there is another BAD way of doing this to handle the issue but it is not recommended to do it
+
+Example
+String[] values = {"A", "B", "C"}
+StringBuilder identity = new StringBuilder()
+StringBuilder concatenated = Arrays.stream(values).parallel().reduce(
+     identity, 
+     (sb, s) -> new StringBuilder().append(sb).append(s), 
+     (sb1, sb2) -> sb1.append(sb2)
+);
+
+Notice that the BiFunction is creating a new instance of StringBuilder for every element in the stream which will ensure the segment gets 
+the different object but there will be N string builder instance created and that compromises the performance.
+
+
+
+Example Collect() method
+
+String[] values = {"A", "B", "C"}
+StringBuilder identity = () -> new StringBuilder() Or StringBuilder::new;
+StringBuilder concatenated = Arrays.stream(values).reduce(identity, (sb, s) -> sb.append(s), (sb1, sb2) -> sb1.append(sb2));
+
+Here since the first argument of collect() is a Supplier<R>, it wil generate the string builder reference for every container which will be 
+different for them. Also notice that in reduce() the second argument is a BiFunction which returns the StringBuilder object and in collect()
+we have BiConsumer which does not returns and it just performs the action. Also at the time of combining the result, both the string builder
+object will hold separate results generated by the core and it will get merged
+
+**While using reduce() and collect(), do check your result by using the parallel() method also as in future if the stream is decided to be used
+  in a parallel way then the output is not affected.
+
+
+
+
+
+
+
+
+Predefined Collectors
+..
+Collection
+   .toList(), toSet(), toCollection()
+   
+
+-By using toSet we have to make sure our cutom pojo have implemented hashCode and equals method so that we can ensure the uniqueness, and with
+ hashCode it will use it for sorting
+ 
+-By using toCollection() we reduce our collection into some other collection class like TreeSet. It takes a supplier functional interface that will
+ define the instantiation of our collection. Also for using TreeSet we need to implement the Comparable interface for sorting.
+Example
+toCollection( () -> new TreeSet() )
+   
+
+
+Grouping and Multi Level Grouping
+   .toMap(), groupingBy(), partitioningBy()
+
+
+-Grouping the stream elements around certain keys
+-Something similiar to the group by clause in the database
+
+-We have 3 overloads of toMap method
+    .The first takes keyMapper and valueMapper as toMap(b -> b.getIsbn(), b -> b). The problem here is that if the key is duplicate we will get
+     IllegalStateException for duplicate keys
+    
+    .We use second overloaded method to tell what to do in case of collisiom. It takes keyMapper, valueMapper and merger as, 
+     toMap(b -> b.getIsbn(), b -> b, (b1, b2) -> b1.getPrice() <= b2.getPrice() ? b1 : b2);
+     The return of valueMapper is the input of the merger.
+    
+    .Default toMap() returns HashMap instance but if we want to map in another Map implementation then we can use 3rd overloaded method which takes
+     in a supplier as, toMap(b -> b.getIsbn(), b -> b, (b1, b2) -> b1.getPrice() <= b2.getPrice() ? b1 : b2, () -> new TreeMap());
+
+-Notice that t -> t can also be written as Funtion.identity()
+
+We know that if we have duplicate keys we have 2 options to cater it
+   1) Either we pick one of them by defining any condition like in the example before
+   2) We can also define a a list to make or value as a list of books instead of just book by
+        toMap(b -> b.getRating(), b -> Collection.singletonList(b), (l1, l2) -> { List<Book> list = new ArrayList<>(l1); list.addAll(l2); return list; })
+
+
+-By using groupingBy() we can solve this problem of deifning so many expression to handle duplicate keys and store list of values as
+-We have few overloads of groupingby
+    .The first takes a keyMapper and generates a List of elements related to that key as groupingBy(b -> b.getRating());
+    
+    .The second overloaded method takes keyMapper and the collctor to tell the stream in which to collect the result like toSet() as
+        groupingBy(b -> b.getRating(), toSet())
+     This tells us that by default groupingBy use toList() as a collector but we can speicify our collector in this way
+     
+    .The third overload returns another implementation of map if we specify any. By default it returns a HashMap. If we want to sort our keys
+     then we can use TreeMap implementation as groupingBy(b -> b.getRating(), () -> new TreeMap(), toSet())
+
+
+
+-By using partitioningBy we can partition our stream into 2 groups
+-If we have stream of books and we want to partition them with rating >=4 and rating <4
+-We will specify the condition on which to map
+-It will return only 2 keys true and false which indicates the condition which we have specified.
+
+Map<Boolean, List<Book>> values = stream().collect(Collectors.partitioningBy(b -> b.getRating() >= 4)))
+
+
+
+Reducting and Summarizing
+   .maxBy(), summingInt(), averagingInt(), summarizingInt(), joining()
+   
+
+-For the keys, we can summarize the values either by taking the count, average or any other collector.
+
+-If we want to count the books which belongs to specific rating
+    collect(Collectors.groupingBy(b -> b.getRating(), Collectors.counting()));
+    
+-If we want to take the average of book's price under specific rating
+    collect(Collectors.groupingBy(b -> b.getRating(), Collectors.averaginDouble(b -> b.getPrice())));
+    
+-Similarly there are many methods like maxBy, minBy that we can use to summarize our values
+
+-Another useful method is summingInt or summingDouble which returns DoubleSummaryStatistics or IntegerSummaryStatistics which holds all the values
+ like count, sum, maximum, minimum etc. We can use it as,
+    Map<Double, DoubleSummaryStatistics> summary =  
+                          stream().collect(Collectors.groupingBy(b -> b.getRating(), Collectors.summingDouble(b -> b.getPrice())));
+
+
+-If we want to pick only selected values from the element instead of whole object we can use mapping() as
+   Map<String, List<String>> values = stream().collect(Collectors.groupingBy(b -> b.getRating(), Collectors.mapping(b -> b.gettitle())))
+ This will hold all the title related to those ratings.
+
+

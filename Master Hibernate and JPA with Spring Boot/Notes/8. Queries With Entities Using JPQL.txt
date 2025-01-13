@@ -1,0 +1,55 @@
+Queries With Entities Using JPQL
+--
+
+public class Students{
+   @ManyToMany
+   public List<Course> courses;
+
+   @OneToOne
+   private Passport passport;
+}
+
+public class Course{
+   @ManyToMany
+   public List<Students> students;
+}
+
+
+1) Finding all the courses which has no students
+..
+Jpql
+Select c From Course c Where c.students is empty
+
+
+2) Finding all courses with students greater than 2
+..
+Jpql
+Select c From Course c Where size(c.students) >= 2
+
+
+3) Find all courses order by size of students
+..
+Jpql
+Select c From Course c order by size(c.students) desc
+
+
+4) Find all students where their passport number matches certain criteria
+..
+Jpql
+Select s From Student s Where s.passport.number Like '%1234%'
+
+
+
+Using Joins
+..
+Inner Join (JOIN) -> Retrieves the record that has the matching ids with students
+-Select c From Course c JOIN c.students sc;
+-Returns List of Courses
+
+Left Join (LEFT JOIN) -> Retrives all record that has matching ids with students and also the courses that has no students
+-Select c From Course c LEFT JOIN c.students sc;
+-Returns List Of Courses
+
+Cross Join -> Match all records whether the course contains students or not
+-Select c, s From Course c, Student s;
+-Return List Of Object[] with Course at index 0 and Student at index 1

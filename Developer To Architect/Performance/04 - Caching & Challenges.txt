@@ -1,0 +1,106 @@
+Performance
+--
+
+There are multiple points in our system where we cache the data and that data can be static or dynamic
+These points are,
+  1) Server Level, where dynamic data is being cached. This data is retrieved from the database and cached at server level
+  2) Web Application, where User related and User Session Related information is being cached. This is also dynamic data
+  3) Rever Proxy, where static data can be cached like javascript files, css files, image files so that direct call to Web App is not made to
+     display those files as these files are very rarely modified.
+  4) Http Cache, which is done at the browser level like image files. These images are not retrieved from Reverse Proxy as cached at browser
+     level.
+	 
+
+Http Cache For Static Data
+..
+There are multiple areas where data can be cached.
+From our browser to web application server the flow is,
+   Browser -> Proxy Server -> Reverse Proxy -> Web Application Server.
+
+The purpose of reverse proxy is because there may be multiple instances of web application running so that server will load the balance
+as we scale our application. Similarly the same reverse proxy can be at our backend level if we have microserver architecture or monolithic
+application running on multiple instances to load the balance.
+
+The browser and reverse proxy are private caches and proxy server is public cache which means that the administrator and anybody access to
+that proxy server can access that cache and see what request and responses are there with respect to multiple browsers.
+If I am in office, then there will be a corporate proxy server where the request goes through and then reaches the actual reverse proxy
+of the application. Similarly if I am at home then there can be internet service provider proxy server where the request will be routed to
+first.
+
+For http caching, how will the intermediary servers know that what to cache and what not to cache?
+For that, there are Cache-Control headers sent back by the server which specifies all the parameters related to it.
+
+The GET requests are idempotent and are good candidates for caching. All other methods like POST, PUT and DELETE modifies the data so
+these requests are not cached. Also those GET requests whos response changes frequently are also should not be cached.
+
+The Cache-Control parameters are
+  .No-cache: It specifies that the cached data should not be used without validating with the origin server (See ETAG point)
+  .Must-revalidate: It is similar to No-cache but it will need to validate with the origin server after the Max-age limit is reached.
+  .No-store: It specifies not to cache the data
+  .Public/Private: These parameters are not realted to security related but to specify that whether the returned data is valuable for the
+   public cache (proxy server) or private cache (browser or reverse proxy). For example if the returned data is not user specific and multiple
+   browsers can access the same data then the public parameter will be useful as proxy server can directly return that data to all the users/
+   brosers. But if the data is user specific then obviously only that browser will need the data where that user is present so here Private
+   property will come into picture.
+  .Max-age: Maximum age of cache resource after that it will be expired
+  
+There also an ETAG property which is the hashcode that represents the cache resource version.
+Lets say if i request an image, the server will respond back with the image along with etag that holds the version. No the browser before 
+using that image, will first validate with the server if the version is still the same or not. If for any reason the image is changed then
+its version will also be changed and browser when validating it will see that the version is not matched so the updated data will be 
+requested again. This will invalidate previous version of the cache.
+
+
+Caching For Dynamic Cache
+..
+There are 2 ways in which dynamic data can be cached
+
+1) Exclusive Cache
+   .In this type of cache, the data is cached on a specific node itself which means that if we have 3 services running at backend which is
+    routed by the reverse proxy / api-gateway, then each service is responsible to cache the data. If a user requests some data and that requests
+    is routed to service 1 via Load Balancer/Reverse Proxy/Api-Gateway then service 1 will retireve the record from database, caches the data
+    and return back to the user. If the same requests come to service 1 the data will be directly returned from the cache, but if same request
+    is routed to service 2 then that will first retrieve the data, update its cache and then return back the result.
+   .An example for user related information that is cached on service 1. Now if user 1 requests its information then its data is cached on
+    service 1 and if we go to service 2 then user info will be retrieved again. TO avoid this we can do intelligent routing which means that
+    we can store information related to from which service the specific user got the data from in the form of cookies and that cookie related
+    information is passed when the user related information is needed. From that cookie information we can intelligently route that specific
+    request to service 1 to retrieve the data from the cache.
+   .Exclusive cache can be used for smaller data sets and not for larger data sets because it will be affect when we want to scale our
+    application (Discussed in scalability). Smaller datasets can be currency conversion related data.
+   .Also there will be an overhead for intelligent routing mechanism.
+   
+2) Shared Cache
+   .In this type of cache, there is a separate server that does only caching which is accessed by all the services which means that we are
+    maintaining cache related data only at one place. A separate server means that we will require an extra network call to fetch the cache
+	data but if we are ready to manage that overhead then it has good advantages.
+   .It is good for larger datasets like user related information which can become large from time to time.
+   .Easy to scale because cache is maintained separately.
+   .Examples are Redis, Memcache, etc
+   
+
+Caching Related Challenges
+..
+There are 2 limitations when using any type of cache and that limitation affect our Cache Hit Ratio
+Cache Hit Ratio is the Ratio of Number Of Cache Hits to the Number Of Cache Hits + Number Of Cache Miss.
+
+ratio = hits / (hits + miss) Or total_requests;
+
+Limitation 1 => Limited Cache Capacity
+  .Memory is not a cheap resource and it comes with some cost so obviously it is not possible to cache everything. There is a certain amount
+   of space that is allocated to cache and we will have to manage the data in that memory only.
+  .For that we need to prefer caching for the data that is read-only and not frequently change.
+  .Cache smaller objects of data and not too large.
+  
+Limitation 2 => Cache Inconsistency
+  .Whenever we use cache, we will face inconsistency at some place because there will time when the source data is changed and our cache
+   data will become inconsitent/stale.
+  .To handle this we can do 2 things.
+  .Whenever the source is updated, we either update the cache data also or delete that data so that the source is fetched again when the 
+   next time the data is requested. There is one problem in this approach and that is we can do this technique only if the cache is in our
+   control and is not outside our system like a public cache. If that is the case then after every source update the cache needs to be updated
+   as well.
+  .The next thing we can do is to specify Time To Live (TTL) property with every cache object so that the data expires after a given time. One
+   challenge in this is to set an optimum value for TTL. Because if we set TTL too low then cache miss rate will be higher and we will retrieve
+   the data from the actual source again and again after a short period of time. And if we set TTL too high then there is a possibility that
+   the data become inconsistent and remains inconsistent for a long time.   

@@ -1,0 +1,25 @@
+Adapter
+--------
+
+-Getting the interface you want from the interface you have
+-A component that adapts interface X to match the required interface Y
+
+Use the Adapter design pattern when you have to deal with different interfaces with similar behavior (which usually means classes 
+with similar behavior but with different methods). An example of it would be a class to connect to a Samsung TV and another one 
+to connect to a Sony TV. They will share common behavior like open menu, start playback, connect to a network and etc but each 
+library will have a different implementation of it.
+
+-Suppose we have a project of drawing, in which we are required to develop different kinds of shapes that will be used 
+in the Drawing via a common interface called Shape.
+-We create different shapes like rectangle, and circle.
+-As we progress, we come to know that there are some extra geometric shapes that are already developed either by some other 
+team within our organization. Or, we have a third-party API, which is available to us.
+-Our Drawing client class can work only with Shape and not GeometricShape. This makes GeometricShape incompatible with 
+our Drawing class.
+
+Making 2 interfaces compatible with Adapter Pattern
+
+Target — This defines the domain-specific interface that the client uses. This is the Shape interface in our example.
+Adapter — This adapts the interface from the adaptee to the target interface. I will point the adapter classes based on the different approach below.
+Adaptee — This defines an existing interface that needs adapting. This is the GeometricShape interface in our example.
+Client — This collaborates with objects conforming to the Target interface. The Drawing class is the client in our example

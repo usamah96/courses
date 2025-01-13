@@ -1,0 +1,29 @@
+Injectable Services
+--------
+
+-The angular Injectable services are all singleton
+-If we create our own service, notice there is a property called providedIn: 'root' which tells
+that to create a single instance on the root level, and wherever it is injected, provide that
+reference.
+
+@Injectable({
+  providedIn: 'root'
+})
+export class CourseService{}
+
+
+
+Using get request with request parameters
+
+constructor(private http: HttpClient){}
+loadCourses(): Observable<Course[]>{  
+  const httpParams = new HttpParams().set("page", "1").set("pageSize", "10")
+  return this.get<Course[]>('/api/courses', {params: httpParams});
+}
+
+Using post/put request with http headers
+
+saveCourse(course: Course): Observable<Course>{
+  const httpHeaders = new HttpHeaders().set("Authorization", "ABC");
+  return this.http.put<Course>(`api/course/${course.id}`, course, {headers: httpHeaders});
+}

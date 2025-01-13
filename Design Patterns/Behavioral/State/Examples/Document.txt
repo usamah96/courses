@@ -1,0 +1,98 @@
+abstract class State {
+    private Map<Integer, Function<Input, Status>> actionToHandler = new HashMap<>();
+
+    public void on(int action, Function<Input, Status> handler) {
+        actionToHandler.put(action, handler);
+    }
+
+    public Status handle(int action, Input input) {
+        return actionToHandler.get(action).apply(input);
+    }
+}
+
+class Draft extends State {
+    
+    @Override
+    String getType() {
+        return "DRAFT";
+    }
+
+    public Draft(Document document) {
+        this.on(Action.REVIEW, input -> {
+            document.setContent(input.getContent());
+            document.setCurrentState(new InReview(document));
+            return new Status();
+        });
+
+        this.on(Action.APPROVE, input -> new Status(true, "The document cannot be approved if it is in DRAFT state."));
+
+        this.on(Action.REJECT, input -> new Status(true, "The document cannot be rejected if it is in DRAFT state."));
+
+        this.on(Action.CLOSED, input -> new Status(true, "The document cannot be closed if it is in DRAFT state."));
+    }
+}
+
+class InReview extends State {
+
+    @Override
+    String getType() {
+        return "IN REVIEW";
+    }
+      
+    public InReview(Document document) {
+        this.on(Action.REVIEW, input -> {
+            return new Status(true, "The document is already in IN REVIEW state.");
+        });
+        this.on(Action.APPROVE, input -> {
+            document.setCurrentState(new Approved(document));
+            return new Status();
+        });
+        this.on(Action.REJECT, input -> {
+            document.setCurrentState(new Rejected(document));
+            return new Status();
+        });
+        this.on(Action.CLOSED, input -> new Status(true, "The document cannot be closed if it is in IN REVIEW state."));
+    }
+}
+
+class Document {
+
+    // it contains the document's text 
+    private String content;
+
+    // this attribute holds the current state of the document
+    private State currentState;
+
+    // Whenever a new Document is created, the current State is set to Draft
+    public Document() {
+        this.currentState = new Draft(this);
+    }
+
+    public void setContent(String content) {
+        this.content = content;
+    }
+
+    public State getCurrentState() {
+        return currentState;
+    }
+
+    public void setCurrentState(State currentState) {
+        this.currentState = currentState;
+    }
+
+    // Whenever any action is performed, it is then delegated to the current state.
+    public Status handle(int action, Input input) {
+        return this.currentState.handle(action, input);
+    }
+}
+
+Document document = new Document();
+
+State state = document.getCurrentState();
+assertEquals(state.getType(), "DRAFT");
+
+Status status = document.handle(Action.REVIEW, new Input("Some Content"));
+state = document.getCurrentState();
+assertEquals(state.getType(), "IN REVIEW");
+assertFalse(status.isError());
+assertNull(status.getMessage());

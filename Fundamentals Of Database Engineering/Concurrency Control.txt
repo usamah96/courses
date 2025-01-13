@@ -1,0 +1,104 @@
+Concurrency Control
+--
+
+Exclusive Lock vs Shared Lock
+IN DBMS, exclusive lock and shared lock are opposite to each other. In exclusive lock, if a transaction tries to achieve EL
+on certain row of a table then nobody is allowed to take shared lock on that certain row. Similarly, if a transaction tries to
+achieve SL on certain row of a table the nobody is allowed to take EL on that certain row
+
+Exclusive lock means a transaction wants to insert/update the data. So no other transaction is allowed to read/update that data
+Shared lock means a transaction wants to read the data. So no other transaction is allowed to insert/write on that data.
+
+Example PG
+..
+Transaction 1:
+begin transaction;
+insert into test values (20);
+=> Result: OK
+
+Transaction 2:
+begin transaction;
+insert into test values (20);
+=> Result: Pending
+
+The result is pending because transaction 1 has taken exclusive lock on row with id = 20 so when transaction 2 tries to
+do the same, it is in a pending state.
+Now if in transaction 1 1, I do a rollback command then transaction 2 will be succeeded. But if I do commit in transaction 1, 
+then transaction 2 will show duplicate entry with id = 20 error.
+
+
+Two Phase Locking
+IN DBMS, it is referred to acquiring and releasing the locks in 2 phases.
+The first phase is to acquire, acquire and acquire lock
+The second phase is to release, release, release locks.
+
+Example of double booking problem of a cinema seat.
+..
+Transaction 1:
+1 select is_booked from seats where id = 10;
+  Result => False;
+2 update is_booken = true, name = 'Usama' where id = 10;
+  Result => OK;
+
+Transaction 2:
+3  select is_booked from seats where id = 10;
+   Result => False;
+4  update is_booken = true, name = 'Ali' where id = 10;
+   Result => OK
+   
+If i first commit transaction 1 and then transaction 2, both will get successed but transaction 2 data will override transaction 1
+data as it is the last to commit which is wrong because 'Usama' was the first to reserve the seat.
+
+In 2-Phase Locking Example
+..
+Transaction 1:
+1 select is_booked from seats where id = 10 for update;
+  Result => False;
+3 update is_booken = true, name = 'Usama' where id = 10;
+  Result => OK;
+4 Commit;
+
+Transaction 2:
+2  select is_booked from seats where id = 10;
+   Result => Pending;
+5  Result => True
+
+When we use 'for update' keyword, it will acquire exclusive lock on that row and when transaction 2 tries to read the data, it
+goes into pending state. The result came only when transaction 2 committed it and it shoed true which means the seat is booked
+by transaction 1. The commit, is the second phase which is to release the lock
+
+
+When using pagination, dont use offset in queries.
+Example Of pagination where we use page size as 10 and page number as 10. It means that the query should return result after
+9*10=90 record so from 91 to 100.
+The query will be,
+Select title from news offset 91 limit 10;
+
+In postgres, if we use explain analyze with this query, it will fetch all 100 rows from the heap/disk and then only return 10
+rows which are 91 to 100 which is so bad in terms of performance. What if offset is 10000 and limit is 5. Postgres will fetch all
+10005 rows and then just return 5
+The alternate solution is not to use offset but to filter the rows in terms of index which can be id like,
+"select title from news where id > 90 limit 10"
+"select title from news where id > 10000 limit 5"
+The database will scan the index and only fetch the rows fiting into this criteria which are 10 and 5 rows respectively.
+
+Return the id also in the response so the FE can send back id in request to be used in the where clause as offset field.
+
+Connection Pooling.
+It is a pattern of creating a pool of available connection particulatly TCP so that these connections can be shared by multiple
+clients. This is very useful when connection establishment is expensive so it basically tunes down our connections. It is also
+useful when server has limited number of db connections but the there are very much number of clients
+
+Old Method,
+When we expose an endpoint to list down all employees, what our endpoint does is whenever a request comes onto it, its establishes
+a connection with database, fetches the data, closes the connection and return back response to the client. Every single request
+does that.
+
+Pool Method
+We define a set of maximum number of connection in a pool lets say 20 with some configuration. These configuration are if all 20
+connections are being currently used by some request and if a new reuqest comes in, how much time that new request must wait to
+obtain a connection from pool. Also if a pool connection is not in use any more then after how much time it must be destroyed to
+release the memory. In NodeJS, 0ms means forever for both cases.
+
+Code Example: Run the /pool and /old endpoint hundred or thousand times to see the average time elapsed to fetch the data from
+the database. Use loop in dev console.

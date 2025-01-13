@@ -1,0 +1,202 @@
+Garbage Collection
+--
+
+The need for restoring the heap memory when the objects created before are no longer required.
+The JVM allocates memory as soon as new instace is created and as more and more objects gets stored on heap we can get OutOfMemoryError.
+
+Types of Memory Corruption Error
+
+1) Memory Leak
+     .When unused objects are never freed
+     
+  
+2) Dangling Reference
+     .When a component references an object which is already deallocated
+     .2 components sharing same object. One component after using the object deallocates it so other compoment will behave in unpredictable manner
+
+One way to avoid such errors is to restrict the programmers to manually modifying the memory and java achieves this through Automatic/Implicit Memory
+Management via Garbage Collection performed by JVM component called Garbage Collector
+
+
+Garbage Collector,
+  -Reclaims dead object
+  -Never reclaims referenced object. Only objects get reclaimed if no active references are there
+  
+Abondoned object is termed as the object which has no active references. Object can be abondoned if,
+
+1) Going out-of-scope
+   Example
+   void go(){
+     Book b = new Book();
+   }
+   
+2) 	Assigning new Object
+    Example
+    Book b = new Book();
+    b = new Book();
+    
+3) Assigning null
+   Example
+   Book b = new Book();
+   b = null;
+   
+   
+The garbage collector runs in background on a low priority thread. There is no guarentee when it will run and programmers have little control when
+it would run
+
+We can singla JVM to run GC by
+  .System.gc Or Runtime.getRuntime().gc()
+This is just a signal and JVM might ignore it too. So we should not rely on this completely
+
+
+
+
+Garbage Collector Algorithms
+--
+
+There are 2 challenges
+
+1) How the GC identifies the abondoned objects
+2) How to minimal the time when the GC is performed
+
+After identification of abondoned objects, what if some other objects gets abondoned. They must also be reclaimed. To avoid this complexity, JVM 
+stops the main application for some time until GC is performed but that application pause should not be for too long.
+
+The first challenge of identifying the abondoning objects are by Mark and Sweep Algorithm. It has 2 parts
+
+1) Mark
+    .We have a Garbage Collector Root which is an object points out to the very first object inside the heap
+    .When the object is created its mark bit is set to false (0) and during the mark phase of GC algorithm, we set the mark bit of all reachable
+     objects to true(1)
+    .We do a depth-first search traversal to find our all reachable nodes and set their mark bit to true
+    
+    
+2) Sweep
+    .It sweeps out all unreachable nodes
+    .All nodes whose mark bit is false(0) are cleared from the heap
+    
+One problem here is that after the sweep process. Some parts of the heap memory is freed and now the heap memory free space is freagmented instead
+of contiguous 
+    ---------------------------
+    |          |   |      |   |
+    ---------------------------
+    
+So if a new object with a slight bigger size wants to sit in heap, JVM will throw OutOfMemory Error
+
+To address this issue, another algorithm is Mark Sweep Compact in which there are 3 parts. The first 2 parts of Mark and Sweep are the same and the
+third part is Compact which compacts the heap memory by moving all the live objects to start of the heap memory
+
+    ---------------------------
+    |               |         |
+    ---------------------------
+
+Hence there will be no fragmentation but additional compact step is used so increase in pause time of application will be there
+
+
+
+
+
+
+Generational Collections
+--
+
+Helps reduce application pause time
+
+In our application we have many objects. Some may live for short time, some for long time and some may never be abondoned and die.
+In every GC cycle, the GC traverse through all the objects in the mark phase and the GC may find some objects similar to the previous cycle and some
+new objects created.
+The time can be reduced if objects which were marked before not marked in the next cycle and some long living objects can be skipped to reduce the
+time.
+
+In this approach we can divide the memory into 2 parts. One that will contain shorter lifespan objects and one will contain longer lifespan objects
+
+The heap is divided into 2 generations
+  .Young Generation
+  .Old (Tenure) Generation
+The young generation is smaller in size compare to old generation
+All the objects created initially are stored in yound generation and objects which survived some of the GC cycle are promoted to old generation
+The young generation is traversed by the GC more frequently than the old generation
+The old generation collection is also termed as FULL GC as it also consists of Young Collection
+
+The Young Collection is split up into 3 parts further
+  .Eden Space -> Initial objects are created here
+  .To Space -> After the GC cycle, the objects which are marked true(1) are moved here
+  .From Space -> After the completion of GC cycle all To Space objects are transferred here
+In the next cycle, the mark phase will traverse all objects inside Eden Space and From Space to detect live objects
+
+Once an object survived 15 GC cycle it will be moved to Old Collection. This number can be modified as an argument given to JVM
+
+This algorithm is called Mark and Copy as we have 2 segments of memory and copy operation is done at the end
+
+Both the Young and Old collection can perform on different algorithms
+There are multiple types of GC
+
+1) Serial GC
+    .Single threded GC. Cannot make use of multiple cores so not to be used on production server
+     Algorithm For Young Collection -> Mark and Copy
+     Algorithm For Old Collection -> Mark Sweep Compact
+
+
+2) Parallel GC
+    .Takes advantage of multiple cores of system
+     Algorithm For Young Collection -> Mark and Copy
+     Algorithm For Old Collection -> Mark Sweep Compact
+  
+     
+3) CMS GC
+  .Takes advantage of multiple cores of system
+   Algorithm For Young Collection -> Mark and Copy
+   Algorithm For Old Collection -> Mostly Concurrent Mark Sweep
+   
+   
+The Garbage-First Collector (G1) is a garbage collection algorithm introduced in the Oracle HotSpot Java virtual machine (JVM) 6 and supported from 
+7 Update 4. It was planned to replace Concurrent mark sweep collector (CMS) in JVM 7 and was made default in Java 9.
+It uses completely different heap layout. It is similar to CMS GC with parallel and concurrent execution.
+It has less heap memory and it reduces Old GC time.
+
+If the JVM is using either CMS or Parallel GC and if the Full GC duration is too long and too frequent then it is recommended to use G1 as a 
+Garbage Collector
+
+
+
+
+
+
+We can modify heap size via command line options
+   .Minimum heap size option -> Xms2m (2MB)
+   .Maximum heap size option -> Xmx12m (12MB)
+
+Some other args
+   .To print GC info before and after GC cycle -> PrintGCDetails
+   .Restricting the Young Collection size -> XX:MaxNewSize=1m (1MB)
+   
+All Args together
+   -Xms2m -Xmx12m -PrintGCDetails -XX:MaxNewSize=1m
+
+
+
+A Java program can still have memory leaks despite all the efforts from GC
+Java program may contain obselete object references which are not garbage collected as they are considered alive objects
+
+Example Of Stack
+..
+
+void push(Object o){
+  elements[size++] = o;
+}
+
+Object pop(){
+  return elements[--size];
+}
+
+Here using the pop() operation, the object is returned but the actual elements array still contains the memory reference to the object which is
+an obselete reference.
+
+Solution
+Object pop(){
+  Object result = elements[--size];
+  elements[size] = null;
+  return result;
+}
+
+Assigning null to that position which is returned.

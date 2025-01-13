@@ -1,0 +1,179 @@
+Smart Contract Intuition
+--
+
+1) Ethereum
+2) Smart Contract
+3) Decentralized Apps (DApps)
+4) Decentralized Autonomous Organization (DAOs)
+5) Blockchain Startups
+6) Blockchain and Web 3.0
+
+
+Advanced and Time Taking Conecpts (Not covered)
+
+1) Soft and Hard Forks
+2) ICO and IPO
+3) DAO and Ethereum DAO Attack
+
+
+
+
+Ethereum
+
+A project which is created by Vitalek Buterin. He wanted a scripting languge to create programs for bitcoins and he did not have the agreement from the
+community to do that, so he went alone and created his own project ethereum. Today it became so giant that most of the blockchain projects are built
+on top of it
+
+Ethrereum and Bitcoin are said to be friends. Bitcoin is not a platform for others to create projects. Its purpose is to just create a crypto currency
+that will disrupt the banks. On the other hand, ethereum is a whole design which is not designed as a crypto currency design but as a platform 
+for others to build programs on top of it
+
+The idea is that we all are interconnected in a network. We build a blockchain that not only allow us to store the transactional data but
+actually allows us to store programs that facilitates the execution of it and thats how we can decentralized any application we built. These
+programs run on a computer that are part of the blockchain.
+Lets say we have an application, we dont run that application on the server and let everybody in a network communicate with the server and get the
+data and required installation, but instead the application runs on every single computer individually which makes it decentralized and it all
+facilitates with blockchain
+
+So the idea of ethereum is to make world's biggest supercomputer that work together to decentralize any application
+
+
+
+
+
+
+
+Smart Contracts
+
+Programs which runs on blockchain
+
+Why it is smart contract when its just a program that is run?
+A normal contract is just a set of rules that multiple parties agree to the terms and conditions. The parties decide that after some task, this
+task should happen, and after that task some other task to be executed and so on. Similarly, the program also contains the logic with if then and 
+else.
+
+There is a programming language solidity which allows to code on ethereum blockchain
+Also for bitcoin there is a programming language called Bitcoin Script
+
+The difference between these 2 is that
+  *Bitcoin is not turing complete which means you cannot code everything you have in mind because it does not support loop (for, while) 
+  *Solidity is turing complete
+
+Smart contract helps in product supply chain to track from where the specific product was manufactured and all the steps to come at the required
+retailer. The samrt contract has all the code and checks that whenever any scan is done or barcode is read then check the checkbox or something
+like this. This whole journey can be tracked using the QR code attached to the product which can be scanned by the user
+
+
+We can say, smart contract is way that interacts user with the blockchain
+
+
+
+
+
+Decentralized Apps (DApps)
+
+It is an interface for people to interact with something on the blockchain
+DApp contains a FE and a BE which is the smart contract
+
+
+
+
+
+
+
+Ethereum Virtual Machine & Gas
+
+Our network is more complex now. We have a huge network with growing blockchain and smart contract running on that blockchain. So there is always a
+security threat
+
+Some of the security threat might be
+
+1) We know that bitcoin script does not support loops and the reason for that it can be misused. Somebody can maliciously insert infine loops in the
+   smart contract and the whole blockchain will be hanged. Solidity in Ethereum supports loops but how does it manages to handle this?
+   
+2) Another thread could be that since smart contract is distributed and every node has a copy of it, what if some body send a virus as a smart 
+   contract to the blockchain. It will get copied to every indivual node in the network
+   
+3) Another thread can be what if smart contract accesses your private files and get access to your webcam. How protection is done from that
+
+
+Whenever we participate in the network, we get the ethereum virtual machine which runs on our computer and on that virtual machine the smart
+contract runs. So the VM encapsulates the contract and the contract does not know anything exists outside of it. If something goes wrong it will
+go wrong on that virtual machine and we can just delete it from our computer. This resolves the issue of accessing private files and viruses
+
+
+For infinite loops, the concept of GAS comes in. It is an ingenious solution that any computation runs on the blockchain, the developer of the
+smart contract need to pay for that. Like a car, for the car to move you need GAS
+There is a list which maps operations to GAS 
+
+FOr an addition operation we need 3 GAS
+FOr an multiplication operation we need 5 GAS
+etc....
+.......
+.......
+
+So if our program is so computational and heavy, we will run out of gas and it will stop. So it incentivizes people to write good code. So developers
+need to come with smart and optimized solution that will take as less gas as possible
+
+There is ETH Gas Stations where all that information is there how much gas will be used and all that
+There is some conversion rate between ether and gas which will be calculated for computation
+
+
+
+
+
+Decentralized Autonomous Organization (DAOs)
+
+What is an organization?
+People connected with each other to make the company operate. These people follow some protocol and procedures to make the company operate
+From where does these procedures and protocol comes from. These are obviously mentioned in their contract for what type of work they will be
+doing
+
+Similarly if we replace people with smart contract and code all the things, then we have an organization that is running itself. That is DAOs
+all about
+
+Like an organization giving ride services
+A person need to take a ride from home to work. The car appears and the person gets in the car, the car drvices him all the way to the work and
+drop it. Now there is another person waiting for the car and the car needs to pick him up. The car itself is a smart contract and it knows when
+to stop for the petrol at petrol station. The petrol station itself is a smart contract. The petrol station checks that smart car for the petrol
+and there is an exchange of petrol for some currenct and then car drvies away. So the whole process does not need any human involvment
+This all happens on the blockchain and the computers on the blockchain can decide which user to pick up who is the closest. The servers dont belong
+to one company because of its decentralized nature and the contracts are written out on the blockchain
+
+The organization can live on its own even if the originators (company) does not seems to work anymore
+
+
+
+
+
+
+
+Blockchain Startups
+
+Refer to white papers for working
+
+1) Sia -> File Hosting Service PLatform (Cloud Storaga)
+2) Power Ledger -> Allows people to sell access power to each other (electricity from solar panel)     
+3) Provenance _> Track product where it comes from     
+
+
+
+
+
+
+
+Blockchain and Web 3.0
+
+Before Web 3.0 Lets look at Web 1.0 and Web 2.0
+
+We know the good old days where websites were just simple images and text and some good colors and nothing else. That old age internet websites
+are an example of Web 1.0
+
+Web 2.0 refers to some advance exeprience like good animation, carousel images, lightining effects, watching videos directly etc
+
+The FE and User Experience has drastically changed from Web 1.0 to Web 3.0
+The BE has not changed much. We have a centralized server where the FE interacts with the BE
+
+For Web 3.0 we dont know how the FE will look like. But the BE has shifted to the decentralized structure with all the blocks and blockchain
+
+

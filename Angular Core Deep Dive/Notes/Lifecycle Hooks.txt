@@ -1,0 +1,133 @@
+Lifecycle Hooks
+---
+
+
+Lifecycle hook functions are meant to be called by angular itself and we should not call it
+explicitly by code
+
+1) ngOnInit
+
+-Only called once after the constructor
+-All the initializing logic should be present here and not in the constructor
+-Angular will first call construcotr at the time of initializing the component, then fill in
+the required dependencies, then fill in the member variables like @Input() and then ngOnInit
+will be called
+-Any values with @Input decortor will be undefined at the constructor level and logic for the
+initialization related to any @Input should be handled at ngOnInit lifecycle hook.
+
+
+2) ngOnDestroy
+
+-Called when the component is destroyed
+-Used to be releasing long running resources by the component such as observables subscriptions.
+
+
+3) ngOnChanges
+
+-Calls at the time of the initializing of the component after the constructor and before
+ngOnInit only if there is a @Input() property inside the component.
+-ngOnChanges is called everytime by the angular framework whenever the @Input property value
+gets reassigned
+-This will not be get called if the @Input value gets changed or mutated, but will be get called
+when the value is reassigned.
+-It also receives an arguement which is an object that consists values such as previous value
+and the current value, if the function is called the first time or not etc..
+-A use case of ngOnChanges would be to do a callback work whenever something changes in the
+@Input value.
+
+Eg:
+..
+Inside app.component.html
+obj:any = {id: 1, name: "Usama"}
+
+Edit(){ this.obj.name = "Test"; } 
+// Will not trigger ngOnChanges in child component as the object is being mutated
+
+Edit(){
+  let newObj = {...this.obj, name: "Test"};
+  this.obj = newObj;
+}
+// This will get triggered as object reference is changed and object will be reassigned.
+
+
+
+4) ngAfterContentChecked
+
+-This gets called several time by angular at multiple posiitons everytime there is a change
+detection. So the code written here should be lightweight to avoid performance hurdles.
+-It gets called after ctor, ngOnChanges, ngOnInt
+-We know that the content part of the component is a part of code written between the
+component tags
+
+<course-card [course]="course">
+  <course-image [src]="course.imageUrl"></course-image>
+</course-card>
+
+-The image part is the content part of the component and when angular goes through this
+content part for change detection, it calls ngAfterContentChecked lifecycle hook.
+-The usecase for this lifecycle hook could be to modify our properties at the last moment.
+-But we cannot modify properties that are being used in the content part because those
+properties are already being checked for change detection and modifying them will need to
+trigger change detection again and it will fall in a continuous loop. So angular will throw
+error that properties changed after the content has been checked
+
+ngAfterContentChecked(){
+  this.course.description = "Test Description" // Allowed
+  this.course.category = "Advanced" // Allowed
+  this.course.imageUrl = '' // Now Allowed
+}
+
+
+
+
+5) ngAfterViewChecked
+
+-Very similar to ngAfterContentChecked and gets called after ngAfterContentChecked.
+-This also gets called several times after every change detection is triggered
+-When the view of the component is checked for any changes, angular will call this method
+and any modification of properties that are being utilized inside the component will throw
+an error because they have already been checked for changes.
+-A common use case of using this lifecycle hook is to perform any DOM related operations 
+when the view is being checked like we have a course array and after we pushed new course
+to an array, we want to scroll the screen to the bottom so that new item is shown. So the
+scrolling logic can be applied here when the view is being checked for rendering.
+
+
+
+6) ngDoCheck
+
+-Called after every change detection is triggered
+-Is a good place to implement custom change detection logic
+-Like when using OnPush change detection strategy we can explicitly markForChanges whenever
+we get the data from back-end and we are not usng async pipe at our view level
+
+
+
+7) ngAfterContentInit
+
+-Gets called once by the angular framework and is called after the ngDoCheck
+-Should contain any initializing logic related to @ContentChild or @ContentChildren
+-Could be used if we are using <ng-content> and we want to get the programmatic reference
+
+
+
+8) ngAfterViewInit
+
+-Gets called once by the angular framework and is called after ngAfterContentInit and 
+ngAfterContentChecked
+-Should contain any initializing logic related to @ViewChild or @ViewChildren
+
+
+
+
+
+Sequence Of LifecycleHooks
+
+1) constructor
+2) ngOnChanges
+3) ngOnInit
+4) ngDoCheck
+5) ngAfterContentInit
+6) ngAfterContentChecked
+7) ngAfterViewInit
+8) ngAfterViewChecked

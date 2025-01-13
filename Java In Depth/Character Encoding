@@ -1,0 +1,57 @@
+Character Encoding
+..
+Every file uses some encoding scheme to translate the character into some hexadecimal value and its corressponding binary value is then used by
+the system for processing.
+
+Encoding: a -> 61 -> 01100001
+Decoding: 01100001 -> 61 -> a
+
+Some Encoding Schemes include,
+   .ASCII
+   .UCS-2
+   .UTF-16
+   .UTF-32
+Each encoding scheme implement some character set
+ASCII can be ensured as both encoding scheme and character set while UCS-2, UTF-8/16/32 implements Unicode character set
+
+Some of the Character Sets include
+   .ASCII: 7-bit code for unaccented english characters. Initially they were used for simple english characters A-Z (41 to 5A in Hexadecimal)
+   .ISO 8859: Since there are many other languages we then have an extension for ASCII to 8-bit code to support more characters. It supported 15
+              different variations for 15 different regions in the world. The first 128 codes were identical to ASCII, remaining 128 differes 
+              according to the region
+    .DBCS: Asian languages have 1000 of characters and 8-bit cannot support it so they introduced Double Byte Character Set
+Due to all these variations, when documents were moved from one country to another, they had decoding issues since some of the characters 
+not able to be decoded due to region issues. To resolve this issue, Unicode character set was introduced which aims to cover all languages in the
+world
+
+Unicode Character Set
+  .Backward compatible with 7-bit ASCII (First 128 characters are same)
+  .Initial assumption was for 16-bit (65536 characters). These characters as a group reffered to as Basic Multilingual Plane (BMP)
+  .For 16-bit, UCS-2 was created to represent it
+  .It was realized that there were even more characters especially for asian markets like emojis, so need to introduce UCS-4, UTF-8/16/32
+  .UCS-4 was not preffred much as it needed 4 bytes for every character so wastage of memory was there
+  .As of today Unicode covers 120k characters from 120 scripts
+Unicode characters has 2 parts
+  1) BMP
+      .65536 characters (16-biit)
+      .16-bit code point is used to represent it like U+20AC (Euro symbol)
+  2) Supplementary characters (Non-BMP)
+      .Around 55000 characters and can expect more to be added in this set
+      .2 16-bit code point is used to represent it
+UTF-16 and UTF-32 are the most popular implementation of Unicde character set
+Java, C#, Python internally uses UTF-16 to store the characters
+
+Endianness
+-For UTF-16, since the basic unit is 2 bytes so there are 2 ways the bytes are stored in memory or disk
+   1) Big Endian: MSB stored at the lowest memory address. It is used by default
+   2) Low Endian: MSB stored at the highest memory address
+   
+The Byte Order Mark (BOM) For Big Endian is FEFF and for Low Endian is FFFE which means that these BOM are placed at the beginning of the data stream
+to represent BE or LE
+Example
+
+Hello -> 0048 0065 006C 006F
+BE -> FFEF 0048 0065 006C 006F
+LE -> FFFE 4800 6500 6C00 6F00
+Always use the same or compatible encoding scheme to decode the bytes which was used to encode it. If ASCII is used it for encoding then either
+ASCII or UTF-8 can be used to decode since UTF-8 is backward compatible with ASCII encoding scheme

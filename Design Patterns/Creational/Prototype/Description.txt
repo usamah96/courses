@@ -1,0 +1,43 @@
+Prototype
+--
+
+-This pattern deals with object copying
+
+Motivation
+-Complicated objects are not designed from scratch
+-If we have created a very complex object lets say using builder pattern then we can clone (deep) this object and customize 
+it using the protype pattern to have a brand new different type of object.
+
+Concept related to prototype (copying)
+..
+-We have shallow and deep copy
+-If we have a class and we want to copy all the values from one object to another object, we can shallow copy an object by
+doing
+Class a = new Class();
+Class b = a;
+-In this way we have 2 instances that points to the same reference and changes in one onstance will automatically reflects in
+the other instance. This is shallow copy and we want deep copy
+
+-In Java we have a concept of marker interface also called tagging interface which has no members and method declaration.
+-In Java by default we have 3 marker interfaces
+1) Serializable 2) Cloneable 3) Remote Interface
+-These marker interface signals to JVM to perform some additional operation when it sees a class implements these interface.
+-Like with serializable we can make our entity save in a file with stream reader because JVM identfies that a particulat entity
+is serializable so this operation is valid. We cannot do this operation if we donot implement serializable with our entity.
+
+Here we will implement the Cloneable interface. When implementing the cloneable interface JVM allows us to override the clone
+method present in the Object class. If we override the clone method without implementing the Cloneable interface we will get an
+error of CloneNotSupportedException.
+
+-The original clone method calls super.clone() which is by default a shallow copy. We need to give our own implementation 
+to perform deep copy operation.
+-It is not recommended to use the Cloneable interface
+
+
+
+-One more method of copying the object is to make copy contructors which is  a much better implementation rather than using
+the Cloneable interface.
+
+-Another method of deep copying the object is to make our classes serializable so that we can make use of 
+SerializationUtils.rountrip() method to deep copy our object. This method first serializes our class and then deserializes which
+returns a brand new object of our class.

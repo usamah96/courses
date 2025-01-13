@@ -1,0 +1,82 @@
+Auto Scaling Group (ASG)
+---
+
+In real world application, we get very fluctuating load on different times and we also have seen that it is very easy to get rid of servers and 
+add new servers in our application.
+
+So we make use of ASG to scale-in and scale-out the servers depending upon the load
+
+The goal of ASG is to,
+  .Scale out EC2 instances to match the increased load
+  .Scale in EC2 instances to match the decreased load
+  .Ensures we have minimum and maximum number of instances running
+  .Automatically registers new instance to load balancer
+  
+  
+ASG are free and we only pay for underlying instances running
+
+In ASG, we define 3 parameters for our number of instances
+  .Minimum capacity
+  .Desired capacity
+  .Maximum capacity
+  
+Maximum - Desired capacity are the instances which ASG can scale-out depending upon the load
+
+When creating ASG, we need to specify the Launch Template and this template is basically the configuration we define. It includes all the relevant 
+data need to create EC2 instance like AMI, Instance Type, EBS Volumes, Security Group, SSH Key Pair, VPC+Subnet, etc..
+Also we define the maximum, minimum and initial capacity with scaling policies.
+
+The scaling policies is referred to as scaling-in and scaling-out instances based on CloudWatch alarams. Like if the average cpu metric crosses
+some threshold then scale-out the instances or any other custom metric we can define in CloudWatch
+
+
+Hands On
+***
+
+At first, on creating ASG, we define a name for it and then create a launch template
+Inside launch template we specify all the configuration for our EC2 instances like about the OS, Instance Type, User Data script, EBS/EFS, etc
+Then we can override the instance type settings to customize the instance type if we dont want to pick it from launch template
+Then we specify in what AZs the ASG should create the instances
+We then attach a load balancer with our ASG and specify in which target group the instances should be created.
+We then enable health checks and this is to be done by the load balancer. If any issue or unhealthiness reported by load balancer then ASG will take
+action based on that. So we turn on elastic load balancing health checks.
+In the end we specify our instance minimum, desired and maximum capacity.
+
+***
+
+ASG Scaling Policies
+..
+Some of the scaling policies includes
+
+a) Dynamic Scaling
+    .Simple Scaling: We can set the scaling policy based on a certain CloudWatch alaram we have set it before. Like if we have set an alaram to be 
+	 generated if the request load is 70% on EC2 instances then based on this alaram we can ask ASG to scale-out instances. The number can be anythig 
+	 of our choice or a percentage of our target group. 
+    .Target Tracking: It is simple to set up like if we want average CPU to stay around 40% or average request count to be around 1000 request per second.
+	 The ASG will scale in and out the instances in order to maintain this desired metric we set.
+	.Step Scaling: When a CloudWatch alaram is triggered like add 2 units if CPU Utilization > 70% and remove 1 unit if CPU < 30%. So similar to simple
+	 scaling but in this we can define a range  
+b) Scheduled Scaling
+    .We can anticipate a scaling based on usage pattern like increase the ASG minimum capacity to 10 at 5pm on Friday
+c) Predictive Scaling
+    .It is machine learning driven
+    .Continuously forecast load and schedule scaling ahead
+	.Based on current load and the load for past weeks, the ASG will forecast the load and according to that will scale in or out the instance
+	
+	
+In Target Tracking, there is a metric type of Average Network In and Average Network Out in term of bytes that specifies that an instance should 
+maintain the incoming and outgoing of data in term of bytes. If the size increases then ASG launches a new instance because too much data transfer
+slows down the response and affects user experience if we are providing a service like video streaming or any other.
+
+In order to increase cpu utilization, we can use stress.sh library
+	
+	
+Some good metrics to consider are
+  .CPU Utilization
+  .Request Count
+  .Average Network
+  .Any other Custom Metric that we pushed on CloudWatch
+  
+Afte the scaling activity happens, we enter in the cooldown period and by default the value is 300 seconds (5 minutes). In this time duration, no
+ASG activity is performed to allow the updated metric to become stablize. One reommended approach is to use ready to use AMI to reduce the 
+configuration time to serve the requests faster.

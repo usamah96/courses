@@ -1,0 +1,81 @@
+Custom Images Through Docker Server
+---
+
+As of now, we are using docker images created by other engineers like hello-world, busybox, redis etc. What if we want to create our own image?
+
+For that, we create a dockerfile which is the configuration to define how our container should behave. It contains all the relevant programs that should run and what should it do 
+when it starts up. This docker file is provided to Docker Client which can be Docker CLI which passes this file to Docker Server. The docker server then reads all the configuration
+and make a usable image out of it that can be used to startup a new container
+
+Dockerfile -> Docker Client -> Docker Server -> Usable Image
+
+For creating a docker file, we need to,
+ - Specify a base image
+ - Run some commands to install additional programs
+ - Specify a command to run on container startup
+ 
+
+We can imagine a dockerfile as an empty image just like a branch new computer with no operating system. If someone has given this computer and ask us to install google chrome 
+into it, what should we do? We follow some steps that will inclue
+  .Install OS
+  .Startup default browser
+  .Navigate to chrome.google.command
+  .Download installer
+  .Execute installer chrome_installer.exe to install chrome
+  .Execute chrome.exe file.
+  
+Just like that, in an empty image, we need to specify the starting point just like we needed an OS to start the computer. After that we run some commands to perform our required 
+operations, download required software and in the end we execute our file to run our software.
+
+To start, mainly there are three instructions that we tell docker server what to do 
+  - FROM
+     .Specify a starting point and initial set of programs that further help us to build and customize our image. This specifies what base image we want to use and normally we use 
+	 'alpine' because it comes with preinstalled set of programs useful for us just like in computer we use Windows, Linux, MAxOS as base image.
+  - RUN
+     .Execute any command 
+  - CMD
+     .Specify the primary command of the image that whenever the container is started using the image, then what should be the command to run
+ 
+Example creating a dockerfile that creates an image which runs redis-server
+..
+FROM alpine
+
+RUN apk add --update redis
+
+CMD ["redis-server"]
+..
+
+After creating the dockerfile, we can run "docker build ." which means that the dockerfile is sent to docker cli and further to docker server to check, analyze and create a usable 
+image out of it.
+Behind the scenes,
+  - When we executed "FROM alpine", docker server will check local cache for alpine image and if not found it will download it from the hub
+  - When we executed "RUN apk add --update redis", first this will create a temporary container out of the last created image which is the alpine. Inside this container the command 
+    will be executed which will download and install redis. The apk command comes with the alpine image so in a container running using alpine image, we can successfuly execute 
+    command using apk. After downloading and installing, redis-server will now reside inside the container file system. The docker server will take a snapshot of this file system
+    and create an image out of it and remove this temporary container.
+  - When we executed "CMD ["redis-server"]", again a temporary container will be created from last image and using the CMD command whe are specifying that whenever this image 
+    is used to start a container, what startup command to use. In this scenario, "redis-server" is the command that will be used. Docker server will again take a snapshot of 
+	container file system, create an image out of it and then remove/stop the container.
+	
+After the last command, the image id will be returned which will be the final image id that can be used to start the container and when we start the container, it will start 
+redis server since we have specified startup command as redis-server.
+The image id returned is hard to remember so we can tag our image while creating it. We can execute the command docker build with -t flag to give it a name like "usamaa/redis:latest".
+The first part is docker id, after slash is project name and after colon is the version number. Now we can create a container by executing,
+"docker run usamaa/redis". By default the version is latest so we dont need to provide it explicitly.
+
+Now we know that what is happening inside the Dockerfile. It basically checks the command, create a temporary container out of the image, execute the command and convert back 
+the container into an image to be used in future. We can do this manually also by taking the same alpine and redis example
+..
+ - We can start a container using alpine image and go inside the container file system
+   "docker run -it alpine sh"
+ - Now inside this file system we can install redis manually by executing
+   "apk add --update redis"
+ - Now with our container running, we can start a new terminal, run "docker ps " to grab the running container id and then we can use docker commit command to specify default 
+   starting command for the container and converting back the container to image using,
+   "docker commit -c "CMD 'redis-server'" <container_id>"
+   This will output image id.
+
+Whenever we need to modify our dockerfile, try to make those changes as far down as possible because docker uses its local cache and it maintains the order in which the last 
+time the commands were executed. If lets say we have a dockerfile with 100 lines and we make a slight change and added RUN command on line 57, then docker will use cache from line 
+1 till 56 but from 57 till 100 it will re-do all operations.
+

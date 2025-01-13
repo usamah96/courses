@@ -1,0 +1,83 @@
+Gateway Filters
+--
+
+
+1) Spring Cloud
+--
+
+We have 2 types of global filter
+  *Pre Filter (Executed before every request route)
+  *Post Filter (Executed after every request route)
+
+
+Pre-Filter
+--
+
+-Create a class that will implement GlobalFilter interface
+-Override the filter method that will take ServerWebExchange and GatewayFilterChain as argument
+-Annotate the class with @Component for it to be created as a Bean by spring framework.
+-This filter method will now be called before every request (after the Authorization Filter (AbstractGatewayFilterFactory) if implemented)
+-Refer to CloudPreFilter class
+
+
+Post-Filter
+--
+
+-Post Filter is as similar as PreFilter but the only difference is of return type
+-We return the next filter in chain from the pre filter method.
+-In the post filter method we execute the logic inside the runnable method after the chain filter.
+-Create a class that implements GlobalFilter
+-Override filter method and execute the logic as
+   return chain.filter(exchange).then(Mono.fromRunnable(() -> {  
+      // Any Logic
+   }))
+-This will get executed after the route has completed its execution
+-Refer to CloudPostFilter class
+
+
+
+
+Combining The Post and Pre Filter
+--
+
+-We can define the logic of both pre and post in the same file and also in the same method
+-Create a class and annotate it with @Configuration
+-Create a method that will return GlobalFilter interface and annotate it with @Bean
+-This method will contain both pre and post logic
+..
+
+@Bean
+public GlobalFilter filterPrePost(){
+  return (exchange, chain) -> {
+    // Logic For Pre Filter
+    return chain.filter(exchange).then(Mono.fromRunnable(() -> {
+      // Logic For Post Filter
+    }))
+  }
+}
+
+-We can implement several different methods like this to make different pre and post filters
+-The order of execution will be like this
+    *First all Pre filter will be triggered
+    *Then all Post Filtered will be trigered in reverse order.
+Example
+..
+PreFilter One
+PreFilter Two
+PreFilter Three
+PostFilter Three
+PostFilter Two
+PostFilter One
+
+-We can change the order using Order annotation if the filters are in the same file
+If the filter is in a separate file then Ordered interface can be implemented and override the getOrder method to return the order value
+
+**Note: The lowest order value will be executed first for Pre Filter and the highest order value will be executed first for Post Filter
+
+
+
+
+2) Zuul Gateway
+--
+
+Refer To https://spring.io/guides/gs/routing-and-filtering/

@@ -1,0 +1,104 @@
+Scalability
+--
+
+   Load Balancer
+   .It provides a single ip address for a component
+   .If a component like a Web Application is running on multiple instances then it is hard for a client to remember each and every ip
+    address which is changing and there can be more ip address or less ip address in future.
+   .Load Balancer takes care of that and provides a single ip address which the client will connect to and it will balance the load among
+    all the instances.
+   .The Load Balancer not necessarily sits between the client and the server or web application, it can sit everywhere in the application 
+    like between web application and api-gateway, between api-gateway and order-service, between order-service and catalog-service and
+	so on
+   .There can be load balancers everywhere in between because each service can be running in multiple instances even the api-gateway.
+   .There is no harm in this approach infact the kubernetes environment does its setup in this way.
+   
+Load Balancers can be used in 2 ways,
+  1) External LB, which is directly exposed to client like a user from web browser will send request to the load balancer which will
+     eventually send the request to the web application. So this load balancer is external which is hosted on some ip address with a domain
+	 name which is resolved by the DNS.
+  2) Internal LB, which is not exposed to client but is used in internal service communication. Either load balancer is introduced as a 
+     separate componend or embedded and used via discovery service but their (service+load balancer) ips are configured and there is no 
+	 hosting or domain names.
+	 
+There are 2 types of Load Balancers
+  1) Hardware Based (HLB)
+     .It supports both Layer 4 and Layer 7
+	 .Layer 4 which is the Transport Layer it supports protocols like UDP, TCP, SCTP, so if we want to do UDP Load Balancing it can provide
+	  us
+	 .Layer 7 which is the Application Layer it supports protocol like Http, Https, Smtp, Imap, Ftp, etc
+	 .An example for HLB is F5 Load Balancer which is very very costly
+	 .F5 manufacturer claims that it supports
+	   a) 300 million connections
+	   b) 320/160 Gbps throughput
+	   c) 10 million requests per second (Only applicable for Layer 7 as there is no concept of request at Layer 4. There are packets at this
+	      level)
+		  
+  2) Software Based (SLB)
+     .It supports Layer 7 only
+	 .Example is Nginx, Apache, HAProxy
+	 .SLB supports
+	   a) 225k Connections
+	   b) 70 Gbps throughput
+	   c) 3 million reuqest per second.
+	   
+The question arises is why use SLB when HLB gives so much? The answer is HLB is very costly and SLB is sufficient to support large scale
+applications. In SLB we just have to pay for the support
+
+Some of the features of Layer 7 Load Balancer includes,
+  .It act as a Reverse Proxy. It breaks the TCP connection. If the client sends the request to LB by creating a TCP connection, the LB will
+   create a new TCP connection to communicate with the server.
+  .It does Content Based Routing which means that suppose we have dynamic content served as web application on multiple machines and static 
+   content hosted on separate machines. If the client sends request 'www.hotel.com/reserve' then it can look into url, cookies, params and 
+   decide where to route the request. In this example it will route to dynamic content which serves hotel web app. In the example
+   'www.images.hotel.com' it will route to static content server to serve images of hotels.
+  .It does SSL Termination like if client sends request using https protocol then the Load Balancer can further communicate with http 
+   protocol
+   
+
+Can DNS be used as a Load Balancer?
+We know that the purpose of DNS is to provide browsers with the public ip address from the domain name as it holds all the relevant mapping.
+If a particular application is hosted on multiple instances, then a specific domain name will hold multiple ip addresses and DNS will hold all
+10, 20, 100 ip addresses corressponding to that domain name. If DNS needs to be used as a Load Balancer then we can do 2 things
+  1) DNS provide us with the single IP address everytime with provided domain name and that returned ip address will be different every time
+     depends upon the algorithm like round robin
+  2) DNS provide us with all the ip addresses, lets say 100, with provided domain name and we on the client/browser level do the Load Balancing.
+There is an issue with this approach for which DNS can not be used as a Load Balancer.
+  .Load Balancer has a special feature that it continuously checks and pings the servers to see if they are alive so that the the data is
+   updated and the clients dont get the response with stale data if any server goes down as it will be unreachable.
+  .Some DNS checks for health like provided by Google, Amazon, etc
+  .These health checks are checked not frequently because DNS will be overloaded if it will keep on checking each and every server. There ,
+   is a TTL property of cached result which is normally very high for DNS which dont make it act like a Load Balancer.
+  .So DNS cannot be used as a Load Balancer as it caches naming data for a longer period of time
+   
+DNS cannot itself be used as a Load Balancer but we can make use of DNS to do Global Server Load Balancing.
+Suppose we have our application running in multiple aread around the globe like 
+  .We have North America region which hosts the Load Balancer acting as a reverse proxy which routes the user to the web application
+  .Similarly we have Asia Pacific region which hosts the Load Balancer acting as a reverse proxy which routes the user to the web application
+  .And similarly there can be multiple other regions hosting the data center of our application.
+The DNS will hold the ip addresses of all the region load balancer which will be mapped to our domain name.
+When the user lets say from North America region or close to that wants to visit our website, the DNS will check the grographical location
+of the user and will return the ip address of that data center which is closest to the user. In the same way for Asia Pacific user, the
+DNS will return back the ip address of data center hosted in Asia Pacific region.
+
+Here the DNS is not acting as a Load Balancer but it helps in routing the user to its closest data center.
+In the very rare case if any region goes down (the whole region), then the DNS will detect it using its health check feature and all the
+North America region will be routed to Asia Pacific region. This will not be fast as health checks are not done very frequently but since this
+case is very rare this is bearable.
+
+The advantage of Global Server Load Balancing,
+  .Scalability: Routing for multi-geographic system
+  .Performance: Client is routed based on latency, proximity (closeness) and geography
+  .High Availability: Multi region availability and more regions can be added.
+  
+The issue occur with having multiple geographies is for data replication as 2 separate regions are having write operations on separate 
+databases hosted on their regions.
+  .The internal region setup of database can be master-slave or master-master depends upon the condition but the multi-geographic setup of
+   database should be master-master as if any write operation is done in 1 region then asynchronously we should update all other regions
+   behind the scenes.
+  .There should be some solution to avoid the write conflicts between these databases as same records, tables can be modified on different
+   regions at the same time so there can be lost updates and other issues as well.
+  .There are scenarions where there will be no write conflicts, like if there is Uber Application setup and I am sitting in Asia Pacific then
+   all the data will be related to asia and write operations will not conflict with other regions.
+  .There is also a possibility for data loss as well as database can go down just after the write operation and changes are not propagated
+   to other regions. So when the user connects to other region (user went to other region) then that previous data will be lost

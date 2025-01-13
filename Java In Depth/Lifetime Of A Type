@@ -1,0 +1,145 @@
+LifeTime of a Type (Class or interface)
+--
+What happens to a type since it is accessed for the very first time till its execution
+
+Lets say we have Hello.class and we are going to execute it. JVM will load that class and checks if it is well formed or not whether it is obeying
+the Java language rules or not. This same thing is also done when the class is generated but why it is doing again? Because this file could have
+been downloaded across the network which was compiled by some compiler to perform some malicios activity. So JVM will not trust the file and will
+do the checks again. If the class is not well formed then it is going to reject the class. If it is well formed then it will allocate spaces for the
+static variables of the class and also assign the default values depending upon their data types. Then it will load referenced classes which are
+referenced by Hello.class. Then variables will be initialzed which were given default values either by static/instance initializers block or check
+whether any values provided at the time of declaring the variable
+
+The first step of "Loading The Class" is done by the Class Loader. Class Loader when loading the class will check the classpath of that class and when
+it finds it, it will load the corresponding bytecode into memory and it generates Class (java.lang.Class) object which has the meta information about 
+the class i.e: Class Name, Super Class Name, Method Names, etc.. This gets created when the class is accessed for the very first time. In any other
+subsequent access, the same generated class will be returned back.
+Note that super classes are loaded before the actual classes
+
+The Output of the loading step is the Class object which is the input to the next step which is "Linking" which has some steps like Verification that
+will check if the input class is well formed or not which is done by bytecode verifier. Next step is prepration in which we allocate space for 
+variables and provide default values. Next step is resolution in which we resolve any reference classes if any. This all steps done on runtime so that
+is why it is termed as Dynamic Linking. The resoltuon step is an optional step. It might get executed after Prepration or after the Initialization
+step.
+
+Next step is the Initialization step in which we initialze variables either by static/initializer block or from the declaration part. It overrides
+the default values with the user defined initial values
+
+Finally the operation will be executed like calling a method.
+
+*All these steps are valid for loading a Class. For interfaces, initializtion part is not done until and unless any of the static methods are accessed
+ Or any field which is initialzed via a method.
+ 
+
+
+1) Class Loading
+..
+First stage of lifetime of a type is generating a Class.
+The Class Loader will check the class on the heap if it is already generated and returns it. If it does not find it it means the class is accessed
+for the very first time, so it will locate the .class file using the Parent Delegation Model. If the .class file is found then then Loader loads the
+corressponding byte code and returns back Class object which is stored inside heap for future use.
+
+Parent Delegation Model is used when a type is accessed for the very first time
+   .Java has different class loaders which loads from different repositories
+   .We have Bootstrap Class Loader which is also known as primordial class loader which loads all the core java api classes and is implemented by
+    the JVM itself (jre/lib/rt.jar)
+    
+   .We have Extension Class Loader which is part of standard java extension apis (jre/lib/ext/*.jar)
+   
+   .We have Application Class Loaders (System Class Loader) which loads classes from application classpath. These are developers built classes that
+    we write. Underneath it we have User Defined Class Loaders implemented by regular developers that returns back Class Loader object just like any
+    other java object. These are not created frequently as they are used in something like web servers like Tomcat.
+
+This model is defined in a parent-child relationship as,
+
+Bootstrap Loader
+    |
+    v
+Extension Loader
+    |
+    v
+Application Loader
+   |           |
+   v           v
+UD-CL        UD-CL
+
+When the class is accessed, the search is started from the Bootstrap Loader and when the class is fined anywhere, the corressponding byte code is
+loaded. This is done in this way because JVM considers repositorties at the top as most trustworthy then those of at the bottom. Because of this
+if the class is found in the trustworthy repository (Bootstrap, Extension) then no security checks under "Linking" step is performed, however
+if the class is found under Application Class Loader then lots of secutiy checks are performed
+
+
+When the class is loaded?
+If we do any of those things in our code
+  .instance created using "new" keyword
+  .invoking any static method
+  .accessing any static field
+  .any of the subclass is loaded
+  .class run from command line
+  .reflection
+**Compile time constant fields does not load the classes as they are compile time constants**
+
+Similarly for the interfaces, all points are valid except the first one because interfaces cannot be instantiated using "new" keyword.
+For the 4th point, it will be "any of the sub interfaces"
+
+JVM always uses Class object to create new instances of the class. The class object is not only restricted to classes and interfaces. They are also
+the part of Primitives, Void keyword and Arrays also
+
+Some of the meta-information that Class object contains are,
+  .getName() that returns back class name
+  .getSuperClass() that returns back parent class. In case of void, primitive and interface and Object class it will return null. In case of Array
+   it will return Object class.
+  .isInterface() that returns true if class is an interface
+  .getInterfaces() that returns all interfaces implemented by the class
+  .getClassLoader() that returns Class Loader that loaded that class
+
+
+
+2) Linking
+..
+The output of Class Loading is the input to the Linking process which is the Class object
+Most complicated process that includes 3 step i.e: Verification, Prepration and Resolution (optional)
+
+In the Verification step, it checks the loaded class is not malformed and should conforms the java language rules. This is done by the bytecode
+verifier. If it passes only then it singlas the bytecode to be safe otherwise it throws exception.
+Some of the verification checks include,
+   .final classes must not be extended
+   .final methods must not be overriden
+   .check for illegal method overloading
+   .any if condition does not the control flow beyond the boundary of the method
+   
+In the Prepration step, it is straighfowrward as it allocate spaces for static fields and initialises them with the default values according to the 
+data type. If there is in't enough memory then OutOfMemoryError is thrown. If the class is accessed via instance creation then instance fields have
+also given storage space and initialized after the static fields are injected with actual user-defined values
+
+Another step is the Resolution step which is optional and can be done after Prepration step or after Initialization step. In our classes we 
+references several other fields and methods from other classes and interfaces or from the same class. 
+So Resolution is about resolving those references to load all the references so that current class can use them.
+
+Every .class file has a area called constant pool where all these symbolic references are stored. A symbolic reference is just a logical reference
+that does not acually point to the physical memory location of class.
+
+Every .class file also has internal version of constant pool called runtime-constant pool that maps to the constant pool
+
+All the type's symbolic reference reside inside the runtime constant pool
+
+Resolution is the process of replacing these symbolic reference with the direct reference
+
+The constant pool has sequence of item and each item has a unique index much like an array. A JVM instruction that uses the symbolic reference
+speicfy the index of it. The entry in the constant pool revelas the fully qualified name of the class. This resolving of symbolic reference into
+direct reference is done only once and susequenct access to symbolic reference uses the already generate direct reference. After accessing the
+direct reference, the symbolc reference is replaced with direct reference
+
+
+About Constant pool -> https://www.baeldung.com/jvm-constant-pool
+
+Dynamic Linking Approach can be used either in
+   .Eager Loading, which will be done after prepration step and all reference classes will be loaded first before the actual initial class that
+    references it
+   .Lazy Loading, which will be done in later time after the Initialization phase. Also the symbolic reference will be replaced with direct reference
+    when the first time the statement will be executed.
+By default, JVM implements Lazy Loading technique
+
+
+Resolution also performs some sorf of verification steps in which it checks whether the references class accessed fileds have the correct type and
+the caller class has the permission to reference other classes.	

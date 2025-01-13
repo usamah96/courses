@@ -1,0 +1,182 @@
+Database Indexing
+--
+
+A database index is a datastructure that we assign on top of our existing table that looks and analyse the table and summarizes 
+the data so that a shortcut can be created to fetch data.
+
+Example can be a phone book that has letter as an index where the letter represents the starting character of person name in a 
+phonebook. So If I want to search for zebra, I will go to index Z and then start searching from there instead of searching from
+letter A.
+
+2 types of index are B Trees and LSM Tree.
+
+Every primary key has an index by default which is a B tree index
+The actual table and an index are both different data structure and are stored in a different place. Tables are stored on disks
+If we select the query and fetch the column which is indexed, it will be much faster than selecting column which are not indexed 
+because to fetch the un-indexed column we have to go to the disk and fetch the data.
+
+Example
+If we have 10 million records and we do,
+  1) explain analyse select id from employees where id = 3000
+     .This will display what will be the execution time of this query which will be approximately 0.5ms
+     .The reason it is way faster is because we don't go to the heap to fetch the data because we want to select the column which is
+      indexed by default as it is the primary key and is stored with the index which means we have done an inline query
+	  
+  2) explain analyse select name from employees where id = 5000
+     .This can take upto 2.5ms as name column is not indexed
+	 .We first search the index as our where clause is primary key which will tell at exact what pages to look at for the candidate
+	  rows and then we go to disk and fetch that block which contains our data and then return back the name column from it.
+	 .If we execute the same query again, we get approx about 0.1ms or 0.2ms because caching is done on database level to use as less
+	  I/O as possible.
+	  
+  3) explain analyse select id from employees where name = 'usama'
+     .This can take upto 3seconds
+	 .This is because we have a where clause which is un-indexed so it will have to go to the disk and do sequential scan till it
+	  matches the condition.
+	 .The database applies different techniques to make it faster like executing it in parallel way and firing multiple worker threads
+	  to do the job as fast as possible but this is slow. We have to avoid going to the disk
+	  
+	  
+We can create index on name and make our search even faster
+The primary key is stored with every index, so if we create index on name column, the PK will be stored with the corressponding record. 
+So if we fetch id and name column it will be much faster as id is stored just beside name in index.
+
+Like queries disable indexes because in like queries, we dont ask for actual value rather we ask for an expression
+Example
+select id, name from employees where name like '%am%';
+   .This will do a sequential scan to the database and not check the index on name column if it is created
+   
+   
+How the SQL Query plan look like?
+We know that in postgres we can do an explain query to check how costly our query is and what the database will do to our query.
+The result of explain query is not actual but it is an extimate given by database that what it actually thinks it will do.
+
+Example
+..
+  1) explain select * from grades
+     .What this query means is that we want everything so the database will directly go to the disk and fetch everything.
+	 .The result will be something like this,
+	   Seq Scan on grades (cost 0.00....289025.15 row=125563223 widh=31)
+	   What this means is that,
+	   a) The database will do a sequential scan on disk to fetch everything
+	   b) The cost has 2 parts. The first part i.e: 0.00 means how many milliseconds it took to fetch the first page and in this case
+	      it is 0. This value increases if we do operations before fetching like aggregating (sum, avg, etc). If this number increases
+		  which means you are doing alot of stuff before fetching. The second part i.e: 289025.15 is the actual time the database thinks
+		  it will take to execute the whole query.
+	  c) The row is the actual count of all the rows which is not exact but an estimate which database gives based on some statistics.
+	     This is very useful when you want to do a count query but does not actually care if the result is estimate or actual like
+		 when building an instagram and we want to get post likes then it does not impact if the result is 4.1k or 4.0k. We can do
+		 this query to return the count likes. Never use select count(*) as it will kill performance.
+	  d) The width refers to the estimated number of bytes needed to store the values in a particular column of a table or index.
+	     Here the value 31 means that a single record will take 31 bytes which is the sum of all the column space. It is useful to
+		 have an idea of a memory usage
+		 
+  2) explain select * from grades order by g
+     .The result will be,
+	   Index Scan on g_idx (cost 0.43....289025.15 row=125563223 widh=31)
+	   Here everything will be similar to the previous result but the only difference is that the first part of cost is little
+	   increased. The reason for that it took time to order by with the help of index applied on 'g' field.
+		
+  3) explain select * from grades order by name
+     .The result will be,
+	   Gather Merge (cost 1024589.52....2205065.23 row=15236365 width=31)
+	     Workers Planned: 2
+		  -> Sort (cost 1023586...1036233.36 row=5058840 width=31)
+		      Sort Key: name
+			  -> Parallel Seq Scan on grades (cost 0.00....218201.40 rows=5058840 width=31)
+	    In this result, we always read from bottom to top
+		a) In this query, we are doing a where clause which is not indexed so first we went to the database and fetch everything and
+		   no other operation is there so the first part of cost is 0.00 and database does parallel scan with threads to speed up the
+		   process
+		b) Then it does sorting by name and the first part of cost increases by miles
+		c) Then it needs to merge the result done by all worker threads (Gather Merge) which also increases the first part of cost
+	    
+		
+  4) explain select id from grades
+     .The result will be,
+	   Seq Scan on grades (cost 0.00....289025.15 row=124521236 width=4)
+	   Here the width is 4 because id is an integer and single integer takes 4 bytes.
+		
+  5) explain select * from grades where id = 10;
+     .The result will be,
+	   Index Scan on idx (cost 0.43...8.45 row=1 width=31)
+	   Here the 0.43ms took to scan the index and the index tells the exact position where to fetch the record with id=10 so it took
+	   a total of 8.45ms to do whole thing.
+	   
+	   
+
+
+Index Scan vs Index Only Scan vs Bitmap Scan
+
+The index scan is the simple scan we do on index data structure when any where clause includes an index
+Example
+..
+  select * from employees where id = 1;
+..
+This will search index which will tell where to fetch the record on disk, then an I/O read operation will be done to fetch the record.
+
+However, in Index Only Scan, we dont go to the disk because all the data we need is present at the index data structure
+Example
+..
+  select id from employees where id = 10;
+  Here when we search id in index, we know that id is what we only need so the data will be returned directly from index. But that is
+  a silly query because why we fetch the id when we know the id.
+..
+A more realistic example is to append a non-key column with the index when creating an index,
+  Create index id_idx (id) include (name)
+  What this will do is it will create an index on id and also include the name field with it
+  Now when we do,
+    select name from employees where id = 1
+	It will do Index Only Scan as name is already present with id on index and we dont have to go to the disk which is super fast.
+	
+Things to note is that if we put extra non-key columns it will increase our index in size which will eventually increase some amount
+of time to search the index. And also if our index is so large that it cannot fit in RAM, some part of it will be stored inside the
+disk and I/O read will be done to search on that part also.
+
+When we talk about bitmap scan, there are some things to understand
+We know that internally, the database keeps statistics of all the tables and indexes time to time when the data is updated.
+Lets say we have a table and some created indexes,
+
+When we do a query using the where clause that uses an index, the database optimizer decides whether to use the index or not based on
+the statistics it stores. It will analyse that if I search for an index, I will get almost 80% - 90%  of the rows then it is better
+to skip the index scan and go to the disk and do a parallel sequential scan which will be much faster. Like if we have 100 records
+with id from 1 to 100 and I do a query which includes a where clause id > 5 then database knows it will fetch 95 records so its better
+to skip index and do a sequential scan. But when the query satisfies the condition where the rows are limited lets say where clause
+includes id < 5 then it will use index to only fetch the pages that satisfies the condition.
+
+The bitmap index scan comes into picture when the result are somewhat in the middle like the where clause includes where id > 30 and 
+grades > 95 then the database will maintain a bitmap. The database will mark the bit as 1 if the index satisfies the condition and
+mark all other bits as 0. Then after the index scan it will go to the disk once and fetch all the pages with bit = 1. Obviously,
+with fetching pages we will also get rows that does not satisfies the condition so database will re check the condition and filter out
+those rows.
+Similarly the BitmapAnd and BitmapOr works the same way. If our where clause includes multiple columns with and/or conditions and
+some columns contains indexes then it will maintain bitmaps on all these indexes, after that it will AND/OR on those bitmaps and
+create a final Bitmap and then go to the disk to fetch the record, re-check and return the result.
+
+
+
+
+Some of the points related to using indexes
+Lets say we have a table with column a, b and c
+
+1) If I create an index on a and b separately,
+   The following where clause will use the index,
+      where a = 10 (index on a),
+	  where b = 20 (index on b),
+	  where a = 10 and b = 20 (index on a) with taking and with (index on b),
+	  where a = 10 or b = 20 (index on a) with combining results with (index on b);
+	  
+2) If I create composite index on a and b
+   The following where clause will use the index,
+      where a = 10 (index on a and b),
+	  where a = 10 and b = 20 (index on a and b),
+   The following where clause will not use the index,
+      where b = 20 (because b was on the right hand side of the index. Relevant to Postgres. Might be relevant to other databases)
+	  where a = 10 or b = 20
+	  
+3) If I create composite index on (a and b) and on b individually
+   The following where clause will use the index,
+      where a = 10 (index on a and b),
+	  where b = 20 (index on b)
+	  where a = 10 and b = 20 (index on a and b),
+	  where a = 10 or b = 20 (index on b) will be combined results with index on (a and b)

@@ -1,0 +1,190 @@
+CICD - CodeCommit, CodePipeline, CodeBuild & CodeDeploy
+--
+
+We would like our code in a repository from where it should be deployed onto aws automatically, in the right way and with all the possibility to go into 
+different stages like dev, test, stage and prod. Also we can apply manual approval where needed.
+
+What is Continuous Integration (CI)?
+-> the developers push code to a code repo which can be GitHub (a 3rd party service), CodeCommit (aws service), Bitbucket (a 3rd party service). A testing 
+   or build server checks the code as soon as its pushed which can be CodeBuild, Jenkins CI, etc and the developer gets feedback about the tests and 
+   checks that have passed and failed.
+   With this, we find bugs early and fix them early for faster bug free delivery
+   
+What is Continuous Development (CD)
+-> it ensures that the software can be released reliably whenever needed and ensures deployments happen often. So when the developer pushes the code to 
+    the repo, the build server fetches the code and run test cases and when every check is passed, the deployment server deploys the code in to our 
+	dev/test/stage/prod server with version number which can be CodeDeploy, Jenkins CD, Spinnaker, etc
+	
+	
+On a higher level,
+  Our code lives in CodeCommit, Github or Bitbucket
+  The build and test phase done by CodeBuild or Jenkins
+  The deploy phase is done by CodeDeploy or Jenkins to some EC2 instances, lambda, ECS, etc or we can use Elastic Beanstalk too
+  
+All the flow is orchestrate using CodePipeline.
+
+
+
+CodeCommit (Deprecated)
+..
+The concept is for version control where we understand various changes that happened to code and rollback if needed. 
+
+CodeCommit is very mush similar to Github. It supports code reviews and pull requests, can be integrated with CodeBuild, support https and ssh both 
+for authentication. For security we have github users in github and IAM users and roles for codecommit.
+
+
+CodePipeline
+..
+It is a visual workflow to orchestrate cicd
+So we can say that our source code lives in github, bitbucket, s3, etc. Then we can specify the build phase which can be codebuild, jenkins, cloudbees, 
+teamcity. Then the test phase which can be codebuild, aws device farm. Then the deploy phase which can be codedeply, elastic beanstalk, cloud formation, 
+ecs, s3, etc. If there is any labda function to invoke then we can define an invoke stage too.
+
+So a typical flow is Build -. Test -> Deploy -> Load Testing
+Load testing to be done before moving onto the prod and we can apply manual approval here too so that somebody can see the results and then approve it 
+to be deploy over to the environment.
+
+So what is done behind the scenes. Each stage generates its own artifact and uploads it on s3 bucket. So when a developer pushes the code the codecommit then 
+it generates some artifacts and save it in s3, then codepipeline provide this artifact as an input to codebuild which generates some deployment artifacts 
+and save it in s3. These deployment artifacts then is given to codedeploy as n input to deploy the code and do further things. In this way codepipeline make 
+use od s3 and artifacts to move over stages.
+
+We can use ClodWatch events to create event for failed pipelines or cancelled stages and get an email for it too. We can use aws cloud trail to audit all 
+our api calls
+
+
+CodeBuild
+..
+We need to define the build instructions that can be in our project root folder with name buildspec.yml or insert it manually using the console. The output
+logs can be stored in amazon s3 or cloudwatch logs and we can setup metrics to monitor the statistics. We can use EventBridge to detect fail builds and trigger 
+notifications and use cloud watch alarms to notify if there are any failures.
+
+The buildspec.yml file looks like this,
+..
+  env:
+   variables:
+    JAVA_HOME: "..."
+   parameter-store:
+    LOGIN_PASSWORD: abc123
+	
+  phases:
+   install:
+    commands:
+	 - echo "Entered the install phase.."
+	 - apt-get update -y
+	 - apt-get install -y maven
+   pre-build:
+    commands:
+	 - echo "Entered the pre build phase"
+	 - docker login -u User -p $LOGIN_PASSWORD
+   build:
+    commands:
+	 - echo "Entered the build phase"
+	 - echo "Build started on `date`"
+	 - mvn clean install
+   post_build:
+    commands:
+	 - echo "Entered the post build phase"
+	 - echo "Build completed on `date`"
+	 
+  artifacts:
+   files:
+    - target/message.....
+..
+
+Here the env define the environment variables
+  - variables are plain text variables
+  - parameter-store are variables stored in SSM Parameter Store
+  - secrets-manager are variable stored in AWS Secrets Manager
+  
+The phases specify the command to run
+  - install define the dependencies need to run for build
+  - pre_build define final command to run before build
+  - build is the actual build command
+  - post_build to make final touchups if needed like making zip of out put or transferring any files, etc
+  
+The artifacts are what to upload in S3 which is encrypted with KMS
+
+
+
+CodeDeploy
+..
+It is a deployment service that automates application deployment. If we are currently running v1 of application then we can deploy v2 of it on either 
+EC2 instances, on-permises server, lambda functions or ECS services. 
+It also provide automatic rollback capability in case of any alaram is generated.
+
+The deployment process is defined in appspec.yml file
+
+If we are deploying on EC2 instace or on-permis server then we can perform either in-place deployments or blue/green deployments
+
+The CodeDeploy Agent must be running on our target instances for this kind of deployment and we can define our own deployment speed like, 
+  - AllAtOnce: most downtime as deployment will be done to all instances at once
+  - HalfAtATime: reduced capacity to 50%
+  - OneAtATime: Only one instance will go down and will be updated
+  - Custom: We define our own speed in it
+  
+The taking down of instances and updating with new version is done by CodeDeploy Agent which can be installed using linux command. Also this agent must have 
+proper IAM permission to access S3 bucket too because in S3 the application revisions are stored and while updating the application from v1 to v2, the 
+agent need to download and upload application revisions.
+
+
+If we are deploying on Lambda function then CodeDeploy can help automate traffic shift for aliases like if we are running with PROD alias and under that 
+we have version 1 and version 2 then we can move from v1 to v2 in 3 ways
+  - Linearly, where the traffic grow after every N minutes until 100%. If 100% traffic is routed to v1 right now then we can use stragey like 
+    LambdaLinear10PercentEvery3Minutes to increase 10% traffic to v2 in every 3 minutes. Likewise we can use LambdaLinear10PercentEvery10Minutes.
+  - Canary, where we first try any X percent and if everything goes well then we shift to 100% directly. We can use strategy like 
+    LambdaCanary10Percent5Minutes and if everything goes well then we can move to 100% directly. Likewise we can use LambdaCanary10Percent30Minutes 
+  - AllAtOnce, where routing is done immediately.
+  
+ 
+If we are deploying on ECS platform, then CodeDeploy will help automate the deployment of new ECS Task Definition. Here only the blue/green deployment 
+works where if we are running a set of EC2 instances under a ECS Cluster backed by load balancer, then the agent will first create a new target group 
+with similar task definition as v1 then the traffic is shifted from v1 to v2 in a similar way discussed in Lambda strategy which is Linear, Canary 
+or AllAtOnce.
+
+The values for Linear are, ECSLinear10PercentEvery3Minutes, ECSLinear10PercentEvery10Minutes
+The values for Canary are, ECSCanary10Percent5Minutes, ECSCanary10Percent30Minutes
+
+
+
+
+CodeArtifact
+..
+When we build software, we use multiple other dependencies. The whole web of dependencies are called artifact management and with CodeArtifact we can 
+use a secure, scalable, and cost-effective artifact management for software development.
+
+It works with common dependencies tool like maven, gradle, npm, yarn, pip, NuGet, etc
+The developers and CodeBuild can retrieve the dependencies straight from CodeArtifact
+
+We can create our own CodeArtifact within our VPC. So we create a domain in our CodeArtifact service and under this domain we can have multiple 
+repositories. Lets say we have a Repo A which uses public artifact repositories like npm, maven to fetch the packages and store it inside CodeArtifact 
+custom repository. In this way we can provide a secure channel to our developers to fetch the repo from CodeArtifact instead from public repo over the 
+internet. Our CodeArtifact repository will proxy the request to public repo instead.
+In this way, even if the packages disappeared from public repo, we still have the copy of its latest version inside our own CodeArtifact so our 
+application can continue to work in future.
+
+Also we can create our own packages and deploy in our CodeArtifact to be used by anybody.
+
+Similarly when building the code using CodeBuild, it can fetch the dependencies from CodeArtifact instead from public repo.
+
+We can integrate CodeArtifact with EventBridge also like when a package is created, modified or deleted then it can trigger EventBridge notification 
+to do other stuff like invode Lambda function, active StepFunction, send message to SQS or SNS or start the CodePipeline. The starting of CodePipeline 
+means that it will trigger CodeCommit -> CodeBuild -> CodeDeploy and in this way an updated dependency version will be deployed if we have set the 
+EventBridge in such a way to trigger CodePipeline if any package is updated.
+
+We can create a domain and select which type of dependency tool we would like to use. Then under View Connection Detail we can see the commands that 
+we can run in CloudShell to make the connection to our CodeArtifact. After running the command we can then execute and install pacakges using maven, pip,
+npm etc and all the downlaoded packages will then can be seen in our domain and custom created repository with a copy of each
+
+
+
+CodeGuru
+..
+Whenever any developer deploys the code, another developer reviews the code and after the deployment we have to monitor the application's performance
+
+With CodeGuru, we can make this automated as it provides us with 2 important features
+  1) Automated Code Reviews
+  2) Application Performance Recommendations
+  
+During the build and test phase and before deployment, CodeGuru Profiler detects and optimize the expensive lines of code and after the deployment 
+is done, it identifies performance and cost improvements in production.

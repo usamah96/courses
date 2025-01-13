@@ -1,0 +1,169 @@
+Generics
+------------
+Gives flexibility with type safety
+
+Some builtin Generics
+
+1- Array
+2- Promises
+
+
+1) Creating a generic function
+-When not using generic we can run into problem as
+..
+function merge(obj1, obj2){
+  return Object.assign(obj1, obj2)
+}
+const merged = merge({name: "Usama"}, {age: 24})
+-Now we cannot call merged.name because merge is of type 'object'. We know that we
+will get 2 properties in object that are name and age but still TS will not know
+and we cannot call it
+-For that we use generic as
+..
+function merge<T, V>(obj1: T, obj2: V){
+  return Object.assign(obj1, obj2)
+}
+const merged = merge({name: "Usama"}, {age: 24})
+-Now here merged will be of type T&U which is {name: string} & {age: number} and we
+can call name and age on merged object.
+-Now when we call merge function with any object propertes, we can call the
+merged properties as well.
+
+
+
+2) Working with constraints
+-In this example we have a little problem
+..
+function merge<T, V>(obj1: T, obj2: V){
+  return Object.assign(obj1, obj2)
+}
+const merged = merge({name: "Usama"}, {age: 24})
+
+-What if we do
+const merged = merge({name: "Usama"}, 30)
+-The merge function will accept the second arguement with is 30 because it is of
+generic type, but Object.assign will ignore this 30 and donot merge into the object
+because Object.assign only wants object, other than that it will silently ignores
+it. No exception will be thrown
+-But still it is wrong because we want 2 object of any key value pairs
+-To do that we do
+..
+function merge<T extends object, V extends object>(obj1: T, obj2: V){
+  return Object.assign(obj1, obj2)
+}
+-With this 'extends object', we are making sure that the 2 arguements will be of
+type object ignoring the key value pairs. They has to of type object
+-So when we do
+..
+const merged = merge({name: "Usama"}, 30)
+-Error will be generated on 30
+
+
+
+3) Another Generic Function
+-Suppose we want to create a generic function that takes any input, acess the
+arguements length property and returns a tuple that contain the actual element
+and the description about its total length
+-If we pass string it will count number of characters
+-If we pass any array it will count number of elements
+-Anything that contains the length property
+..
+function countAndDescribe<T>(element: T){
+}
+-If we define out function like this we cannot access element.length because T
+is generic and no length property exist on type T
+-We need to do it like this
+..
+interface Lengthty{ length: number }
+function countAndDescribe<T extends Lengthty>(element: T): [T, string]{
+  let description = "Got no value";
+  if(element.length === 1) description = "Got 1 element.";
+  else if(element.length > 1) description = "Got " + element.length + " elements";
+  return [element, description]
+}
+-In this way we are making sure we cann access the length property
+-Now when we call it like
+..
+countAndDescribe("Hello World") - Works because string has length property
+countAndDescribe([1,2,3]) - Works because array of number has length property
+countAndDesctibe(20) - Gives error because number dont containe length property
+
+
+
+4) The keyof Constraint
+-Let suppose we are making a function that takes 2 arguements. One is object and
+another is the key of object in string and the function returns the value of
+that key in object.
+..
+function extractAndConvert(obj: object, key: string): string {
+  return "The Value is: " + obj[key]
+}
+-This implementation will give error because TS dont know whether the key in that
+object exist or not. We can also call this function as
+extractAndConvert({}, "name")
+-The name property dont exist in that object.
+-So we have to make sure the key exist in that object
+..
+function extractAndConvert<T extends object, U extends keyof T>(obj: T key: U) {
+  return "The Value is: " + obj[key];
+}
+-Now when we do
+extractAndConvert({}, "name") - Gives error because no name key is in object
+extractAndConvert({name: "Usama"}, "name") - Works good
+extractAndConvert({name: "Usama"}, "age") - Gives error because no age key is in object.
+
+
+
+
+5) Utility Types
+-We have some built in utility types in typescript
+..
+
+a- Partial
+-Let suppose we have a function that creates our object
+..
+interface CourseGoal { title: string, description: string, completeUntil: Date  }
+function createCourseGoal(title: string, description: string, date: Date): CourseGoal{
+  return {title: title, description: description, completeUntil: date}
+}
+-We can do this but what if we want to validate our fields before assigning values
+function createCourseGoal(title: string, description: string, date: Date): CourseGoal{
+  let courseGoal: CourseGoal = {};
+  // validate title
+  courseGoal.title = title;
+  / validate description
+  courseGoal.description = description;
+  // validate date
+  courseGoal.completeUntil = date;
+  return courseGoal;
+}
+-We can definitely do this in vanilla JS but cannot in TS because at the time of
+initialization of CourseGoal object we cannot left it empty {}
+-But with Partial we can make use of it
+..
+function createCourseGoal(title: string, description: string, date: Date): CourseGoal{
+  let courseGoal: Partial<CourseGoal> = {};
+  // validate title
+  courseGoal.title = title;
+  / validate description
+  courseGoal.description = description;
+  // validate date
+  courseGoal.completeUntil = date;
+  return courseGoal as CourseGoal;
+}
+-Partial makes all our object properties temporarily optional that is why we can create
+an empty object and assign the values gradually.
+-At the time of returning, we are now sure that our object holds all properties so we 
+type cast it in into CourseGoal;
+
+
+b- Readonly
+-With readonly we make sure the values are set at the time of initialization and not
+to be added and deleted aftwerwards
+..
+let numbers: Readonly<number[]> = [1,2,3,4];
+numbers.push(1); - Invalid Operation
+numbers.pop();  - Invalid Operation
+
+There are many other Utility Type Generics available in TS at:
+https://www.typescriptlang.org/docs/handbook/utility-types.html

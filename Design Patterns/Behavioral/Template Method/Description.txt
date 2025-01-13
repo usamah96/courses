@@ -1,0 +1,18 @@
+Template Method
+---
+
+A high-level blue print for an algorithm to be completed by inheritors.
+
+Motivation
+--
+-Algorithms can be decomposed into common parts + specifics
+-Strategy pattern does this through composition
+   .High-level algorithm uses interfaces
+   .Concrete implementations implement the interface
+-Template method does the same thing through inheritance
+   .Overall algorithm makes use of abstract member
+   .Inheritor override the abstract members
+   .Parent template method invoked.
+
+
+-Allows us to define the skeleton of the algorithm in the base class with concrete implementaton in the sub-classes

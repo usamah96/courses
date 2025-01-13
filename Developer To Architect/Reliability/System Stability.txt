@@ -1,0 +1,84 @@
+Reliability
+--
+
+The approaches when the system is in severe load
+What should be the design practices needs to be followed to make system stable even under severe load.
+
+Some Stability Patterns
+  1) Timeouts
+     .The client components for timeouts can be either user interface or services also. If some service A is calling service B or service C,
+	  then service A becomes the client for service B or C.
+	 .Without implementing timeouts, any service client can become completely unavailable due to the fact that all the threads are used up
+	  waiting for the response
+	 .Timeouts prevents call to integration points from becoming blocked threads
+	 .There should be a timeout of some seconds so that the threads can be freed up.
+  2) Retries
+     .The client component for retries can be anything like service acting as client making a request to database or client calling to any
+	  service or load balancer
+	 .Retries are useful in many scenarios
+	   a) For Transient Failures
+	      .It means that the failure is not permanent or functional, it can likely to be suceeded if done after a delay
+		  .Example could be 2 clients communicating with service or any database to reserve a same ticket at the same time. If client 1
+		   suceeded first then client 2 will eventually fail as a transient failure due to race condition, so a retry can be done by client 2
+		   and that will throw error that the ticket has already been booked.
+	   b) System Errors
+	      .Example can be client needs to connect to instance 1 or service A and that service is not available at the moment. So a retry
+		   mechanism configuration is done at client level that sends the request again to instance 2 to serve the request.
+	   c) Exponential Back-off
+	      .This is a configuration which client can do for retry mechanism
+		  .Lets say there is an important transaction that is needed to be done and at the time of transaction either the database or service
+		   is unavailable or unable to do the task due to network congestion, resource limitation or any other transient issue, then 
+		   exponential back-off is done for retrying that request which means that after a  failure, retry can be done after 1 second, then 
+		   retry can be done after 2 seconds, then after 4 sedonds, then after 8 seconds and similarly the client can wait for it to be successful.
+	   d) HTTP 503
+	      .The HTTP 503 status code indicates that a server is temporarily unable to handle a request due to overload or maintenance. 
+		   When a client receives a 503 response, it can assume that the server is experiencing a transient failure and can retry the 
+		   request after a certain delay. This delay can be determined by the server and communicated to the client via the Retry-After 
+		   header in the response.
+	   e) Idempotent Tokens
+	      .It is used for the acknowledgment of failed or successful request
+		  .It is a unique identifier that is used to ensure that a request is processed exactly once, even if it is retried multiple times.
+		  .Example is lets say client makes an update request to database instance and that transaction got successful but before sending
+		   acknowledgment to client, the database crashes or goes down. The client will retry after sometime to another instance and it will
+		   update the record again which can make the data incorrect. So to avoid such issue, a request id can be used that will be used to
+		   identofy that a particular request has been served successfuly so next time the request comes with same id it will be identified
+		   and record will not be updated again. So these types of requests are called idempotent requests.
+		  .Tokens can be a randomly generated UUID, a sequence number, or a hash of the request payload
+  3) Circuit Breaker
+     .This is a pattern which is implemented by the client to keep track of how the service is responding
+	 .It has 3 states (Open, Closed and Half Opened)
+	 .If a particular service is responding well then the circuit is in Closed state.
+	 .If a particular service is unavailable then the client will retry for some time and after a certain threshold value, the circuit will
+	  change it state to Open state. The client can be given any default response or previously cached response or any error message. Any
+	  more request coming in will be checked if the circuit is Open then default, cached or error response will be sent back instead of
+	  checking for service again which is not avaiable.
+	 .Periodically the client will check if the service has come back again. At this time the circuit will be in Half Open state. At this time
+	  if the service has come back again, then circuit state will be changed to Closed and client will be returned back original response returned
+	  from the service. It the services is still down then the circuit will change it state to Open again and default, cached or error response
+	  will be sent back to client again.
+  4) Fail Fast / Shed Load / Back Pressure
+     .These 3 types comes for server components isntead of client components.
+	   a) Fail Fast
+	      .It is triggered when the server component is unable to process the request
+		  .It is a technique used to detect and respond to failures quickly by terminating the request processing as soon as an error is 
+		   detected. This helps to prevent the failure from propagating further and impacting other parts of the system.
+		  .Example could be some environment variables which are not set up at the time of server starting. So if there is a case that
+		   server cannot operate on default values and the env variables are neccessary then it is neccessary to shut down server with error
+		   messages immediately. If we dont do this then in future thie error will come up from client and at that time it will be too late.
+	   b) Shed Load
+	      .It is related to extensive load on the system.
+		  .It is a technique used to selectively drop or delay requests to prevent overload and maintain system stability.
+		  .Example can be if a system can process 60 request per second and if we are receiving 100 requests per second then what the normally
+		   behavioud will be that all 40 extra requests will be queued up which will increase the latency and client will be in a waiting
+		   state. What shed load strategy says is to fail all those 40 requests with some error message.
+		  .The difference between fail fast and shed load is that, in fail fast the server cannot operate without the requirement. In shed 
+		   load the server can operate wil extra 40 requests but these are being failed on purpose due to extra load related to limited
+		   threads, connections and request count.
+		  .Aother example could be of a load balancer can be configured to prioritize requests from paying customers over non-paying customers and 
+		  drop requests from non-paying customers when the system is under heavy load.
+	   c) Back Pressure
+	      .It is similar to Shed Load strategy but the only difference is that we apply exponential back-off at client level which means that
+		   the pressure is sent to the client instead of server
+		  .If client is making a request and it is being failed due to shed load, then we can control client by sending the request after
+		   2 seconds, 4 seconds, 8 seconds to see if the request can be fulfilled or not. In this way the load on server is released as requests
+		   are coming with delay everytime.

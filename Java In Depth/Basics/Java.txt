@@ -1,0 +1,106 @@
+Java
+---
+
+What is Java?
+..
+-General Purpose (Not specific to one domain, can be used to develop variety of applications), Object Oriented (Helps handle 
+real world scenario in a more natural way), Platform Independent (Write once run anywhere: WORA - regardless of the operating system),
+Concurrent programming (Multithreading: Multiple activities at the same time) language that runs very fast
+-Provides automatic memory management using garbage collection unline C and C++ where memory management handles manually
+
+Platform Dependency
+..
+-Consider C language source code.
+-If we compile our sorce code (.cpp file) into a machine code (.exe) file and run on windows/linux it will work fine
+-But if we generate the executable file on windows and run on linux then it will not work since C is platform dependent.
+-Interpreter here resolves this issue but also have some limitations.
+
+The Diference,
+Source Code -> Compiler -> Machine Code -> CPU -> Result
+Source Code -> Interpreter -> Result
+
+Interpreter
+..
+-Virtual Machine that simulates the CPU
+-Also uses fetch-execute-lifecycle to generate the result like the CPU.
+-CPU/Interpreter fetches the loaded machine code/program statement from the memory and execute the statement
+-Interpreter does not generates machine code unlike the Compiler. It has the precompiled machine code stored in its library.
+-That is why Interpreter is platform independency, we just have to install the interpreter on different OS
+-The same source code can be executed in different platforms.
+
+
+How Java is Platform Independent?
+..
+-The sequence is as follows
+Java Source Code (Hello.java) -> Compilation -> Java Byte Code (Hello.class) -> JVM -> Result
+
+-Like the interpreter, JVM is installed on every different platforms because JVM itself is platform dependent.
+-The Java bytecode is platform independent that can be executed by any JVM.
+-JVM here act as the interpreter, but instead of source code, it interpretes java bytecode. It is done by java interpreter which
+is the sub-component of JVM.
+-The CPU loads the JVM to execute the bytecode.
+-The bytecode is compact, compiled and optimized that is why interpreting bytecode is fast than interpreting actual source code.
+
+
+
+Java Virtual Machine
+..
+-It is called virtual because it is an abstract computing machine
+-It has the instruction sets that is executed. These instructions are the java bytecode
+-It manipulates the memory at runtime as per needed.
+-These are the core responsibilites of JVM which are managed by separate sub-components,
+    *Load and interpret java bytecode
+    *Automatic memory management
+    *Security
+-As the bytecode is interpreted, JVM monitors the frequency of execution of bytecode. The most frequent execution of bytecode
+is referred to as hot-spots. These hot-spots are given to sub-component of JVM knows as JIT compiler which then converts these
+hot-spots into machine code. This machine code is cached. In future this cached code is executed for faster performance. So 
+frequently executed code is not interpreted everytime.
+
+The Flow (JVM Architecture)
+..
+Hello.java -> Compilation -> Hello.class
+-When we run Hello.class, JVM instance will be loaded into the memory and will load its sub-component Class Loader
+-The Class Loader will locate the Hello class and loads the correspondng bytes into the memory.
+-The bytes are then verified through the Bytecode Verifier to see if all the standard of Java are followed
+-Once the bytecode is verified then it can be executed by the Execution Engine which includes JIT compiler and Interpreter.
+-When JVM instance is loaded it is assigned a set of memory to run its programs like Method Area, Heap, JVM Stack etc..
+
+
+
+Java Software Family
+..
+1) Java Standard Edition (Java SE)
+-Platform used for developing applications like desktops. Can also be used on server side
+
+2) Java Enterprise Edition (Java EE)
+-Platform for entrprise applications for servers like e-commerce websites amazon.
+-Servlets and JSPs fall under Java EE
+-Includes Java SE along with additional libraries for enterprise applciations
+
+3) Java Micro Edition (java ME)
+-Platform used for developing resource constraned devices.
+
+
+Java SE comes in 2 versions
+1) JRE
+-Enviroment that only run java programs
+-Includes JVM and Java API
+
+2) JDK or Java SDK
+-Development toolkit used to develop and run Java programs both
+-Comes with several development tools like java compiler
+-Includes JRE also
+
+
+
+
+
+
+
+
+
+
+
+
+

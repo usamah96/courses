@@ -1,0 +1,79 @@
+One To One Relationship
+--
+
+Defining the relationships
+..
+1) Student and Passport : One to One
+2) Course and Review : One To Many
+3) Student and Course : Many To Many
+
+
+-Defining the Entities Student, Course, Review and Passport
+
+Example One To One
+..
+
+public class Student{   // The Owner Of Passport
+  ..
+  ..
+  @OneToOne
+  private Passport passport;
+}
+
+public class Passport{
+  ..
+  ..
+}
+
+Passport p = new Passport("1234");
+em.persist(p);
+
+Student s = new Student("Student One");
+s.setPassport(p);
+em.persist(s);
+
+-If we dont persist passport first, exception will be throws as passport is not yet saved in the database when saving the student
+---
+
+-One to One relationship is by default Eager Fetch
+-It will left outer join with passport and retrieve the details when we do,
+em.find(Student.class, 1001);
+
+-For Lazy fetching
+OneToOne(fetch = FetchType.LAZY)
+privtae Passport passport;
+
+Now when we do
+Student s = em.find(Student.class, 1001); // Select statement to fetch student
+Passport p = s.getPassport(); // Lazy Initialization Exception
+
+-Exception is thrown because the hibernate session gets ended once the entity manager fetches the student. To retain the session we need
+to make our method transactional so that when s.getPassport() is executed, hibernate will se the passport details are not being fetched
+yet so it will fire another select statement to fetch the record.
+
+-When we put transactional annotation, the persistence context is created. It act as a store for different entities that are being 
+managed. All of them are being tracked by it for any changes made. We use entity manager to access the persistence context because
+it is an interface to persistence context. At the start of method persistence context is created and is closed when the method gets ended.
+If we dont put transactional annotation, every single operation with entity manager creates persistence context, accesses the database and
+closes the persistence context. So that is why when we do student.getPassport() we get lazy initialization exception because of no
+hibernate session (persistence context) at that point.
+
+
+One To One Bi-Directional
+..
+-To get the student via passport we need to assign relationship at passport level as,
+@OneToOne
+private Student student
+
+-This will create student_id in passport and passport_id in student. This is not a good practice as data is being duplicated. 
+-This specifies that both are the owners which is wrong. One table needs to own another and for that we put mappedBy attribute to tell
+about it
+-We put mappedBy at the non-owning side of the relationship
+
+@OneToOne(fetch = FetchType.LAZY)
+private Passport passort;
+
+@OneToOne(fetch = FetchType.LAZY, mappedBy = "passport")
+private Student student;
+
+-This will only create passport_id in student which makes Student table the owner of Passport table.

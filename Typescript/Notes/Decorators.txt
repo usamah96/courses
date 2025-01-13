@@ -1,0 +1,323 @@
+Decorators
+---------
+
+-Useful feature for meta-programming
+-Useful for writing code thats easier to use for other developers
+
+
+
+1) First Class Decorator
+-Decorator is just a function that we are going to apply to a class which will work
+in a certain way
+..
+For decorator to work we use the '@' symbol before the class and after the symbol
+we should point to a specific function. This function will take some arguements
+depends upon where you use the decorator
+..
+function Logger(constructor: Function){
+  console.log("Logging"); console.log(constructor);
+}
+
+@Logger
+class Person{
+  name:string = "Usama";
+  constructor(){ console.log("Creating object"); }
+}
+const person = new Person();
+console.log(person);
+
+-The decorator function will fire when our class is defined. It is not related to
+instantiating our class, but when our class is defined the Logger will execute.
+-It will display Logging and our constructor function as output and after that our
+person object will be shown
+
+
+
+
+
+2) Working with decorator factories
+-With decorator factories, it will give us more power to define what the decorator
+does.
+-The factory will return the decorator and then our class will point to it.
+..
+function Logger(logging: string){
+  return fcuntion(constructor: Function){
+    console.log(logging); console.log(constructor);
+  }
+}
+
+@Logger("Logging - Person")
+class Person{}
+
+-We can now give arguements of our own choice to be used inside a function
+
+
+
+
+
+
+3) More Usefu Decorator
+-We can create a decorator where can render html contents or the values we use
+inside our class to make it more flexible.
+-Creating a decorator that renders some html on a specific targeted element.
+..
+Inside index.html
+<p id="app"></p>
+
+function WithTemplate(template:string, hookId:string){
+  return function(constructor: any){
+    let hookEl = document.getElementById(hookId);
+    let p = new constructor();
+    hookEl.innerHtml = template;
+    hookEl.querySelector("h1").textContent = p.name;
+  }
+}
+
+@WithTemplate("<h1></h1>", "app")
+class Person{
+  name:string = "Usama";
+  constructor(){ console.log("Creating object"); }
+}
+
+-Now with this we can see Usama under <h1> tag inside our DOM
+
+
+
+
+
+4) Multiple Decorators
+-With a class, we can use multiple decorators at a time
+-The function execution (decorator factory) is top to bottom
+-The decorator execution is bottom to top
+..
+function Logger(){
+  console.log("Logger Factory");
+  return function(_: Function){
+    console.log("Logger Decorator")
+  }
+}
+function WithTemplate(){
+  console.log("WithTemplate Factory");
+  return function(_: Function){
+    console.log("WithTemplate Decorator")
+  }
+}
+
+@Logger()
+@WithTemplate
+class Person{}
+
+Output will be:
+Logger Factory
+WithTemplate Factory
+WithTemplate Decorator
+Logger Decorator
+
+
+
+
+
+5) Property Decorators
+-We can also use decorators to the class properties as well
+-When using it on properties, the deorator will take 2 arguements. The first one
+will be the constructor function and the second will be the property itself
+-This decorator will be fired when our class property will be defined
+
+function Log(target:any, propertyName: string){
+ console.log(target, propertyName)
+}
+
+class Product{
+  @Log
+  title: string
+}
+
+The result will be:
+constructor function and "title"
+
+
+
+
+
+6) Accessor and Parameter Decorator
+-We can add decorators to accessos, functions and parameters also
+..
+Consider the simple class
+
+class Product{
+  title: string;
+  private _price: number
+  constructor(t: string){ this.title = t; }
+  set price(n: number){ this._price = n; }
+  getTaxValue(tax: number){ 
+    return this._price * (1 + tax); 
+  }
+}
+
+-The accessor and function decorator gets 3 arguements
+  a- target that can be the prototype or any constructor function
+  b- name that will be the name of the function
+  c- property descriptor that will define the whole function
+
+-The parameter decorator also gets 3 arguements
+  a- target that can be the prototype or any constructor function
+  b- name that will be the name of the function
+  c- index that will be the number on which the parameter is sitting
+
+function Accessor(target: any, name: string, description: PropertyDescriptor){}
+function Func(target: any, name: string, description: PropertyDescriptor){}
+function Param(target: any, name: string, index: number){}
+
+Usages
+@Accessor
+set price(n: number){ this._price = n; }
+
+@Func
+getTaxValue(tax: number){ return this._price * (1 + tax); }
+
+getTaxValue(@Param tax: number){ return this._price * (1 + tax); }
+
+-They will all run irrespective of object creation. It will be called when the class
+will be defined but they has different order of execution.
+
+
+
+
+
+7) Returning From Decorators
+-The decorators can also return the value when using on a class
+-We can return a new class from the decorator to replace the original class with a new
+class that is build upon the old class where the decorator was placed and implement our 
+login inside the constructor so that the code only runs when we instantiate our class 
+and not when the class is defined.
+**REFER TO VIDEO # 9 in DECORATORS (Understanding TS - 2020)
+
+
+
+-We can also return from decorator that is used on accessor or functions
+-Consider the simple class
+..
+class Printer{
+  message:string = "This works"
+  showMessage(){ console.log(this.message); }
+}
+Inside html if we have a button
+<button></button>
+
+const p = new Printer();
+const btnEl = document.querySelector("button")!;
+btnEl.addEventListener("click", p.showMessage);
+
+-Now when we click the button, we will get undefined printed because of the this keyword.
+Here now the this keyword will be targetting to the eventListener function and it
+dont contain any property message on it.
+-To correctly work, we have to bind our function like
+..
+btnEl.addEventListener("click", p.showMessage.bind(p));
+-We have to explicitly tell the context to which the function is called.
+
+-Well to avoid this extra binding we can create a decorator for this auto binding.
+-In this decorator we will create a new property description that will hold the
+binded function and then return it
+..
+function Autobind(_: any, _:string, descriptor: PropertyDescriptor){
+  const original = descriptor.value;
+  cont binded = original.bind(this);
+  const adjDescriptor:PropertyDescriptor = {
+    configurable: true  -> Whether it can be changed or not
+    enumerable: false  -> Whether to show this while inside the for in loop
+   get() {   -> For some extra work before the user access this property (Same as value but hold extra logic)
+     return binded;
+   }
+  };
+  return adjDescriptor;
+}
+
+class Printer{
+  message:string = "This works"
+  @Autobind
+  showMessage(){ console.log(this.message); }
+}
+
+-Now we can safely call
+btnEl.addEventListener("click", p.showMessage);
+
+
+
+
+
+
+
+8) Validating with Decorators
+-Suppose we are making a course class and we have 2 fields.
+-One is string and another is number
+-We have to validate whether the string is non empty and number is greater than 0
+-We will first create decorators to store our validations
+..
+interface ValidatorConfig {
+    [property: string] : {
+        [propName: string]: string[]
+    }
+}
+
+const registeredValidators: ValidatorConfig = {};
+
+function Req(target: any, propName: string){
+    registeredValidators[target.constructor.name] = {
+        ...registeredValidators[target.constructor.name],
+        [propName]: ['required']
+    }
+}
+
+function Positive(target: any, propName: string){
+    registeredValidators[target.constructor.name] = {
+        ...registeredValidators[target.constructor.name],
+        [propName]: ['positive']
+    }
+}
+
+-target.constructor.name will contain the class name in string
+-Our sample registeredValidators will look like this on this implementation if we have
+class name Course
+registeredValidators = {
+  Course: {
+    propertyName: ['required'], // Array of string that can contain many validators on particular property
+    propertyName: ['positive']
+  }
+}
+
+Our class will look like this
+class Course {
+    @Req
+    title: string;
+    @Positive
+    price: number;
+
+    constructor(t: string, p: number){
+        this.title = t;
+        this.price = p;
+    }
+}
+-As soon as the class is defined we will have the registeredValidatos object as
+..
+registeredValidatos {
+  Course: { 
+    price: ['positive'], 
+    title: ['required'] 
+  }
+}
+
+-We can now create a function and validate the fields as
+..
+function validate(obj: any): Boolean{
+    // Loop registeredValidators and validate the fields
+    // Return on the basis of validations
+    return true;
+}
+let courseName:string = "Typescript";
+let price:number = 100;
+const c = new Course("Hello", 123);
+
+if(!validate(c)){
+    alert("Invalid Input");
+}

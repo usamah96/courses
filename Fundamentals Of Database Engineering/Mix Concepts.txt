@@ -1,0 +1,113 @@
+Mix Concepts
+--
+
+***
+Bitmap Heap vs Index Only Scan
+***
+
+Consider the query -> select count(*) from grades where g = 1;
+By looking at this query, we might assume that it will be an index only scan because our where clause consist of index and we are just
+counting the rows.
+Actually, it might be and it might not be because of visibility map (in case of postgres)
+
+What actually happens is whenever a certain transaction adds any record to the table, it is not visible to other transactions until 
+and unless it fully commits to it. The index gets updated but the row is yet not visible until the commit happens. In postgres, there
+are 2 extra hidden column maintained in a table which are x_min and x_max. These are actually the version numbers postgres maintains.
+Whenever the row is updated or deleted, postgres updates the version number. This version can be any number or timestamp.
+
+When the count query gets executed, the database does not actually knows whether this current transaction should see certain records
+or not because they might have been added just now. So it basically goes to the heap and check those x_min and x_max column and then
+decide what to do. But when we do a "vaccum" on the table, the visibility map gets updated. What vaccum does is all the transaction
+should see all the records if there contains any row that is still invisible to certain transaction. After vaccum, this count query
+will be executed using Index Only Scan because the visibility map gets updated.
+
+
+***
+WAL, Redo Log and Undo Log
+***
+
+Whenever any transaction make changes to the database, we know that the whole page is fetched into the memory, a particular byte or
+bytes are changed and then at the time of flushing, the whole page is dumped into the disk. Even if there is a single byte change, the
+whole page or block is needed to be fetched because there is no concpt of byte addresibility where we can change just that byte which
+has changed. So this is an expensive operation if there is a long running transaction changing multiple location of pages than at the
+time of commit, it can take so long.
+
+Here is the concept of WAL which is the Write Ahead Log which basically stores exactly what changes are being made to the page. So
+whenever there is a change, the page is brought into the memory from the disk, the change is made in to the page in memory and also
+concurrently into the WAL also which stores what exactly is being modified. The WAL is immediately flushed into the disk without being
+cached because this is where we take backup if something bad happens. If in the middle of transaction the database crashes then at the
+time of restart the databases looks into the WAL and then redo all the changes. This is why the WAL is also known as the Redo Log.
+
+When the transaction commits, it is not guarenteed that the dirty page in memory will be flushed to disk immediately. The database
+will decide when to flush the disk and it does completely randomly. When the flushing happens. it is known as the checkpoint mark in
+the WAL to indicate that those WAL changes has been flushed to the disk.
+
+Whenever any change is made, the WAL and the OS default cache can be skipped. This is by default on and we can set if off by using the
+fsync command which is known as the force sync. As we know that when changes are made to page in memory, the corresponsing changes are
+made to the WAL also which skips the cache and is flushed to disk immediately because this is what is used for backup and we cannot
+cache it.
+
+Similar to the WAL and Redo Log, there is the Undo Log file also which keeps the old changes of the records. The purpose of this is when
+we want the transaction to see the old records because we know transaction isolation level is a very important factor. When transaction
+runs in READ COMMITTED isolation level, any other transaction making updates should not be seen by other concurrent running transactions.
+So these uncommitted data are seen from the undo logs. This is also one of the reason long running transactions are must be avoided
+because concurrent transactions need to read data from Undo Log and Undo Log is expensive to read somehow.
+This Redo Log concept is usually in Oracle and in Mysql. Postgres does not have it because postgres maintains a new version of the
+row everytime when the row is updated or deleted and the corressponding version data is stored in xMin and xMax column. These columns
+with the timestamp decide whether a certain transaction should see the data or not.
+
+***
+The cost of count query
+***
+
+We know that when we use select count(*), we get back the total count of all the results. It should be considered that what column has
+been put inside the count() function.
+For example if we have a table called grades with id, name and grade coulmns with id as primary key unique index on it and we do a 
+explain analyze select count(grade) from grades where id is between 10 and 1000, we will see that the database planner will do Index
+Scan with some Heap Fetches. If we see heap fetches 100 then it means the database has to go to the heap 100 times which is bad.
+
+For the above query, why did the database went to the heap when there is index in the where clause? It can simply count the rows from
+index and return the result. But here thing to note is we have put grade column inside the count() function which means we have to
+actually count the grade column. This means to count only those rows where grade is not null and ignore where grade is null. This 
+information can only be fetched after going to the heap.
+
+If we modify the query and use select count(*) instead of select count(grade) then it will be used as Index Only Scan because we
+havn not specified the column so the database will consider the whole record as count 1. 
+
+Similarly what if before executing the count query, this transaction or any other transaction inserted or updated any row which 
+matches the where clause range, then the select count(*) will possibly go to the heap again because the visibility map is out of date 
+and the database need to know whether the current transaction should see specific row or not due to isolation level. To update the 
+visibility map, we can run vaccum on grades table and then run the select count(*) again which will give Index Only Scan. This is
+true for postgres. Other DB might implement this in different manner. 
+
+***
+Index Update on Column Update
+***
+
+This is specific to postgres implementation. Other db might implement in other ways so there is no right or wrong.
+In postgres, there is a unique tuple_id field associated with each and every row. And we know that if we update or delete any row,
+postgres does not overrides the previous row in case of update and does not remove it permanently in case of delete. It just creates
+a new record for it and assigns a new tuple_id to it. This is because to keep transaction isloation level in sync using the x_min and
+x_max column with the help of timestamp.
+
+So, in postgres, whenever we create an index, the key of index is the column value and the value of index is the unique tuple id of the
+row. Which basically means that if we have 10 indexes on a tabe, each index will contain values which are the tupe ids of the rows.
+And whenever any row is updated, a new tuple id is assigned to it and this new tuple id needs to be updated in all the 10 indexes.
+Because if we dont update the tuple id, the index will point to the old tuple id which will be inconsistent. So on every row update, 
+all the indexes will get update and this is really bad for performance if we have very large amount of indexes on the table.
+
+Postgres launces a HOT optimization technique (Heap Only Table) later on to cater this issue and this only works in a specific scenario.
+The concept it, whenever a row gets updated, if the index column is changed then the index will definitely be updated because of the
+readjustment of the b-tree and if any other column is updated a new tuple id is assigned to it. The postgres instead of updating all
+the indexes, will just do one thing which is to make old tuple id point to the new tuple id inside the heap itself where the row 
+lives. So whenever some index fall on old tuple id, it will be pointed to the new tuple if because old points to new one.
+This technique only works if the old row and new row lives in the same page of the heap. The new row needs to go inside another page,
+this means this will cost another IO operation to fetch the page from heap and then query the result. So if there is no space inside
+the page of the old row, then unfortunately postgres will have to update all the indexes with new tuple id.
+
+Fill Factor is a configuration if database pages which tells how much amount of page is to be filled with rows at the time of new inserts.
+If we wet fill factor lets say 70% then the rest 30% of the page will be left empty for future updates for these HOT optimization
+related scenarios. We can configure the fill factor according to out inserts and updates as a DBA engineer!
+
+***
+***

@@ -1,0 +1,250 @@
+S3
+--
+
+Amazon S3 is one of the main service exists and many websites uses S3 as its backbone. It is said to be infinitely scaling storage and
+many Aws Service uses S3 for integration purposes. 
+
+S3 on its core is justa storage service but it has many use cases like,
+  -Storage and Backups
+  -Archive
+  -Disaster Recovery
+  -Application hosting
+  -Media hosting
+  -Big data analytics
+  -Static websites
+  and so on ...
+  
+Nasdaq stores 7 years of data on S3 Glacier
+Sysco runs big data analytics and gain business insights on S3.
+
+Amazon S3 allow us to create Buckets which are top level directories and the files stored inside these buckets/directories are called
+objects. These bucket names should be globally unique across all aws accounts. Although S3 is a global service but the buckets created 
+are on regional basis. An object stored inside a bucket contains a key which is a full path.
+If there is bucket called my-bucket and a file is stored my-file.txt then the key will be my-file.txt.
+If this file is stored inside s3://my-bucket/my-folder/my-another-folder/my-file.txt then the key will be 
+my-folder/my-another-folder/my-file.txt.  The keys are nothing but just long name that contains slashes (/) and it is made of prefix +
+object_name
+
+The object values are the content of the body and we can upload a max of 5TB object size. If the object size is greater than 5GB then
+we must use multi-part upload technique which means to break the file into multiple parts. In case of 5TB file we will upload 1000 files 
+each of 5GB.
+
+Hands On
+***
+
+We can simply go to S3 service and create a bucket and leave all the default options as it is. For now, we configure our bucket to be
+private and not publicy accessible.
+After creating the bucket we can upload any file
+If we upload an image file, we can view it using the Open button provided. Also in the file/object detail section we can see the 
+object's public url where the file is publicly available. But since we have made our bucket private, the public url will not be opened
+and we will get Access Denier Error
+However, we can view the object using the Open button because if we see the url, the url is same as of public url but the additional 
+part is it contains a security token which contains credentials of logged in user so that is why the file is viewable. This url is 
+a presigned url which contains user's signature.
+***
+
+
+S3 Security
+..
+We can secure our buckets and objects in the following ways
+
+1) User Based, where we can define IAM policies for which API call should be allowed for specific IAM user.
+2) Resource Based, where we can define either Bucket policies, Object ACL or Bucket ACL. Among these, the bucket policies is very 
+   common and we can disable the other 2 methods.
+   
+The IAM policy can access the bucket if the user IAM permission allows it, the resource based policy allows it and there is no 
+explicit Deny rule specified.
+
+For enhanced security, we can also encrypt our object using the encryption keys as well.
+
+The S3 bucket policies are defined in a json format and the format is as follows,
+{
+  "Version": "2024-04-06",
+  "Statement": {
+    "Sid": "PublicRead",
+	"Effect": "Allow",
+	"Principal": "*",
+	"Actions":[s3:GetObject],
+	"Resource":[arn:aws:s3::example-bucket/*]
+  }
+}
+
+Here the important keys are,
+  -Resource, which tells on which folder and object we want to apply the policy to
+  -Effect, we define Allow or Deny rules on some certain actions
+  -Actions, where we define set of API we want to allow or deny
+  -Principal, where we define the account or user for which this policy is applied to. The '*' means everyone
+  
+If we want to apply rules to our bucket publicly, we can define bucket policies and the bucket can be accessed publicy over the internet
+If there is an IAM user who wants to access S3 bucket then we can define IAM policy which will contain Allow rule to access the bucket
+If we have EC2 instance that want to access the bucket we can define EC2 Instance Roles with correct IAM permissions that let EC2 instance
+access the bucket.
+To allow accessing the bucket using cross account then we can define bucket policy to allow cross account access 
+
+When creating the bucket we have the option to make our bucket publicly accessible or not. If we choose bucket to not be publicly
+accessible and define a policy to access the bucket publicy, the policy won't work.
+
+
+Static Website Hosting
+..
+We can utilize S3 to host a static website and have it accessible over the internet. The website URL will be generated based on the 
+region and bucket name.
+
+To do this, we have to make sure that our bucket is publicly accessible all over the internet.
+
+We go to our bucket and edit the bucket settings. Towards the bottom we can see static website hosting option and by clicking enabled,
+we can set some properties like what is the index file name what is the error file name, etc. Upon enabling it AWS will generate 
+an endpoint for us and we can use it to see our website.
+
+Now after accessing our website, there can be a need to update something in our website. For this we can make changes and upload the 
+files again. The best practice for this is to enable versioning at the bucket level. This will allow us to upload the file with the 
+same name and with versioning enabled, Aws will add a version number to it which means that we have all the versions available and 
+can easily roll back to previous versions. Also if we unintentionally delete any file, AWS will add a delete marker to it and these 
+deleted files can be resotred easily.
+If we have multiple versions then the deletion of versioned file will be permanenet but if there is no version then the file deleted
+can be restored as a delete market will be added to it.
+
+
+Replication
+..
+We can enable S3 replication which will enable asynchronous replication between buckets. These buckets can be in the same region,
+different region or also buckets of different aws accounts.
+
+To enable replication, bucket versioning must be enabled. Some of the use cases are to aggregate the logs of all buckets into a 
+single bucket, replication between live and testing buckets.
+
+Only new objects are replicated so if we enable replication then already uploaded objects are not replicated. To replicate those objects
+too then we must enable Batch Replication feature. Also there is no chaining of replication so if bucket 1 is replicated into bucket 2
+and bucket 2 is replicated into bucket 3 then bucket 1 objects are not replicated into bucket 3.
+
+After creating the bucket, we can click on it and under the Management section we can see Replication Rules section. We can add the 
+rule by defining some properties like if we want to replicate all objects or custom objects, what is the target bucket whether it is 
+in the same region or different region and specify the bucket name.
+After setting all values, at the time of upload there will be a prompt to ask whether to enable Batch Replication in order to replicate
+old objects or not.
+
+At the time of replication, by default delete markers are not replicated. We can tick the checkbox to replicate delete markers as well.
+
+
+
+Storage Classes
+..
+We have multiple storage classes which includes,
+
+1) Standatd - General Purpose
+    .Provides 99.99% availability
+	.Used for frequent data access
+	.Provides low latency and high throughput
+	.Can be used for big data analytics, mobile and gaming application
+	
+2) Standatd - Infrequent Access (IA)
+    .For data that is less frequently accessed but required rapid access when needed
+	.Can used for disaster recovery and backups
+	
+3) One Zone - Infrequent Access
+    .It is highly durable in single AZ and the data is destroyed when AZ is destroyed
+	.Can be used for secondary backups
+	
+4) Glacier Instance Retrieval
+    .Low cost object storage meant for archiving and backups
+	.The price we pay for object storage and retrieval
+	.The data can be accessed in milliseconds and is great if data is accessed once a quarter
+	.The minimum storage duration is 90days
+	
+5) Glacier Flexible Retrieval
+    .Low cost object storage meant for archiving and backups
+	.The price we pay for object storage and retrieval
+	.We have 3 data retrieval techinque which are expedited(1 to 5 mins), Standard(3 to 5 hrs) and Bulk (5 to 12 hrs)
+	.Minimum storage duration is 90days
+	
+6) Glacier Deep Archive
+    .Low cost object storage meant for archiving and backups
+	.The price we pay for object storage and retrieval
+	.Data retrieval techinques are Standard(12 hrs) and Bulk(48hrs)
+	.Minimum storage duration is 180days
+
+7) Intelligient Tiering
+
+We can move objects between classes manually or using S3 lifecycle configuration. Under the management section of bucket we can create
+a lifecycle rule just like replication rule and define which objects or all objects to move after how many days. So if we create 
+a bucket wth default standard storage class, we can move our objects into standard infrequent access class after 30 days. We can then 
+move it to intelligent tiering after 60 days. We can move it to glacier flexible retrieval after 180 days and so  on.....
+
+
+
+Event Notifications
+..
+We can utlize multiple events that are fired when a certain activity is performed on S3 bucket like,
+  S3:ObjectCreated
+  S3:ObjectRemoved
+  S3:ObjectRestore
+  S3:ObjectReplication
+  
+The use case can be to generate thumbnails of images uploaded to S3 and we can send these notifications to SNS topic, SQS queue, 
+Lambda functions, etc. Now to be able to receive S3 event notifications, we should add IAM Permission policy to the destinations like
+if we want to send the notifications to SNS topic then we must create IAM Resource Access Policy (Json format) to indicate that 
+Amazon S3 has the right to send notification or invoke a lambda function
+
+Now there is another service Amazon EventBridge where all the events are send as a target no matter what. From Amazon EventBridge we
+can provide some rules and based on those rules the events can be forwarded to 18 different AWS Services.
+
+HandsOn
+***
+
+We can create new bucket on Amazon S3 and after creating it we can go to properties tab and can see Event Notifications section. Below 
+this section we also have Amazon EventBridge section where we can just edit it and enable it and all the events will be going into 
+EventBridge.
+To ignore EventBridge and add an event notification by giving it a name and setting what kind of event we want. We can either choose
+full options like All the objects when created or choose more granualar options like object PUT, POST, COPY, etc. For simplicity
+we can choose All Object Created event checkbox and then choose the target destination.
+The target destination can be SNS, SQS or Lambda Functions
+We go into SQS and create a queue and then choose this queue inside the target destination. We will notice that after saving the event
+notification it will first fail because Amazon will try a test connection to SQS by chcking if SQS allows publishing event to the queue
+from S3. It will fail because we will have to define a resource access policy.
+From Policy Generator we can create a policy for SQS to allow publishing from anywhere
+Copy the policy and add this into SQL policy by editing the queue
+After that we try one more time by saving the event notification and it will be successful
+When we go to SQS Queue and poll for new messages, we will see one notification which is the test connection from Amazon S3 while creating
+it.
+After that, when we upload any new object into S3 and we poll for new messages in SQS, we will see new item in our queue being published
+by S3 with all the relevant details.
+***
+
+
+
+Performance
+..
+Amazon S3 is a managed serviced and it automatically scales itself to high request rate and low latency uptil 100-200ms
+We get 3500 PUT/COPY/POST/DELETE and 5500 GET/HEAD requests per second per prefix
+
+It is recommended that when we have a file greater than 100MB then use multipart uploads and for files greater that 5GB it is a must
+to use multi part uploads. IT helps in parallel uploads also Amazon S3 is smart enough as when it gets all parts uploaded it merges
+all the files into a single original file.
+
+Amazon S3 also provides us a feature of Transfer Accelaration which is applicable for both uploads and downloads. Its purpose is to 
+increase the transfer speed by uploading the file to AWS Edge Location first and from the edge location the file is transferred to 
+S3 bucket in the target region.
+Lets say we have a file in USA need to be uploaded into S3 bucket located in Australia. The file will be first uploaded to AWS Edge
+Location located in USA over the public internet as the edge location is nearer and the upload will take very less time. Now from 
+Edge Location the data will be transferred to S2 bucket in Australia using fast AWS private network. So we minimized transfer of data
+over the public internet and maximized it over private network.
+There are over 200 edge locations currently in AWS and is growing continuously.
+
+For downloading the file, we can make use of S3 Byte Range Fetches which is used to maximize the downlaod by parallelizing the GET 
+request to download file in chunk of bytes. It has better resilience in case of failure and we can retry download with smaller byte range.
+Also it is very useful when we want to fetch only specific part of file lets say we know that first 50 bytes of a file represents the 
+header and we get the context of what the file is about then we can issue a byte range request for header using specific byte range of 50
+bytes.
+
+Amazon S3 also provides us a feature of S3 Select or Glacier Select which allows us to filter the file on server side, which means that
+before S3 select, we first download whole file and then filter the data on client side. Now with S3 select, we can bring the file filtered
+by filtering it on server side. According to Amazon it is 400% times faster and 80% cheaper.
+An example could be to fetch a CSV file with filtering applied on Amazon S3 usig S3 select.
+
+We can assign metadata and tags to our object while uploading it into S3 bucket. The metadata and tags are both key value pairs.
+For metadata, we have to use the naming convention "x-amz-meta-" to assign any metadata to the object like content length, content type,
+origin of file etc. They all are stored in lower case and these metadata can be retrieved when the object is retrieved.
+For tags, they are used for fine grained permissions (such as to access only specific objects with specific tags) or for analytics 
+purposes.
+In S3, we cannot filter objects by tags or metadata. For this we have to use an external DB like DynamoDB to create a search index on
+tags and metadata. Then S3 will filter the objects based on search result return by DynamoDB and return the filtered objects.

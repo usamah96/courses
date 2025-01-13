@@ -1,0 +1,67 @@
+Angular Templates
+----------------
+
+<ng-template> allows us to render our html code in a form of a template.
+It will not render it automatically by the DOM until and unless we explicitly
+call it.
+
+<ng-template #blankImage>
+  <p> No Image Found </p>
+  <img src="no-image.png" />
+</ng-template>
+
+<ng-content select="course-image" 
+    *ngIf="course.imageUrl" else blankImage> </ng-content>
+
+
+
+Instantiating the template using structural directive ngTemplateOutlet
+-We can create a template using private variables and then instantiate our templates by passing
+the value to be set into that variable.
+
+<ng-template #blankImage let-courseName="description">
+  <p> {{courseName}} has no Image </p>
+  <img src="no-image.png" />
+</ng-template>
+
+Here courseName is the private variable of the template which can only be accessed inside the
+template. The "description" is the value which we are going to pass when instantiating the template
+
+
+Instantiating the template with passing the values using context property.
+
+1 - <ng-container *ngTemplateOutlet="blankImage; context: {description: course[0].description}"
+</ng-container>
+
+2 - <ng-container *ngTemplateOutlet="blankImage; context: {description: course[1].description}"
+</ng-container>
+
+
+
+
+
+Passing the template in to the component
+
+<ng-template #blankImage let-courseName="description">
+  <p> {{courseName}} has no Image </p>
+  <img src="no-image.png" />
+</ng-template>
+
+<course-card [noImageTpl]="blankImage" [course]="course"></ng-template>
+
+Inside course-card.component.ts
+@Input() noImageTpl: TemplateRef<any>
+@Input() course: Course;
+
+Inside course-card.component.html
+<div *ngIf="course.imageUrl" else no-img>
+  <img src="course.imageUrl" />
+</div>
+
+<ng-template #no-img>
+  <ng-container *ngTemplateOutlet="noImageTpl; context:{description: course.description}"
+  </ng-container>
+</ng-template>
+
+-This is how we can combine ng-content, ng-container, ng-template and @Input to make a very
+customizable component

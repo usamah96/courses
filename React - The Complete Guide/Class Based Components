@@ -1,0 +1,108 @@
+Class Based Components
+--
+
+We can build class based components as an alternative way to function based components
+
+Functional Components
+  .Components which are regular JavaScript functions which returns renderable JSX code
+  
+Class Based Components
+  .Components which are defined as JavaScript classes where a render() method defines what needs to get rendered
+  
+  
+Class based components exists because before React 16.8, there were required to manage the states and side effects
+React 16.8 introduces the concept of React hooks for Functional Components (useState, useEffect)
+
+Class based components cant use react hooks
+
+For states, we define and initialize states in the constructor
+
+With class based components, our state is always an object which groups all our state and with functional components our state can be anything it can 
+be integer, boolean, string, objects etc
+
+With class based components, we use this.setState() to update our state and this function comes from the Component class which does not overwrites
+the state but merges the new state with the old state. With functional components, the new state is overriden with new state
+
+Example
+
+class User extends Component {
+
+  constructor(){
+    super();
+    this.state = {
+      showUsers: false
+    }
+  }
+  
+  render(){
+    return ( 
+      <li className={classes.user}> {this.props.name} </li> 
+      <button onClick={this.toggleUserState.bind(this)}> Add </button>
+    )
+  }
+  
+  toggleUserState(){
+    this.setState( (prevState) => { 
+      return {showUsers: !prevState.showUsers} 
+    })
+  }
+}
+
+We have to use .bind() while passing function references to events because of the 'this' behavior in JavaScript
+Understand this keyword concept: https://academind.com/tutorials/this-keyword-function-references
+
+
+
+
+
+
+Lifecycle Methods
+
+We have serveral lifecycle methods equivalent to react hooks in functional components
+
+1) componentDidMount
+     .equivalent to useEffect with no dependency
+     .It will run once component is rendered and evaluated
+     
+2) componentDidUpdate
+     .equivalent to useEffect with dependencies
+     .It will run whenever something changes and component is re-evaluated
+     
+3) componentWillUnmount
+     .equivalent to useEffect with only the cleanup function
+     .It will run just before component getting removed from the DOM
+     
+4) componentDidCatch
+     .Used to create Error boundaries
+     
+     
+Always prefer functional components over class based components
+Prefer class based components if you build Error boundaries
+
+
+
+
+Error Boundaries
+
+If we are insterestedin building error and handlin it, it would be much easier and simpler in class based components.
+We make use of componentDidCatch lifecycle method
+
+Error.js
+
+class Error extends Component {
+
+  componentDidCatch(error){
+    consolelog("Error", error);
+  } 
+}
+
+In Parent.js
+
+return (
+  <Error>
+    <CompOne />
+    <CompTwp />
+  </Error>
+)
+
+If any component throws any erorr, it will be catched in the Error component

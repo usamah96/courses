@@ -1,0 +1,52 @@
+Chain Of Responsibility
+--
+
+-Sequence of handlers processing an event one after another
+
+Motivation
+--
+-Example when a user click a graphical element on a form lets say a button
+-So a button is placed in a box which in turns is placed in a whole window
+-So a click event can be handled by a button, a box and the whole underlying window also to perform some sort of operation
+
+-Another example is of a card game in which there are lots of creatures
+-Every crature has a attack or defense
+-To make the creature's attack or defense more powerful we put another creature on top of that particular creature to boost that
+particular card.
+
+-JS example and concept of event.stopPropagation()
+
+
+
+-A chain of components who all get a chance to process a command or a query, optionally having default processing
+implementation and an ability to terminate the processing chain
+
+In other words
+--
+-This pattern is recommended when multiple objects can handle a request and the handler doesn't have to be a specific object. 
+Also, the handler is determined at runtime. Note that a request not handled at all by any handler is a valid use case.
+
+
+
+Example of a game where we built a creature and a creature modifier that holds the reference to the next creature modifier.
+We build a creature modifier that doubles the attach and increases the defense by 3 units. Also we built a creature modifier that
+cancels out all the modifier applied after this modifier.
+
+
+Command Query Separation
+-The idea is to separate the invokation of an object into 2 separate parts
+   1) Command: asking for an option or change (setting the value of attack to 2)
+   2) Query: asking for information (please give the attack value)
+
+
+
+Chain Of Responsibility as a centralized construct
+--
+-In the previous example of Creatur we have the dependencies of CreaturModifier inside the creatute. No how can we implement
+the same without such dependencies.
+-We can perform this with use of Observer Pattern along with Mediator and Memento
+-For observer pattern we can keep track of the list of CreatureModifiers to the specific creature
+-Whenever any creature modifier gets subscribed, we return the map index as a Memento Pattern to unsubscribe it in the near future
+-The Game class will be the mediator from where all or operationss get operated
+-We make use of Consumer<T> to perform the Query operations.
+

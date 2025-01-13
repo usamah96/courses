@@ -1,0 +1,419 @@
+Lambda
+--
+
+Lambda comes under AWS Serverless and by serverless it does not mean that there are no servers, but it means that we dont see or manage 
+any servers. The developer just deploy the code/functions to be executed. Serverless initially termed as Function as a Service (FaaS)
+
+A typical serverless architecture example is
+  - We have a user base that is served with static website using S3 bucket
+  - Our users can login using the AWS Cognito service where they all have their identity stored
+  - Then our users can request API Gateway service that will execute Lambda Functions connected to DynamoDB to serve the request.
+In this whole architecture, we dont have to manage any servers and deploy our working application
+
+In AWS we have many serverless services like,
+ 1) Lambda
+ 2) DynamoDB
+ 3) API Gateway
+ 4) Cognito
+ 5) SNS and SQS
+ 6) Kinesis Data Firehose
+ 7) Aurora Serverless
+ 8) Step Functions
+ 9) Fargate
+ 
+ 
+To understand about lambda, we know that with EC2 instances we get virtual servers which are limited by RAM and CPU and needs to be 
+continuously running to serve requests. If we want to scale in or out instances, we can attach it usig auto scaling group. In comparison 
+to lambda functions, they are the virtual functions that are limited by time which means that the execution of function should not take 
+more than 50 minutes. They are not continuously running but only run when needed and the auto scaling is automatic.
+
+We get multiple beenfits like,
+  .The pricing is very easy as we only pay per request and the compute time of lambda. In the free tier we get 1000000 requests and 400000 GBs
+   of compute time.
+  .It can be integrated with any AWS Service, programming language
+  .We get easy monitoring through CloudWatch service
+  
+These are some of the services that can integrate lambda functions with some use cases
+  - API Gateway: We have the rest apis that will invoke lambda functions
+  - Kinesis: To transform the data on the fly
+  - DynamoDb: To execute any trigger based on some operations on the data
+  - S3: Trigger a lambda function when any file is uploaded
+  - CloudWatch EventBridge: When something happens in our infrastructure like in CodePipeline when there is a state change for our build 
+    and we want to execute some automation
+  - CloudWatch Logs: To stream the logs
+  - Cognito: When a user logs in to the system
+  
+
+Example of Thumbnail Creation
+Lets say we upload an image to s3 for which we trigger an event notification that will run a lambda function. The lambda function will 
+create a thumbnail of the uploaded image and upload the thumbnail into s3 and also put the metadata (image name, description, size, etc)
+into DynamoDB.
+
+Example of Serverless Cron
+We can create an EventBridge notification to trigger after one hour and this trigger will invoke the lambda function. In this way when 
+the fuction is executed it will only cost us otherwise if we run a cron on our EC2 instance, the instance must be running for the cron to 
+be running even if the time has not come for the cron to run.
+
+
+With Lambda Synchronous invokation, the results are returned right away and any error thrown by the function must be handled by the client.
+The client can be CLI, SDK or any service like API Gateway or Application Load Balancer.
+The services that uses synchronous invocations are ALB, API Gateway, CloudFront, Cognito, StepFunctions.
+
+
+Now we can expose lambda functions to the client as http/https request in 2 ways which is either by Application Load Balancer or an 
+API Gateway. So when using ALB, we need to register our lambda function into the target group from which ALB will invoke the lambda function.
+When the request comes to ALB from client, the request is converted into JSON document that contain information on how to call the lambda 
+function. The Json document looks something like this,
+{
+  requestContex: {
+    elb: {
+	  targetGroupArn: <arn>
+	}
+  },
+  httpMethod: GET,
+  path: /lambda
+  queryStringParameters: {
+    query: 1234ABC
+  },
+  headers: {
+    connection: keep-alive,
+	host: <domain-name>
+	user-agent: <user agent>
+	..
+	..
+	..
+  },
+  body: "",
+  isBase64Encoded: false
+}
+
+When the Lambda resposne comes from the request, the returned Json document then converted into http to return back response to the client.
+The response Json document looks like,
+{
+  statusCode: 200,
+  statusDescription: 200 OK
+  headers: {
+    ..
+	..
+  },
+  body: <h1> Hello World </h1>
+  isBase64Encoded: false
+}
+
+We can also enable multi header value like when the client sends a request to ALB with multiple parameter of same name like ?name=foo&name=bar
+then this query paramter will be converted to a list of string as an input to lambda function like, {name: [foo, bar]}
+
+Hands On
+***
+
+We can create a simple lambda function and write the function in any code to return simple string of "Hello From Lambda"
+Then we can create ALB, assign a security group to it, create a target group and select lambda as the option
+Inside our target group we can then select our newly created lambda function.
+After our ALB is created and with generated dns name, we can request it from browser and see that the function get invoked and response 
+is returned
+We have to make sure that the response from lambda function is in the same format as written above and also set the header content type 
+to text/html so that it can be renderable on browser's page
+***
+
+We can check in the monitoring tab that we have been created with log streams for lambda function and can see logs in it. If in our lambda 
+we have printed or logged anything, this can be viewable under log streams
+
+
+With Lambda Function Asynchronous Invocations, we create an event and place it in the Event Queue. The Lambda function reads the event from 
+the queue and then executes the function. Lets say we have uploaded a new file into s3 bucket, a new file creation event will be created 
+inside Event Queue which will be processed by lambda function. If for some reason, the function fails to process and some error occurred, 
+it will try 3 times in total. After the first failure it will wait 1 minute to execute it second time and then will wait for 2 minute to 
+execute it thrid time.
+In case of failures and multiple executions, we have to make sure our functions are idempotent (same response on multiple executions) 
+otherwise we can see problems in our response. After a certain number of retries, the event can then be sent to SQS Dead Letter Queue for 
+later inspection and processing
+
+Hands On 
+***
+
+To invoke the function asynchronously, we can do this by aws cli using the command
+"aws lambda invoke --function-name demo-lambda --cli-binary-format raw-in-base64-out --payload '{key1: value1, key2: value2}' --invokation-type 
+Event --region us-east-1a response.json"
+
+Before invoking it we can go to the Configurations Tab inside our lambda function and check for Asynchronous Invokation tab. We can 
+edit the configuration to set up a Dead Letter Queue for either SQS or SNS. For that we can go to SQS, create a queue and name it as 
+"lambda-dead-letter-queue" and selecting this queue under lambda asynchronous invokation configuration.
+
+Now we can change our lambda code to throw exception and when we invoke it using the cli we can see after 2 3 attempts our payload data 
+will be sent to SQS defined queue.
+***
+
+
+For Lambda integration with EventBridge, two of the ways can be,
+  - Create Event Bridge Rule for Scheduler that will invoke after every one hour to trigger a lambda function
+  - Create a CodePipeline EventBridge rule that whenever the state is changed for our build then trigger the lambda function.
+  
+  
+  
+Event Source Mapping
+..
+Apart from synchronous and asynchronous invokations, event source mapping is the last category where lambda can process events.
+
+This is a pull based mechanism where the lambda need to poll for data. It is applied to Kinesis Data Stream, SNS and SQS FIFO Queue and 
+DynamoDB. 
+Example is lets say we have Kinesis Data Stream and we confgure our lambda function to pull messages from it. There will be an Event 
+Source Mapping internally created inside lambda function which will poll msgs from stream and the kinesis data stream will return a batch 
+of data. Then this internal source mapping will invoke the lambda function with event batch.
+
+For Event Source Mapper, there are 2 sources for it which are Streams and Queues. For Streams we have the option for Kinesis Data Stream 
+and DynamoDB Sttream.
+
+For streams, the event source mapper creates an iterator which will iterate every shard and process the item in it in order. We can 
+configure the iterator to start from the beginingg, iterate only new items or iterate from a given timestamp. The items which are already 
+processed are not removed from the shard so that other consumers can also read from it.
+We can configure reading in such a way that when we have low stream data or low traffic, then we can define a batch window to only 
+collect the record before the actual processing and then invoke the lambda function with a batch
+When we have high stream or high traffic we can make use of parallel batch processing on the shard level. So all the paralle threads 
+will invoke the function separately. If we have 3 shards, we can create 3 threads each will collect data from each shard into a batch 
+and the function will be invoked by each thread with its own batch to be processed. We can set upto 10 batches per shard.
+
+If the function throws any error, the whole batch will be discarded and need to be re-processed until the function is succeeded or the items 
+in the batch expire. We can restrict the number of retries, discard old events or split the batch on error. The discarded events can go 
+to a separate location
+
+
+The concept for reading from queues is very much similar. We can specify the batch size from 1-10 on queue level and it is recommended 
+to set the visibility timeout of msg to 6x the timeout of our lambda functtion.
+The msgs are deleted from the queue when they are successfuly processed by lambda
+
+After creating a lambda function, we can click on Add Trigger and select the source trigger as SQS queue or Kinesisz Data Stream so that 
+it polls msgs from it when it is available.
+
+
+
+Env Variables
+..
+We can inject some env variables using key value pair to our lambda function. Lambda also has its own system variables also on top of 
+custom env variables that we can utilize
+
+We can also envrypt our env variables using the KMS
+
+
+Monitoring
+..
+We know that lambda functions are by default integrated with CloudWatch logs and whatever execution is done, logs are printed they are 
+all can be seen under CloudWatch Log Group > Log Stream section.
+
+Also the lambda funtion metrics are also displayed in CloudWatch Metrics which include information like invocations, durations, concurrent 
+executions, failures, success and failure rate, error count, the iterator age if reading from stream
+
+To enable XRay with Lambda functions, we need to enable active tracing and it will automatically run the xray daemon for us. WE just need 
+to embed the xray sdk in the code and give correct IAM permission to our lambda function to write traces into xray. The importatn env 
+variables to communicate with xray are,
+  a) _X_AMZN_TRACE_ID, which contains the tracing header
+  b) AWS_XRAY_CONTEXT_MISSING, by default LOG_ERROR
+  c) AWS_XRAY_DAEMON_ADDRESS, which is the xray daemon ip address and port
+  
+  
+  
+Lambda@Edge & CloudFront Functions
+..
+We know that when we deploy an application to a specific region, we launch multiple edge locations (CDNs) for users in multi[le part of 
+the world to get access to our application faster. But what if we want to execute some operation based on the edge location. For that 
+we have 2 options
+  a) Cloud Front Edge Functions
+  b) Lambda@Edge
+This help us to execute fully serverless function at the CDN level for multiple purposes
+
+The use cases can be,
+  .Website Security and Pricate
+  .SEO
+  .Dynamic Web App at the Edge
+  .Real Time Image Transformaton
+  .A/B Testing
+  .User Authentication and Authorizatio
+  ...
+  ...
+  
+	
+Now in CloudFront Functions, we can modify the request sent by user and response sent by the server. Whenever client sends a request 
+to our CloudFront, we call it as a viewer request. So we can modify this request using CloudFront functions after the request is received 
+by CloudFront. Also when the server has processed the request and is ready to send bacn response, we can modify the response. This 
+response is termed as viewer response.
+These functions are lightweight functions written in JS for high scale, latency sensitive CDN customization and can handle million of 
+requests per second.
+
+In Lambda@Edge, we can do one step further. We know that when CDN receives the request, it goes to the origi server if the cached content 
+is not found or to fetch some dynamic content. With Lambda@Edge, we can modify the request after receiving at CDN, before sending to the 
+origin servicer, after receiving from the origin server and before sending back to the client. So we have the ability to modify the request 
+also while communicating the the origin server too.
+The function can be written in NodeJS or Python and we can create our function in one single region and CloudFront will replicate this to 
+multiple locations.
+
+
+
+Lambda and Networking
+..
+When we launch a lambda function, it is launched outside of our own VPC by default and this VPC is an AWS owned VPC. So therefore it 
+cannot access services launched in another VPC
+
+To give acces to our services defined in another VPC to our lambda functions, we can assign lambda function that VPC ID, the subnets 
+and the security group and behind the scene Lambda will create a Elastic Network Interface (ENI) in our subnet through which our lambda 
+function can then access the resources. 
+When assigning a SG to our lambda, we will have to attach a IAM policy (AWSLambdaENIManagementAccess) which contain all the permissions 
+like CreateNetworkInterface, DescribeNetworkIntrface, etc..
+
+Now if we define our lambda function in our own VPC and public/private subnet then it will not have access to public internet. If there 
+is any aws resurce defined in this subnet then lambda can access it but if the lambda need to execute a 3rd party api over the internet 
+then it won't be able to do it. For this, we will have to define a NAT Gateway from where the lambda can access the public internet using 
+the Internet Gateway (IGW). Also if there is any other service defined outside of the VPC where the lambda is defined then we will need 
+to define a VPC Endpoint from where the lambda can access that aws resource. This resource can also be access via NAT and IGW too.
+
+
+
+Layers
+..
+This is a new feature in lambda that helps us to re-use code or place common things in a centralized location
+
+The example can be if our lambda function is using externa libraries which are packaged into one application pacakge including the lambda 
+fucnction, then the whole package needs to be redeployed everytime there is a change but our libraries remain constant they never change 
+by us.
+What we can do is extract the libraries part into multiple layers and our lambda can then reference these layers to use the features of 
+the library. In this way, some other lambda function can make use of the same layer to re-use the library feature.
+
+There are already defined layers by aws like Scipy library from python. When we create a layer we can select either we want to create 
+AWS defined layers Or custom layer. In AWS defined layer, we can see the python scipy layer in it and we can select it and create it. 
+After that in our lambda function we can import the scipy package and use its features
+
+
+
+Storage Options
+..
+Lambda functions can access EFS file system if they are running in the same VPC. We can define a path for our file system and then lambda 
+can access that path for storage purposes.
+
+We have the limitation of connection because we can have multiple lambda function running in different subnets in the same VPC where our 
+EFS file system also is and if multiple functions request for EFS file system connection then it may burst our connection limits.
+
+There are multiple storage options and those are,
+  - Ephermal Storage /tmp, where it is relevant to individual lambda function and is not shared among multiple lambdas. The storage we get 
+    is 10GB and is considered the fastest 
+  - Layers, where we can get upto 5 layers per lambda upto 250MB in total. This is shared across all lambdas and is also considered fastest.
+  - S3, where data is stored in amazon s3 bucket using the s3 apis and we get storage as many as we want and how much the s3 allows. It 
+    is considered fast but not the fastest
+  - EFS
+  
+  
+Concurrency
+..
+We can have lambda functions concurrenc at upto 1000 executions which means that for simultaneous requests, multiple funtion threads 
+will be fired on each request and we can get 1000 parallel request at maximum. We can set this value when defining the reserved 
+concurrency property at the function level.
+To increase the concurrency limit over 1000, we have to raise the ticket to AWS support.
+
+Every invokation above the reserved concurrency number will have a throttle and there can be 2 kinds of throttle behaviour
+  1) If function is invoked synchronously then it will throw Throttle error with 429 status code
+  2) If function is invoked asynchronously then it will retry and then go to DLQ
+       .The retry will be done upto 6 hours in exponential backoff fashion from 1 second to the max of 5 minutes.
+  
+If we dont set the reserved concurrency at function level we may end up in a problem like,
+Lets say we have a function that is backed by load balancer. One another function that is called through API Gateway and one function that 
+is called using the SDK or CLI. In a normal traffic flow, the execution will work fine but for example we have launched a new offer in 
+our application and suddenly the traffic is higher. The users coming from our load balancer suddenyl increased at a higher rate and there 
+are 1000 concurrent executions of our lambda because we have not set the reserved concurrency level. Now there is another user base that 
+is coming via API Gateway then the lambda function will be throttled because we have been left with 0 concurrency limit.
+
+
+We can make use of Cold Start feature if we want to do some initialization task where first few requests will do some initialization and the rest 
+of the requests will use the data. But if the initialization takes time like downloading dependencies then this may cause delay in the 
+response. For this we can make use of Provisioned Concurrecy where concurrecny is allocated ahead of time before even the first requests 
+comes in. In this way Cold Start never happens and all the requests have low latency
+
+
+External Dependencies
+..
+We know that whenever we write code, we need some external dependencies to include. For all the included dependencies we must reference 
+it in our code and upload the .zip file into lambda. If we are working with JS then the dependencies will be node_modules, if working with 
+python then dependencies will b pip --target, if working with java then dependencies will be .jar files. All should be packaged in a zip 
+file while uploading.
+
+Lets say we have a JS application, we can write the code in index.js file, include dependencies using package.json and node_modules and 
+then upload it after zipping it into .zip.
+Example -> Check out the with-dependencies folder in the code section. The JS code include xray sdk and s3 dependencies. The code loads 
+the s3 dependency and list the bucket names. After uploading it into lambda we can enable tracing xray and also see the traces inside 
+XRay service since we have enabled xray (that will run the xray daemon in lambda) and included Xray sdk also in the function. In the 
+XRay we will see the service map how the apis were called, how many of them were success, how many of them were failed and the failure 
+reason in the detailed traces section.
+
+The zip file must not be larger than 50MB. If it is larger than it should be uploaded to s3 bucket and then referenced from lambda
+
+
+
+CloudFormation
+..
+Whe defining a template of CloudFormation, we can either write the lambda code directly into the template which is called inline 
+lambda function. But the limitiation is that we cannot include the dependencies. Simple normal execution function can work.
+
+Other way is that we upload all our code in s3 bucket and the define the bucket name, policy, version inside the CLoudFormation 
+template to reference our lambda function. In case there is any change in s3 like bucket name or version then the template should also
+be updated because changes will not get auto picked
+
+
+
+Container Images
+..
+We can deploy lambda function as container images upto 10GB from ECR. It helps us to pack complex and large dependencies in a container. So 
+we have the application code, dependencies, dataset as docker image running on top of base image which implements the lambda runtime api
+
+The base images are available for python, java, node.
+An example to build the base image provided by AWS
+FROM amazon/aws-lambda-nodejs:12   -> Reference the base image 
+COPY app.js package.json ./        -> Copy all the code files
+RUN npm install                    -> Load the dependencies
+CMD [app.lambdaHandler]            -> Specify which lambda function to run on startup.
+
+
+
+
+Versions and Aliases
+..
+When we create our lambda function, it is by default on $LATEST version which is mutable which is why we can modify our code and test it 
+gain and again. Once we are done testing and happy with our code, we can publish our code and it will be assigned a version V1 which will 
+now be immutable. It means that we cannot modify our code or env variables after that
+
+We can publish multiple versions of our code like V2, V3, etc and go back to specific version if we want to.
+
+Similarly we have aliases and these are just pointers to the actual version. We can create aliases lke dev pointing to V1, test pointing to 
+V2 and prod pointing to V3 and our users use the aliases to access our lambda functons. It also enables us to do canary deployment because 
+we can also assign weights to our versions. If we launch a new feature that is on test version then we can assign weight from prod alias 
+to route 5% of traffic to V2 (test version) and 95% of traffic to V3 (prod version).
+
+
+
+Function URL
+..
+They are helpful in exposing our lambda function via http without any Application Load Balancer or Api Gateway. A unique url is generated 
+for us which can only be accessible over the public internet
+
+It also supports CORS and Resource Based policies to allow multiple authorized domains
+We can set these types as Reourxe Based policies
+  - AuthType NONE, to allow public and unauthenticated access
+  - AuthType AWS_IMA, IAM is used to authenticate and authorize the requests. In this both the resource and identity based policies are 
+    evaluated. If in a same account, then either resource or identity based polcity to be set to ALLOW. If in cross account then both 
+	resource and identity based polciy needs to be set to ALLOW. The resource policy needs to be set on lambda function level and identity 
+	based policy need to be set at the role level which will be assigned to the source of lambda that needs to execute it.
+	
+	
+We can only assign a function URL to alias (pointing to a fixed version) or to the $LATEST version which is unpublished and used for 
+testing.
+
+
+Limits
+..
+Lambda has some limits
+
+The Execution limit are,
+ - Memory allocation from 128MB - 10GB with 1MB increments. As the memory increases the vCPU increases too.
+ - Maximum execuion time should not be more than 15minutes
+ - Env Variable maximum size is 4KB
+ - Disk capacity in function container (/tmp) is 512MB to 10GB
+ - Concurrecy exeuction is 1000 which can be increased on request.
+ 
+The Deployment limits are,
+ - Size of compressed deployment should not be more tha 50MB. Use S3 in case of more tha 50MB size
+ - Size of uncompressed deployment should not be more than 250MB. We can load other files more than 250MB using the /tmp folder on startup

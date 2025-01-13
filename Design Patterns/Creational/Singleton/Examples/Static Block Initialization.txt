@@ -1,0 +1,27 @@
+Static Block Initialization
+----------------
+
+
+class Test{
+
+  private static final Test INSTANCE = new Test() // We cannot do this
+  private Test throws IOException{
+    File.createTempFile(".", ".");
+  }
+}
+
+
+class Test{
+
+  private static Test INSTANCE;
+  private Test throws IOException{
+    File.createTempFile(".", ".");
+  }
+
+  static{
+    try{ INSTANCE = new Test(); }
+    catch(Exception e){ sout(e); }
+  }
+}
+
+We have to remove the final modifier as final means to initialize at the time of declaring.

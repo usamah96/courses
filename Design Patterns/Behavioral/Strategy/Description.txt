@@ -1,0 +1,27 @@
+Strategy
+---
+
+System behavior partially specified at runtime
+
+Motivation
+--
+-Many algorithms can be decomposed into higher and lower level parts
+-Example of making tea that can be decomposed into
+   .The process of boling the water and pouring into cup
+   .Tea-specific things (put teabag, add milk etc..)
+-THe high level algorithm can then be reused for making coffee or hot-chocolate.
+
+-With strategy pattern we can define different parts of algorithm for a specific strategy in our system to be executed.
+
+Dynamic Strategy
+--
+-Ability to change the strategy at runtime based on inputs
+-Example of Markdown and Html list item
+-Markdown are displayed as *Item1 *Item2 etc...
+-Html is displayed as <ul><li>...</li></ul>
+-In this apporach we will just use the setStrategy method to change the strategy
+
+Static Strategy
+--
+-Once the strategy is set, there is no way of changing it.
+-We have to use Supplier<T> for it to tell at compile time what strategy to use.

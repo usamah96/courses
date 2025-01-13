@@ -1,0 +1,57 @@
+Aggregating Log Files With ELK Stack
+---
+
+We can aggregate our log files at one place using ELK Stack which is a combination of 3 things
+   .Elasticsearch
+   .LogStash
+   .Kibana
+   
+   
+Each of our microservice generate a separate log files for its tracking. So it is not feasible to open it one by one to look into it. We
+aggregate it and combine it at one place and see it in a user friendlt enviroment.
+
+LogStash's responsiblity is to collect all the log files, filter it, transform it and then pass it onto the elasticsearch (search engine) where 
+these logfiles need to be indexed for searching purposes.
+We use Kibana as a visual interface to search and visulaize our interface and log files
+
+
+Steps
+
+1) Specify the logging file path in the micro service application properties
+     .logging.file.path=users-ws (This will store the file on the root directory)
+     .logging.file.path=/home/vend/Dekstop/user-ws (Whole Directory)
+     
+2) Download logstash from elasic.co website and place the folder it anywhere inside the computer
+     .Download the 7.6.2 version of both elasticsearch and logstash (latest version issue with java)
+     .LogStash configuration mainly has 3 parts which is input, output and filters
+     .Create new configuration file and place some code
+     .Save the .conf file inside the LogStash downloaded directory where the bin folder is
+     
+   LogStash config file code structure
+    a) Configuration for reading the log files
+       ."input"
+          "file"
+             ("type": type of file to read)
+             ("path": from where to read)
+    b) Configuration for output the log files
+       ."output"
+          "elasticsearch"
+             ("hosts": default port for ElasticSearch)
+             ("index": name of the index file when the information is searched by the ElasticSearch)
+    c) Codec (For converting data into different formats after outputting data)
+       ."stdout"
+          ("codec": codec type) Example "rubydebug" -> outputs data from some ruby print libraries, 
+                                        "json"      -> outputs data in json structured format
+
+3) Run the elasticsearch server by going to the directory and run bin/elasticsearch
+4) Run the logstash by going to the directory and run bin/logstash -f <.conf_file>
+5) Head over to localhost:9200/_cat/indices to see the running log files
+6) Head over to localhost:9200/<log_file_name>/_search to see the logs
+     .localhost:9200/<log_file_name>/_search?q=*format&pretty to see the json pretty format
+7) Download Kibana 7.6.2
+8) Run bin/kibana on the root directory to start the kibana server on localhost:5601
+9) Head over to localhost:5601 and go to explore on my own
+10) Go to management and create indices with the value timestamp and name "user-ws-*", "account-ws-*", etc..
+11) Go to Discover to see the combined logs of all the services
+
+

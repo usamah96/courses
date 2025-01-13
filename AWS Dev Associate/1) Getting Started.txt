@@ -1,0 +1,33 @@
+'-> Limit: 10 row(s)  (actual time=1.09..1.09 rows=6 loops=1)\n    
+	-> Sort: videobean0_.id DESC, limit input to 10 row(s) per chunk  (actual time=1.09..1.09 rows=6 loops=1)\n        
+		-> Table scan on <temporary>  (cost=3.98..6.13 rows=6) (actual time=1.06..1.07 rows=6 loops=1)\n            
+			-> Temporary table with deduplication  (cost=3.55..3.55 rows=6) (actual time=1.06..1.06 rows=6 loops=1)\n                
+				-> Nested loop inner join  (cost=2.95 rows=6) (actual time=0.963..0.991 rows=6 loops=1)\n                    
+					-> Filter: (videopacka1_.video_id is not null)  (cost=0.854 rows=6) (actual time=0.013..0.0214 rows=6 loops=1)\n                        
+						-> Covering index lookup on videopacka1_ using vid_pack_uq (package_id=\'18\')  (cost=0.854 rows=6) (actual time=0.0119..0.0186 rows=6 loops=1)\n                    
+							-> Single-row index lookup on videobean0_ using PRIMARY (id=videopacka1_.video_id)  (cost=0.267 rows=1) (actual time=0.00817..0.00821 rows=1 loops=6)\n'
+
+
+
+'-> Limit: 10 row(s)  (actual time=0.122..0.123 rows=3 loops=1)\n    
+	-> Sort: videobean0_.id DESC, limit input to 10 row(s) per chunk  (actual time=0.121..0.122 rows=3 loops=1)\n        
+		-> Table scan on <temporary>  (cost=8.67..8.67 rows=0.65) (actual time=0.108..0.109 rows=3 loops=1)\n            
+			-> Temporary table with deduplication  (cost=6.17..6.17 rows=0.65) (actual time=0.105..0.105 rows=3 loops=1)\n                
+				-> Nested loop inner join  (cost=6.11 rows=0.65) (actual time=0.0286..0.0703 rows=3 loops=1)\n                    
+					-> Filter: (videopacka1_.video_id is not null)  (cost=1.56 rows=13) (actual time=0.0111..0.0176 rows=13 loops=1)\n                        \
+						-> Covering index lookup on videopacka1_ using vid_pack_uq (package_id=\'10\')  (cost=1.56 rows=13) (actual time=0.0102..0.0156 rows=13 loops=1)\n                    
+							-> Filter: ((videobean0_.category_id = 16) and (videobean0_.title like \'%Allah%\'))  (cost=0.25 rows=0.05) (actual time=0.00378..0.00381 rows=0.231 loops=13)\n                        
+								-> Single-row index lookup on videobean0_ using PRIMARY (id=videopacka1_.video_id)  (cost=0.25 rows=1) (actual time=0.00307..0.00311 rows=1 loops=13)\n'
+
+
+
+
+'-> Limit: 10 row(s)  (actual time=0.12..0.121 rows=3 loops=1)\n    
+	-> Sort: videobean0_.id DESC, limit input to 10 row(s) per chunk  (actual time=0.12..0.121 rows=3 loops=1)\n        
+		-> Table scan on <temporary>  (cost=8.67..8.67 rows=0.65) (actual time=0.107..0.108 rows=3 loops=1)\n            
+			-> Temporary table with deduplication  (cost=6.17..6.17 rows=0.65) (actual time=0.104..0.104 rows=3 loops=1)\n                
+				-> Nested loop inner join  (cost=6.11 rows=0.65) (actual time=0.0281..0.0702 rows=3 loops=1)\n                    
+					-> Filter: (videopacka1_.video_id is not null)  (cost=1.56 rows=13) (actual time=0.0107..0.0177 rows=13 loops=1)\n                        
+						-> Covering index lookup on videopacka1_ using vid_pack_uq (package_id=\'10\')  (cost=1.56 rows=13) (actual time=0.00994..0.0157 rows=13 loops=1)\n                    
+							-> Filter: ((videobean0_.category_id = 16) and (videobean0_.title like \'%Allah%\'))  (cost=0.25 rows=0.05) (actual time=0.00376..0.00379 rows=0.231 loops=13)\n                        
+								-> Single-row index lookup on videobean0_ using PRIMARY (id=videopacka1_.video_id)  (cost=0.25 rows=1) (actual time=0.00303..0.00307 rows=1 loops=13)\n'

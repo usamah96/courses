@@ -1,0 +1,97 @@
+Cognito
+--
+
+With aws cognito service we are able to give users which live outside aws an identity to interact with our web and mobile application.
+
+With,
+ - Cognito user Pools, we can give the sign in functionality for users and can easily be integrated with api gateway and load balancer
+ - Cognito identity Pools, we can give aws credentials directly to the users so that they can access aws resources directly.
+ 
+ 
+ 
+User Pools
+..
+Creates a serverless database for users and we can do,
+  - Simple login with email and password
+  - Password reset
+  - Email and Phone verification
+  - MFA
+  - Login via Google, FB, SAML, OpenID Connect, etc
+  
+The login request sends back JWT in response
+
+Natively, Cognito User pool (CUP) can be integrated with
+  - API Gateway, where client first authenticates with cognito and receives JWT. After that jwt is passed in the request to api gateway endpoint which 
+    validates the token with cognito and upon successful validation, sends the request to backend lambda function / custom endpoint
+  - ALB, where client sends request to ALB which authenticates user with cognito user pool. Upon successful authentication sends the request to target 
+    group which can be EC2 instances, Lambda function or ECS containers.
+	
+	
+	
+HandsOn
+***
+
+When we go to cognit service and create user pool we can select the provider type which can be cognito user pool and/or federation identity provider.
+The FIP means we are allowing users to sign in with google, fb, apple, saml, etc.
+We can select user pool for now and under sign-in options we can select username
+In security requirement we can configure the password policy to limit characters, uppercase, lowercase, special characters, etc. Also we can check 
+if we want MFA or not.
+We can set the required attributes that are required when the user needs to be created. We can select from default and add any custom also.
+We then setup app client that connects with the user pools
+***
+
+When we create user pool, under the Hosted UI section, we can click on it and view the sign in / sign up page provided by aws by default. From there 
+we can sign up and the user will be created in cognito user pool. We can customize this page on our own also.
+
+We can setup lambda triggers also for certain actions like sign up. We can set up pre sign-up trigger that whenever user signs up, before creating the 
+user in pool, it will first trigger lambda function where we can apply some validation checks or check if certain user can create account or not.
+Similarly we can create trigger for,
+  - Authentication Events 
+      a) Pre Auth: Custom validation to accept or deny request
+	  b) Post Auth: Event logging for custom analytics
+	  c) Pre Token Generation: Modify, add or remove any attributes
+  - Sign Up Events
+      a) Pre Sign Up
+	  b) Post Confirmation: Custom welcome msgs or event logging 
+	  c) Migrate User: Migration of existing user directory to pools
+  - Token Creation
+      a) Pre Token Generation: Modify, add or remove any attributes
+	  
+	  
+	  
+	  
+While integration cognito with application load balancer, we offload the work of authenticating users to the load balancer and the application can 
+just focus on business logic. We can authenticate users through,
+  a) Identity Providers, like OpenID Connect (OIDC)
+  b) Cognito User Pools, like Social identity providers such as amazon, facebook, google, apple, etc or Corporate identities using SAML, LDAP, etc.
+  
+We must use HTTPs listener in ALB to set authenticate-oids and authenticate-cognito riles in ALB.
+
+For integrating ALB using cognito user pool, we need to go to ALB UI, select the identity provider (which will be amazon cognito), select the user 
+pool we created and the app client.
+
+
+
+Identity Pools
+..
+
+Suppose we have a web and mobile application users who want to access our private s3 bucket and dynamo db table. First those users will login and 
+get the token using cognito user pool or social identity provider (fb, google, saml, oidc etc).
+
+Then the app will commnicate with cognito identity pool to exchange token with temporary aws credentials. Cognito identity pool will validate the 
+received token with social identity provider / cognito user pool and upon successful validation, it will return temporary aws credental with the help 
+of STS to the app. These creds can then be used to access private aws s3 bucket and dynamodb table.
+
+We can setup IAM roles for authenticated and guest users and also define rules to choose roles for each user based on specific user id.
+
+HandOn
+***
+
+We first define if we want to create identity pool for authenticated user or guest user (anybody)
+For authenticated users, we need to select the authentication mechanism like from user pool, social identiy providers, etc
+After that we create a separate role for it, lets say we create a role for authenticated user that they can access s3 buckcet to get object and upload 
+object. Similarly we create role for guest user and add the policy to only get object.
+If we select cognito user pool as the authentication policy, then we need to select the pool id and app client too
+
+We can go to IAM -> Roles, select the role we created for guest cognito user and authenticated cognito user and add, remove policies 
+***

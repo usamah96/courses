@@ -1,0 +1,73 @@
+CloudFront
+--
+
+It is a Content Delivery Network (CDN) where all our website static data is cached at the user's nearest edge location.
+It improves read performance which in turn improves user experience
+It also helps us preventing from DDoS attach as our website is worldwide using the CDN.
+
+AWS has around a total of 216 edge locations for now
+
+The origins of CloudFront include,
+  .S3 Bucket, for distributing files and caching them at the edge. To make sure S3 can be accessed by CloudFront we will have to enable
+   security with CloudFront Origin Access Control(OAC) which replaced previous technique i.e Origin Access Identity (OAI). It can also 
+   be used as an ingress which means to upload files to S3 directly.
+  .Custom Origin like Application Load Balancer, EC2 Instance, Any Backend Api, etc
+  
+  
+With CloudFront, we want the maximum cache hits and minimum request needs to go to the origin server. By default, the cache key 
+used by the CloudFront is "hostname" +  "resource portion" of the url like, www.example.com/content/stories/example-story.html
+
+If we have an application that serves data based on user device, location, language, etc then we can modify the CloudFront cache key 
+using the Cache Policies. The TTL for cache can be controlled by the origin using the Cache-Control and Expires header key.
+
+The Cache policies can be based on
+1) Http Headers
+    .We can set it to None which means no headers will be cached and no custom header will be forwared to the origin. Only the default 
+	 headers will be forwared to the origin.
+	.We can set it to Whitelist where we can define what header key to cache like, Language header key which specifies in which language
+	 the response should be. This will be cached and also forwarded to the origin server.
+	 
+2) Query Strings
+    .We can set it to None which means no query string will be cached and no query string will be forwarded to the origin.
+	.We can set it to Whitelist where we can define what query string to cache like border=red&size=large. This will be cached and also
+	 forwarded to the origin server.
+	.We can set it to Include-All-Except where we can define what query string not to cache. All the query string will be cached and 
+	 forwarded to the origin server except the specified list
+	.We can set it to All where all the query string will be cached and forwarded to the origin server.
+	
+3) Cookies
+    .We can set it ti None, Whitelist, Include-All-Except, All similar way to Query Strings.
+	
+	
+What if we want custom header, query string or any other thing not to be cached but to be forwarded to the origin server. For this we 
+will have to create Origin Request Policy where we define values to be included in the origin request but not to be cached.
+
+So we can make use of Cache Policy and Origin Request Policy to cache based on specified fields and forward the values to the origin server
+specified in the origin request policy. But the response will be cached based on cache policy only.
+
+With CloudFront Cache Invalidation, we can forcely invalidate either all the cache files or partial files by defining the path to it
+In this way if there is a change in our server, bucket or any CloudFront origin then we cannot make users wait for the TTL to expire
+and then fetch the updated data. We can directly invalidate the affected files using CloudFront Invalidations.
+
+With CloudFront Cache Behaviours, we can configure different setting for a gven url path pattern. We can define multiple cache behaviours
+to route to different kind of origins based on url path. Like if user request for /images/*, we can serve this from s3, for /api/* we
+can serve this from Application Load Balancer or /* will use the default cache behaviour.
+The use case can be all the static content of the website can be served from s3 and all the dynamic content can be routed to ALB which 
+will return resposne from EC2.
+
+By selecting the origin as EC2 instance for CloudFront, we will have to make sure that the EC2 instance contains the security group
+that allow the inbound rule of CloudFront Endge Location ip address. The EC2 instance must be public for that. Similarly in case 
+of Application Load Balancer, our EC2 instance can be private where the request will be routed to EC2 instance but the ALB must be 
+public and contain security group that allow inbound rule to allow ip from CLoudFront Edge Location. We can get the Edge Location ip 
+addresses from cloudfront.net/tools/list-cloudfront-ips.
+
+We can also setup CloudFront geographic restrictions by selecting any countries that are allowed to access our CDN or select 
+any countries that are blocked to access our CDN for security purposes.
+
+
+CloudFront Signed URls and Signed Cookies used to restrict user to access only authorized data like users who have paid a fee can 
+view the premium features of the app.
+Signed URls are used to restrict permission to individual files. We can create signed urls and provide to the users with an expiry 
+time that this user can access the content for 2 days
+With Signed Cookies, we can restrict permission to multiple files at a time.
+CloudFront only uses RSA SHA-1 public private key pair which needs to be generated within the AWS security management.

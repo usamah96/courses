@@ -1,0 +1,154 @@
+Set Interface
+--
+
+-It models mathematical set i.e: no duplicates are allowed
+-When uniqueness and fast lookups matters
+-SortedSet is the sub-interface of Set that provides sorting of elements besides uniqueness and fast-lookups
+-Set interface does not add any new methods in addition to what it inherits from Collection interface. It just adds new requirements to some of
+the inherited methods like with the addAll() method it explicitly states that duplicates are not allowed.
+
+
+HashSet (implements Set)
+--
+-HashTable implementation of the Set interface
+-It internally uses HashMap
+-Permits one null element
+
+-When adding the elements into the HashSet, it first generates the bucket number with hashCode and if the hash collision occures then it will
+check whether the 2 objects are equal using the equals() method. If they are not then element is added to linked list otherwise not.
+-If we have 2 Student objects with same name, both of them will get added to HashSet since object references are different. Both of them
+has different memory addresses which will be converted to different int value returned by hashCode. To check for duplicate on custom java
+POJO we need to override hashCode and equals method from the object class. We can generate hashCode on the basis of our properties like
+student name and in equals method we will match the values from the input object to the current object.
+
+If you want to treat your objects with same data equal then override both hashCode and equals method from the Object class.
+
+Typical Usecases
+..
+-Fast lookups, insertion, searching and deletion
+-Insertion order is not important
+-Better for removeAll and retainAll than ArrayList as remove() takes constant time in Set
+
+
+
+LinkedHashSet (implements Set)
+--
+-HashTable and LinkkedList implementation of the Set interface
+-It stores the element in a doubly linked list way so it preserves the order of the element unlike hash set which does not
+-It extends HashSet class so it is also as fast as HashSet
+-Permits only one null element like HashSet
+-Internally uses LinkedHashMap
+
+Typical Usecases
+..
+-Fast lookups, insertion, searching and deletion
+-Insertion order is important
+-Better for removeAll and retainAll than ArrayList as remove() takes constant time in Set
+
+For all the operations, linkedhashset might be a bit slow than hashset due to linked list implementations but when it comes to iterating the
+elements, it is faster than hashset, because with linkedhashset the iteration is dependent upon the number of elements in set due to its
+doubly linked list feature. But in hashset the iteration is dependent upon the capacity of hashtable which is 16 by default. So although
+the elements are less then capacity but the iteration will be dependent upon the capacity in hash set.
+
+
+
+
+SortedSet (extends Set)
+--
+-Sub interface of Set that provides sorting feature.
+
+Operations
+*Range-View
+   subset(E fromElement, E toElement) -> returns subset of sortedset that is backed by original collection. toElement is exclusive
+   headSet(E toElement) -> returns subset of sortedset from head till provided element
+   tailSet(E fromElement) -> returns subset of sortedset from provided element till last element.
+*End-Points
+   E first() -> returns first element
+   E last() -> returns last element
+*Comparator access
+   comparator()
+
+
+
+NavigableSet (extends SortedSet)
+--
+-Sub interface of SortedSet that provides some additional features including features from SortedSet interface.
+
+Operations
+*Closest Match
+   E lower(E element) -> returns the greatest element less than E element
+   E floor(E element) -> returns the greatest element less than equals to E element
+   E higher(E element) -> returns the lower element greater than E element
+   E ceiling(E element) -> returns the lower element greater than equals to E element
+*Endpoints
+   E pollLast() -> removes last element and returns it
+   E pollFirst() -> removes first element and returns it.
+*Iterators
+   NavigableSet<E> descendingSet() -> returns the navigable set in the reverse order.
+   Iterator<E> iterator() & descendingIterator()
+*Range-View
+   subSet(int fromRange, int toRange) -> returns SortedSet instance. Throws an exception if anything is added outside its range
+   Example -> subSet returns the list [1,5,13,60] and if value added like 0 or 70 then it will throw error
+   Also if in the parent list any element is added then matches the subSet range then the child list will also be modified.
+
+
+
+
+TreeSet (implements NavigableSet)
+--
+-Red black tree implementation of the NavigableSet interface.
+-Internally uses TreeMap
+-Elements are stored in key value pair. The elements are made the key and value are the object class as new Object
+-Elements are unique and sorted
+-Offers fast-lookup. As HashSet gives O(1) operation for add/remove/contains, TreeSet gives O(logn)
+
+For built-in Java boxed primitives class they by default implements Comparable interface. With TreeSet we need to tell the TreeSet how
+to sort the elements
+
+*Natural Ordering: The elements need to tell how they want to be sorted. Here Book is telling to sort by title.
+Example
+..
+public class Book implements Comparable{
+   private String title;
+   public String getTitle(){ return this.title; }
+   public compareTo(Object o){
+      return getTitle().compareTo(((Book) o).getTitle());
+   }
+}
+
+-The compareTo method is invoked by TreeSet when adding the element. It will return either 0, +ve integer or -ve integer. 0 means the item
+is a duplicate and does not need to be added. Positive integer means current is greater than the provided element and negative integer
+means the current element is less than the provided element.
+-The compareTo method on the current element gets called for every element present in the TreeSet to compare with all the elements to find
+its final position.
+-Once the position is finalized or duplicte is found, the rest of the items are not checked
+
+
+*Comparator: Sorting strategy passed externally
+Example
+..
+public class TitleComparator implements Comparator{
+  public int compare(Object o, Object o1){
+      return ((Book) o).getTitle().compareTo(((Book) o1).getTitle());
+  }
+}
+
+-Pass it when initializing: Set<Book> bookSet = new TreeSet<>(new TitleComparator());
+-We can create multiple comparator like AuthorComparator, DateComparator etc and then use strategy pattern to pick the sorting strategy at
+runtime.
+-Notice that if we have passed the comparator strategy and also implemented the comparable interface, the comparator's priority is higher
+so that sorting strategy will be used.
+
+
+Why cant tree set just use simple hash table implementation just like hashset to get constant time complexity for add, remove and search operation?
+
+The reason why TreeSet cannot use a hash table implementation like HashSet is because a hash table relies on a hash function to determine the 
+index at which to store and retrieve elements. The hash function is designed to evenly distribute elements across the available array slots, but 
+in some cases, collisions can occur when two or more elements have the same hash code. In these cases, a collision resolution mechanism is used to 
+store and retrieve elements with the same hash code.
+While a hash table implementation can provide constant time complexity for add, remove, and search operations on average, worst-case time complexity 
+can be as high as O(n) if all elements have the same hash code, which can happen due to a poor choice of hash function or a high number of 
+collisions.
+On the other hand, a Red-Black Tree implementation used by TreeSet provides worst-case time complexity of O(log n) for add, remove, and search 
+operations, which is guaranteed regardless of the input. This makes it a more reliable and consistent data structure for maintaining a sorted set 
+of unique elements.

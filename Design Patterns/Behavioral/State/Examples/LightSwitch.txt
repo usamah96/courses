@@ -1,0 +1,31 @@
+class State{
+    public void on(LightSwitch ls){System.out.println("Light is already On");}
+    public void off(LightSwitch ls){System.out.println("Light is already Off");}
+}
+
+class OnState extends State{
+    public OnState(){System.out.println("Light is On");}
+    public void off(LightSwitch ls){System.out.println("Turning Light Off..."); ls.setState(new OffState());}
+}
+
+class OffState extends State{
+    public OffState(){System.out.println("Light is Off");}
+    public void on(LightSwitch ls){System.out.println("Turning Light On..."); ls.setState(new OnState());}
+}
+
+class LightSwitch{
+    private State state;
+    public LightSwitch(){state = new OffState();}
+    public void setState(State state){this.state = state;}
+    public void on(){state.on(this);}
+    public void off(){state.off(this);}
+}
+
+public class Demo{
+  public static void main(String[] args){
+    LightSwitch ls = new LightSwitch();
+    ls.on();
+    ls.off();
+    ls.off();
+  }
+}

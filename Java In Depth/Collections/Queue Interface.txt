@@ -1,0 +1,86 @@
+Queue Interface
+---
+
+-Useful when manipulating head and tail elements
+-Follows the FIFO model
+-Can have duplicates
+-Can have nulls but generally not supported.
+-Does not support index based accessed for its elements.
+
+*Operations
+   -add(E element) or offer(E element) -> Both inserts element at the end. If the queue is capacity restricted and is full, add() will
+    throw an exception while offer() will return false. So it is recommended to use offer for capacity based queues.
+   -remove() or poll() -> Both removes element from the head. If the queue is empty, poll will return null and remove() will throw an
+    exception. This is why we avoid inserting null to queues because we cannot differentiate whether the element itself is null or the queue
+    is empty.
+   -element() or peek() -> Both will just retrieve the head element and not remove from queue. peek() will return null if the queue is empty
+    while element() will throw an exception.
+
+
+
+Deque Interface
+---
+
+Sub-Interface of Queue
+
+-Deque is short for Double Ended Queue
+-With Deque we can add elements at both ends head and tail
+-Follows the LIFO and FIFO model
+
+Implementations Of Deque includes
+..
+ArrayDeque, LinkedList
+ConcurrentLinkedDeque, LinkedBlockingDeque (related to concurreny)
+
+-There is a legacy class called Stack in java that is not recommended to use now. The java doc says to use ArrayDeque in place of Stack
+
+*Operations realted to head element
+  -remove(), poll(), element(), peek() are the operations from the queue interface
+  -removeFirst, pollFirst, getFirst, peekFirst are identical operations provided by the Deque interface
+  -addFirst and offerFirst are the operations to insert element at the start of queue.
+
+*Operations related to tail element
+  -add, offer are the operations from the queue interface
+  -addLast, offerLast are identical operations provided by Deque interface
+  -removeLast, pollLast, getLast, peekLast are operations to remove or retrieve the last queue element.
+
+-Deque also supports 2 more method namely removeFirstOccurence(Object o) and removeLastOccurence(Object o) which takes an object and removes
+the element occurrence wise.
+-Deque also supports stack related operations push and pop which are identical to addFirst and removeFirst
+
+-There are also 2 sub-interfaces namely BlockingQueue which extends Queue and BlockingDeque which extends Deque which is related to
+concurrency. In this if we add and the capacity is full then instead of throwing an exception the program will wait until capacity is increased
+Similarly if we remove from queue and the queue is empty it will wait until something gets added into the queue.
+
+
+
+
+ArrayDeque
+---
+
+-Added In Java 6
+-Models LIFO and FIFO since it implements Deque interface
+-It prohibits null values.
+
+When comparing two implementations of Deque interfaces, LinkedList and ArrayDeque, prefer ArrayDeque ahaead of LinkedList as per java doc,
+because ArrayDeque is 3x faster than LinkedList when it comes to large queues. In LinkedList there is extra operation of Node creation
+and deletion. Also when the node is deleted some garbade collector operation is also done so the cost is there too.
+
+Can we use ArrayList to be used as FIFO by using add() to add element at the tail and remove(0) for removal from head?
+-We can use it but there are some good reason to avoid using it
+  *Performance: remove(0) will shift element towards the left which takes linear time O(n) and it gets bad when comes to large number of
+   elements. Infact LinkedList is 20x faster than ArrayList for only 1000 elements. ArrayDeque uses array in a circular way so that is why
+   shift of element dont occur in it and it does removal in constant time O(1).
+  *Intention: ArrayDeque was designed to be used for head and tail operation so use it when manipulating head and tail is necessary. With
+   ArrayList we donot constraint ourself with head and tail operations only.
+   
+What is a circular array?
+A circular array, also known as a ring buffer, is a data structure that uses a fixed-size array to store a list of elements. The ArrayDeque 
+in Java is an implementation of a circular array, meaning that when the end of the array is reached, the next insertion takes place at the 
+start of the array, overwriting the oldest element. This provides a way to efficiently use a limited amount of memory to store a large 
+number of elements, as old elements are automatically discarded as new elements are added.
+
+Example of circular array when removing the elements
+If the front and rear pointers of the ArrayDeque point to the first and last elements of the array, respectively, removing an element from 
+the front will shift the front pointer one position to the right, while removing an element from the rear will shift the rear pointer one 
+position to the left. In both cases, the elements in the array will be shifted as necessary to maintain the order of the remaining elements.

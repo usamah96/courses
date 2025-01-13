@@ -1,0 +1,171 @@
+Nested Classes
+---
+
+Why use nested classes and why not make all classes as top level classes
+We use nested classes
+   .To avoid class pollution. Use nested classes only at the place where it is needed
+   .Keep the functionality closer within the same package
+   .Better Design Approach
+   
+   
+Nested classes can be made with all the access levels, whereas top level classes can be public or default only   
+Nested class can access all properties of Outer class and vice versa
+Java Compiler generate 2 class files in case of nested class
+    .Compilation -> Outer.class & Outer$Nested.class
+                 -> Incase of anonymous class Outer.class & Outer$1.class, Outer$2.class, etc...
+
+Types of Nested Classes
+..
+1) Inner Class
+     .Non-static member class -> Can always access instance memeber of the enclosing class
+     .Anonyous Class
+     .Local Class -> Very rarely used
+
+2) Static member class
+     .Can only access static instances of the enclosing class
+     
+     
+Example of a HashMap
+   .If you call entrySet on HashMap instance it will return an EntrySet object which is a final nested class
+   .If we call iterator method on EntrySet it will return EntryIterator instance which is another final nested class
+   .If we call next() on EntryIterator then it will return a Node instance which is a static nested class
+   
+   
+Non Static Member Class
+..
+-Also refer to as instance member class as it is an instance just like other properties
+-When inner class object needs to use the outer class properties
+-In this type of class, the enclosing object(outer class) is created first
+-Inner class maintain hidden reference to enclosing object and the hidden reference takes up space and time
+-Outer class object will not be garbage collected if the inner class instance is alive
+-Cannot contain static members as they are related to instance related stuff.
+   .Invalid For Java 11, Valid For Java 8
+
+If you are standing inside inner class
+   .method() -> Calling this will call inner class method() if it exists else it will call Outer class method()
+   .this.method() -> Calling this will call inner class method()
+   .Outer.this.method() -> Calling this will call outer class method()
+If you are standing inside outer class then inner object is needed to acces inner class properties
+
+
+
+Anonymous Class
+..
+-Does not have a name
+-We declare and instantiate the class where we want to use it
+-Ususally used as a method argument
+-Under the hood a top level class will be created that will implement our interface
+-One common use case of anonymous class is to use it as a Function object
+    .Function object is an instance of a type (class or an interface) that has 2 properties
+        a) Its method operates on other objects. Its parameters are other objects
+        b) It exports only one method
+     .If the instance is an interface then it is referred to as a Functional Interface
+-Anonymous class can access members from enclosing class object if and only if the anynomous class is enclosed in a non-static context
+-We cannot have ctors in anonymous class but can have instance initializers to initialize some variables
+-If an anonymous class is defined within a method and the class is using method's local variable, that variable must be final because the
+ anonymous class can be passed as a reference to other threads as well where another stack is maintained so those local variables will not be found
+ there
+     
+Example of Anonymous Class
+We know that in comparater interface we define a specific type of comparater to compare the 2 objects while doing sorting in our TreeSet data structure.
+We can make use of comparater interface as a Function Object (Anonymous Class) 
+Set set = new TreeSet(new Comparator<String>)(){
+    @Override
+    public int compare(String s1, String s2){
+       return s1.length() - s2.length();
+    }
+});
+
+Example of Anonymous Class inside a method
+interface CacheIterator{
+  boolean hasNext();
+  Object next();
+}
+class Cache {
+   public CacheIterator getCacheIterator(){
+      final int count = 0;
+      CacheIterator iterator = new CacheIterator {
+          @Override
+          public boolean hasNext(){
+             return true;
+          }
+          @Override
+          public Object next(){
+             log.info("Count: " + count);
+          }
+      }
+      return iterator;
+   }
+}
+
+Best Practices For Anonymous Class
+..
+1) Use shorter code for anonymous classes. 10 lines or fewer
+2) We know that anonymous classes are instantiated and declared at the point of use. So if we are instantiating our class 100 times then 100 times
+   anonymous objects will be created and that will be expensive. Rather make a constant variable that will hold our implementation and then we can
+   use that variable at the point of use
+Example
+private static final Comparator<String> STR_LENGTH_COMPARING = new Comparator<String>(){
+    @Overrid
+    public int compare(String s1, String s2){
+         return s1.length() - s2.length();
+    }
+}
+Use it as, Set set = new TreeSet(STR_LENGTH_COMPARING);
+
+Anonymous classes can be time-savers and reduce the number of .java files necessary to define an application. You may have a class that is only 
+used in a specific situation such as a Comparator. This allows an "on the fly" creation of an object.
+
+
+
+
+Local Classes
+class Task implements Runnable{
+
+    @Override
+    public void run() {
+        System.out.println("Hola");
+        run1();
+    }
+
+    private void run1(){
+        System.out.println("Hola 1");
+    }
+}
+
+class AnotherThread extends Thread{
+
+    public void run(){
+
+    }
+}
+..
+-Defined within a method 
+-Can have multiple ctors and can have multiple types
+-As of Anonymous class, local variables must be final also if they are used in Local Classes as well.
+-Very rarely used
+
+
+
+
+Static Member Classes (Favor most of the time due to performance)
+..
+-Same as Non static member classes, only difference is the static modifier but very different from each other
+-Use this class when you dont need to access members from th enclosing class. No hidden reference is created so space and time is saved
+-No need to create an instance of outer class to get the instance of the static member class
+Example
+Outer.StaticNested = new Outer.StaticNested();
+-We can only access static members of the enclosing class from static member class like a static method
+-Can contain both static and instance members
+
+With Static member Classes we can make use of
+   1) Strategies
+        .With anonymous classes we defined the strategy using the string length comparator, but what if we want to define multiple strategies
+        .We can make use of static inner class 
+   2) Helper Classes
+        .With static inner class, we can create multiple inner static classes to be exposed to clients and allow them what strategy to be used.
+     
+     
+Non-Static member classes good for defining Adapters
+Anonymous classes good for defining strategies
+Static Member Classes good for defining strategies and helper classes.

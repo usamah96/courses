@@ -1,0 +1,100 @@
+SRP
+----
+
+A class should have one single responsibility
+For example if we have a journal class that contains entries of a journal
+We have methods for
+..
+class Journal{
+  private List<String> entries = new ArrayList<String>();
+  private static count = 0;
+
+  public addEntry();
+  public removeEntry();
+}
+
+Here we are doing operations related to the journal and that follows the SRP.
+The SRP is violated of we try to save that journal entries into a file or load
+the journal entries from a file
+
+public saveJournal();
+public loadJoournal();
+
+For this we need to create a different class
+
+class Persistence{
+  public void saveJournal(Journal j, String filename);
+  public Journal loadJoournal(String filename);
+}
+
+The journal class should contain operations done on a journal
+
+
+
+
+
+Open Close
+---
+
+A class should be open for extension but close for modification because once the class is
+written, tested and deployed on production it is a bad practice to modify the class to
+add some new methods to test it again and deploy on production.
+
+Example of a website using multiple filter with specification pattern
+
+
+
+
+
+
+Liskov Substitution
+---
+
+The base class can be replacable with that of the derived class without breaking the application
+Lets say Square extends Rectangle and a function accepts Rectangle as an arguement than the
+function should not break in terms of the output if we pass Square as an arguement because
+Square is a child class and it should be replacable with the Rectangle base class
+
+
+
+
+
+
+
+Interface Segregation
+---
+
+The interfaces should be as minimum as possible and no client (developer) should be made
+to implement methods that they dont need.
+If we have a machine interface that does
+print(), scan() and fax()
+A ModernMachine can implement these 3 feature but what about OldFashionMachine?
+
+ModernMachine implements Machine{}
+OldFashionMachine implements Machine{}
+
+the scan() and fax() method will be left empty as the OldFashionMachine can only print the
+Document. We can throw exception in these 2 methods but for this we need add throws Exception
+on the interface level. This is only possible if we own the interface. If we dont we cannot
+do this solution.
+A better solution is to break the interfaces
+
+interface Printer{}
+interface Scanner{}
+interface MultiFunctionDevice extends Printer, Scanner{}
+Something like this...
+
+
+
+
+
+
+Dependency Inversion (nothing to do with dependency injection)
+---
+
+Higher Level modules should not depend on lower level modules. Both should depend on
+abstraction because the first problem is if we directly add the dependency this means that
+we are giving all the variables and function access to the higher level that are public. THe
+second problem is that if something changes either the datatype of the variable or the
+function name, it will directly effect the higher level and we nned to modify things on
+higher level also.

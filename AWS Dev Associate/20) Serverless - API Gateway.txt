@@ -1,0 +1,218 @@
+API Gateway
+--
+
+With serverless architecture we know that we can create a serverless database using DynamoDB and serverless code using Lambda function. Our lambda function
+can then interact with DynamoDb to perform CRUD operations. Now we want client to interact with our lambda function and there are 3 ways of doing it.
+  1) Directly client access lambda function but for that client will need IAM permissions
+  2) Attach ALB which will expose a url to our client to invoke lambda function
+  3) Attach API Gateway which is serverless offering from AWS which allo to create public REST APIs to proxy the request forward.
+  
+Some of the things we can do with API gatway other than creating REST Apis are,
+  - Lambda + Gateway means no infrasturcute to manage
+  - Support for WebSocker Protocol and really helpful when need to do streaming
+  - Handling API versioning (v1, v2, v3,...)
+  - Handling different environments (dev, test, prod)
+  - Handling security
+  - Create API keys and do request throttling if client is doing too many requests.
+  - Transform and validate request and responses.
+  - Cache API responses
+  - Generate SDK and API specifications
+  
+Api Gateway can be integrated with,
+  1) Lambda function, which is an easy way to expose rest api backed by lambda
+  2) HTTP, internal or external http endpoint which can be on-permises, application load balancer, etc. We can utilize this to add rate limiting, caching 
+     or authentication before the request reaches the actual endpoint.
+  3) AWS Service, we can expose any aws api through api gateway like starting aws step function, post a message to SQS, etc
+  
+We can deploy our api gateway endpoint in 3 ways
+  1) Edge Optimized: It is the default option and is public and can be accessed globally. Requests are routed through CloudFront Edge Location for 
+     minimum latency.
+  2) Regional: It is for client living in the same region
+  3) Private: Not publicly accessible and can only be accesssed from within our VPC using an interface VPC endpoint (ENI)
+  
+  
+For security, we can use any of the 3 ways to identify a valid authenticated request
+  1) IAM Role: If the request comes from internal application like any EC2 instance wants to access an endpoint using api gateway
+  2) Cognito: If the request comes from external users like mobile application
+  3) Custom Authorizer: If we want to create a custom authentication logic using lambda function.
+  
+  
+Deployment and Stages
+..
+Whenever we make any changes to our api, we need to deploy it to be in effect. All the changes are deployed to 'Stage' and we can create as many 
+stages and name it as we want. Each stage contains its own configuration parameters and can be rolled back as all the history of deployments are kept.
+
+Stage are really helpful if we want to deploy any breaking changes. Lets say we have a lambda function v1 deployed to stage v1 and now we want to 
+introduce a new functionality which has breaking changes. We can create a separate lambda function v2 and deploy it on stage v2 so that new clients can 
+access v2 api and old client continue to use v1 api. When all the old client shifted towards v2 then we can safely shutdown our v1 endpoint.
+
+Example
+..
+Create a lambda function and by default it will get the $Latest version number. 
+Do some changes and publish it as a new version 'dev'
+Do some more changes and publish it as a new version 'v1'
+Do some more changes and publish it as a new version 'v2'
+
+Now v1 will be considered our stable version so we will create an alias, give name as PROD and point it towards 'v1' version
+Similarly create alias, give name as TEST and point it towards 'v2' version 
+Finally create alias, give name as DEV and point it towards 'dev' version
+
+Now go to api gateway and create a method with integration type as Lambda function. We copy the lambda function arn and paste it here with this additional
+changes at the end of arn -> ${stageVariable.lambdaAlias}
+As soon as we do this we get a warning that the we should have a function policy as we are using stage variables. We can add function policy by adding 
+permission given below and we can execute it using CloudShell (aws lambda add-permission --funtion-name .......) We need to execute this command 3 times 
+since we have 3 aliases. We just need to replace ${stageVariables.lambdaAlias} to DEV, TEST and PROD on each execution respectively. This will allow 
+api gateway to execute lambda function using aliases.
+
+Now we can deploy our api to 3 stages.
+First when we deploy we can select or create a new stage DEV. After creating it we can see the Stage Variable section. We can add new stage variable 
+with name 'lambdaAlias' with value 'DEV'
+Similarly we can do for TEST and PROD
+
+Now we can call our url from browser using the auto generated stage url for each stage.
+..
+
+We can setup canary deployment with api gateway. Lets say we have a lambda function with 2 versions.
+In api gateway, we create a method with integration type as lambda and provide the lambda arn. Here we have to specify that which version to execute.
+In the arn, we can just put colon and version number like -> "arn:.....:1" and that will indicate which version to execute
+
+After creating method, we can deploy the api by creating a new stage 'canary'. Upon opening the url we can see our version 1 lambda is being executed 
+successfuly. Now below we can see multiple tabls and one of them is Canary. Under canary settings we can create a new canary by specifying a percentage 
+to the current stage and to the new canary.
+
+We can set 50% to canary aand 50% to current stage. After that we can go to our method, edit the integration type, and just modify the version number 
+inside the lambda arn which will be "arn....:2" which means to point to version 2. We can then deploy the api again to the same 'canary' stage. By doing 
+this we can execute the same url and see our some of the request will execute lambda version 1 and some will execute version 2.
+
+After we have successfuly tested our canary by logs and other stuff, we can promote our canary to current stage by pressing the Promote Canary button 
+under canary settings. This will make sure all 100% traffic now goes to our version 2.
+
+
+
+Integration Types
+..
+There are several integration type
+
+1) MOCK -> The gateway returns the response without sending the request anywhere. It is just for testing and development purposes
+2) HTTP / AWS (Lambda & AWS Service) -> We must configure both the integration request and integration response and setup data mapping using mapping 
+   templates, like chaning the request before sending to the backend and chaning the response before sending to the client. Like when client sends the 
+   request to api gateway, the gateway changes the request like changing, renaming, reordering with the help of mapping template and sends the request to 
+   the SQS queue which can understand
+3) AWS_PROXY (Lambda Proxy) -> The incoming request is directly sent as an input to the lambda without changing anything because we cannot change it. The 
+   lambda function is responsible for the logic of request and response. We cannot use any mapping template or modify header, query params, body, etc. All 
+   the things are passed as an argument to the lambda. The expected json document returned by the lambda can be
+   ..
+   {
+	   isBse64Encoded: true|false, 
+	   statusCode: httpStatusCode, 
+	   headers: {headerName: headerValue}, 
+	   multiValueHeaders:{headerNames:[headerValue]}, 
+	   body: {...}
+   }
+   ..
+4) HTTP_PROXY -> The request is passed to the backend as a proxy and the response is passed to the client. We cannot use any mapping template but there 
+   is a possibility to add headers if needed like any secret api key to identify where the request is coming from. Lets say client sends a request to our 
+   gateway and our gateway adds an additional http header api-key with some random secret value and proxy the request to the target which can be application 
+   load balancer. The ALB can see and verify that the request is coming from api gateway
+   
+   
+   
+Mapping Templates
+..
+They can be used to modify the request and response and cannot be used if we have used proxy as integration type whether http proxy or aws lambda proxy.
+We use Velocity Template Language (VTL) to modify the request and response and the content type should be set to application/json or application/xml
+
+One example can be if our backend application is SOAP based then we can create a REST api to take JSON based request from client, use mapping template 
+to convert JSON into XML and then call SOAP service. When receiving back response, convert back SOAP resposne into JSON using mapping template and send 
+back response to client
+Another example can be if we are receiving query parameters, using mapping template take the query parameters, add them in body and then forward the 
+request to lambda or any http endpoint.
+
+
+
+Caching
+..
+We define one cache per stage and on each method we can override the default caching settings. The default TTL is 300 seconds and can be set from 1 second 
+to max 1 hour (3600s). We can encrypt the cache too and can store upto 237GB of data.
+
+Caching is expensive so we only want to enable it on production environment and not dev or test environment.
+
+For cache invalidation, we can either invalidate it entirely in one go or allow the client to invalidate it by providing the header field 'Cache-Control'
+with value max-age=0. This can be done using proper IAM role which will execute the InvalidateCache api. If we donot impose the policy then any client 
+can invalidate the cache and can led to disaster.
+
+
+
+Logging and Monitoring
+..
+We can integrate CloudWatch Logs and XRay with API Gateway. Whenever any requests comes in it is logged in the log and when the gateway respond back 
+with data then the data is also logged.
+
+Some of the CloudWatch Metrics to consider are
+  - CacheHitCount and CacheMissCount, which are the efficiency of the cache
+  - Count, which is the total number of api request in a given period
+  - IntegrationLatency, which is the time between when gateway relays a request to backend and when it receives a response from backend.
+  - Latency, which is the time between when gateway receives a reqeust from client and when it returns a response to the client. This latency is different 
+    from integration latency because it has the time for extra work as well like authentication and authorization, caching delays, mapping template time,
+	etc.
+  - 4XXError and 5XX Error.
+  
+We have a limit to request apis across all of them which is 10000 requests per second. So if we have 5 apis and one of them is under attack or consuming 
+too many requests per second, other apis might get effected from it. In case of throttling we get 429 Too Many Requests error which can be retried using 
+exponential backoff strategy.
+We need to set Stage or Method Limit to improve performance so that not one api consumes all the quota just like in lambda we use reserve concurrency
+
+
+
+Security - Authentication & Authorization
+..
+
+First way of security is Using IAM permissions we can secure our apis if the client is within AWS like EC@, Lambda, IAM Users, etc.
+
+The authentication is done using IAM and authorization is done using IAM Policy. It leverages the Sig v4 capability where IAM credentials are secretly 
+provided in the headers.
+So flow is, the client request our api gateway with sigv4 header and api gateway checks IAM policy using the sigv4 value and after validating it calls 
+the backend service.
+
+This can be combined with Resource Policies which is similar to Lambda resource policies. It is used to allow for cross account access to define who can 
+access what. We can also define the IP address too or for a specific VPC endpoint if needed.
+
+The second way is using cognito user pools which is a database of users and it manages the user lifecycly, token expiry automatically. Api gateway 
+directly integrates with cognito and we dont need any custom implementation
+
+The authentication is done using cognito user pool and authorization is done using api gateway method level.
+The flow is first the client authenticate with cognito and get the token and then request api gateway with the token in the header. The gateway evaluates 
+the token with cognito and after successful evaluation allows the request to go to backend service.
+
+The final way is using Lambda Authorizer which is a token based authorizer (bearer token). We have to define a lambda function which returns an IAM 
+policy which is cached on gateway level for further access.
+
+The authentication is done externally and authorization is done using lambda authorizer
+The flow is the client will do authentication using any 3rd party service like OAuth 2.0, Google, Facebook, etc and will get a token from it. The client 
+will then send this token in header or params to api gateway from where the gateway will send the token to custom lambda authorizer. It is the authorizer's 
+responsibility to validate this token. Whether it cordinates with 3rd party service to validate the token or some other approach and sends back IAM principal 
++ IAM policty to the gateway back where it s cached in a Policy Cache. Then the gateway will allow the request to go to backend service.
+
+
+
+
+WebSocket Api
+..
+
+With websockets, we enable two way communicaton between server and user's browser without the user sending any request to the server. The server can 
+push the messages to the client which enables stateful application use cases.
+These are often used in real time applications, multiplayer games, financial trading etc.
+
+A typical flow can be,
+ A user establishes a persistence connection with api gateway using websocket api and api gateway invokes a lambda function that saves the user connection 
+ id to dynamodb. When user sends a message using the websocket, a new lambda function can be invokes which saves the message to dynamodb. Similarly when 
+ the user wants to disconnect, a new lambda function can be invokes for this purpose also.
+ A websocket url can look alike -> wss://abcdef.execute-api.us-west-1.amazonws.com/dev and this url can be used to connect to the websocket endpoint, 
+ send message to the client or disconnect from it
+ Using the same url, the server will also send the messaage but the additional part of the url is -? /@connection/connectionId which the lambda function 
+ or any HTTP endpoint will use with IAM Sigv4 to send the mssage back to the client
+ 
+The /@connection/connectionId url can be used to POST (send msg from server to client), GET (get latest connection status of client) and DELETE (to 
+disconnect client from connection)
+
+We maintain a route key table on api gateway level to store information that which route will point to which backend (lambda or custom http endpoint)

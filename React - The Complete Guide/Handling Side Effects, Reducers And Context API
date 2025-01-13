@@ -1,0 +1,378 @@
+Handling Side Effects, Reducers And Context API
+--
+
+We know that React Library has one main job which is to render the UI, react with user inputs and re-render with updated information. These incldues
+the use of hooks like useState, useRef, props etc
+
+Side effects are something which is not directly related to the component like storing the data into browser storage, sending http requests, managing
+time and intervals etc. These tasks should occur outside of the component as they might block the rendering
+For example if sending http request is related to the component then we might occur in an infinite loop if the response of the http request is chaning
+the state which will re-render the component and then again the http request will be sent.
+
+Whenever you have an action that should be executed in response of other action is called side effect
+useEffect allows you to do something in response of something. This something could be component being loaded, some values changes, http response
+anything
+
+
+UseEffect
+..
+
+We have a separate hook to handle side effect i.e: useEffect()
+useEffect takes 2 arguments. One is the function and the second is the array of dependencies. The function will run after every component evaluation
+and whenever the dependencies specified are changed
+
+One scenario where the user log into our application and then after login if the user reloads the page, obviously we need to save its logged in
+information so that if he reloads the page, he should not get logged out. When reloading the react application and its script will run again but
+we need to save the user's logged in information in a storage.
+We could do something like this in our component
+..
+
+const [loggedIn, setIsLoggedIn] = useState(false);
+const loginHandler = () => {
+  localstorage.setItem("logged-in", "1");
+  setIsLoggedIn(true);
+}
+
+if(localstorage.getItem("logged-in") === "1"){
+  setIsLoggedIn(true);
+}
+
+Here there is one problem, we could end up in an infinite loop as setIsLoggedIn() will change the state and component will be re-rendered everytime
+the page reloads.
+We will use useEffect() with empty dependencies so that the function runs single time when the component evaluation is finished.
+
+useEffect(() => {
+  if(localstorage.getItem("logged-in") === "1"){
+    setIsLoggedIn(true);
+  }  
+}, [])
+
+
+We can add dependencies to tell to execute the callback function whenever these dependencies change like validating user forms and executing the
+valid form function whenever the user enters email address or password.
+..
+useEffect(() => {
+  setFormValid(enteredEmail.includes('@') && enteredPassword.trim().length > 6);
+}, [enteredEmail, enteredPassword])
+
+If we dont put any dependency array in our useEffect hook then it is the same as writing code in the main component
+
+
+
+What To Add ANd Not To Add As Dependencies in useEffect
+..
+1) You DON'T need to add state updating functions. React guarantees that those functions never change, hence you don't need to add them as dependencies 
+  (you could though)
+
+2) You also DON'T need to add "built-in" APIs or functions like fetch(), localStorage etc (functions and features built-into the browser and hence 
+   available globally): These browser APIs / global functions are not related to the React component render cycle and they also never change
+
+3) You also DON'T need to add variables or functions you might've defined OUTSIDE of your components (e.g. if you create a new helper function in a 
+   separate file): Such functions or variables also are not created inside of a component function and hence changing them won't affect your components 
+  (components won't be re-evaluated if such variables or functions change and vice-versa)
+
+4) You must add all "things" you use in your effect function if those "things" could change because your component (or some parent component) 
+   re-rendered. That's why variables or state defined in component functions, props or functions defined in component functions have to be added as 
+   dependencies!
+
+
+Example
+..
+let myTimer;
+ 
+const MyComponent = (props) => {
+  const [timerIsActive, setTimerIsActive] = useState(false);
+ 
+  const { timerDuration } = props; // using destructuring to pull out specific props values
+ 
+  useEffect(() => {
+    if (!timerIsActive) {
+      setTimerIsActive(true);
+      myTimer = setTimeout(() => {
+        setTimerIsActive(false);
+      }, timerDuration);
+    }
+  }, [timerIsActive, timerDuration]);
+};
+
+Here,
+-timerIsActive is added as a dependency because it's component state that may change when the component changes (e.g. because the state was updated)
+
+-timerDuration is added as a dependency because it's a prop value of that component - so it may change if a parent component changes that value 
+ (causing this MyComponent component to re-render as well)
+
+-setTimerIsActive is NOT added as a dependency because it's that exception: State updating functions could be added but don't have to be added since 
+ React guarantees that the functions themselves never change
+
+-myTimer is NOT added as a dependency because it's not a component-internal variable (i.e. not some state or a prop value) - it's defined outside of 
+ the component and changing it (no matter where) wouldn't cause the component to be re-evaluated
+
+-setTimeout is NOT added as a dependency because it's a built-in API (built-into the browser) - it's independent from React and your components, it 
+ doesn't change
+
+
+
+We can return a new function from useEffect() which is known as a cleanup function
+The order is this
+  -Whenever component is rendered first, the useEffect() callback will run and after than cleanup function will run
+  -After every dependency change, the cleanup function will run first and then the actual callback function
+  
+Example
+  useEffect(() => {
+    console.log("Function");
+    return () => { console.log("Cleanup") }
+  }, [enteredEmail, enteredPassword])
+  
+When we load the page we will see on console Function 1
+When we change either email or password we will see
+Cleanup
+Function
+Cleanup 
+Function
+Cleanup
+Function
+
+With this approach we can make use of debounce time and distinct until change (relevant to angular)
+With every keystroke we can set a timer and cleanup so that when the user stops typing we can validate the form or send any http request
+..
+useEffect(() => {
+const identifier = setTimeout(() => {
+  console.log("Validity");
+  setFormIsValid(
+	enteredEmail.includes("@") && enteredPassword.trim().length > 6
+  );
+}, 500);
+return () => {
+  console.log("Cleanup");
+  clearTimeout(identifier);
+};
+}, [enteredEmail, enteredPassword]);
+
+Here we are setting the timer to 500 and with every keystroke the timer is set and then cleared as the user types. When the user stop typing the
+last created timer is cleared and the new timer is set which run after 500ms to validate the form
+
+The order of use effect is this
+  .First the Component will Run
+  .Then JSX will be Loaded
+  .Then use effect code will be runn
+  .When there is any state change which is not added as a dependency to the use effect then only component will be loaded and JSX
+  .If any dependency is changed then same flow will be run.
+
+
+
+Use Reducers
+..
+
+Hook to manage more complex state
+Can be used as a replacement to useState for more powerful state management
+
+We already know that when updating the state we should use the function form if our state is dependnet upon previous state. 
+Consider Example
+
+const [enteredEmail, setEnteredEmail] = useState('')
+const [isEmailValid, setEmilValidity] = useState(false);
+const [enteredPassword, setEnteredPassword] = useState('');
+const [isPasswordValid, setPasswordValidity] = useState(false);
+const [isFormValid, setFormValidity] = useState(false);
+
+const emailValidityHandler = () => {
+  setEmailValidity(enteredEmail.includes('@'));
+}
+
+const formValidityHandler = () => {
+  setFormValidity(enteredEmail.includes('@') && enteredPassword.trim().length > 6)
+}
+
+Now here our email validity state is dependent upon email input state and also the form validity state is dependent upon 2 other states which is 
+email input and password input. We know that react schedules state updates in their order and using this approach we might fall into the situation
+where the state is not the latest updated and that is why we used function approach to update the state. Here we cannot use function apporach 
+because the updation of state is not dependent upon the previous validity state but instead it is dependent upon other separate state
+Either we can group related states like enteredEmail with emailValidity or use all of them in a single formValidity
+This is the use case where useReducer can come to the rescue
+
+const [state, dispatchFn] = useReducer(reducerFn, initialState, initFn);
+
+useReducer returns back something like useState which is the state snapshot and the function. The function behaves differently as with that of
+useState. THis function is used to dispatch a new action (i.e: trigger an update of the state). This action is consumed by the first argument of
+the useReducer function.
+The reducerFn gets the latest state snapshot by the react automatically and also the action which leads to triggering of this function. This
+reducer function returns back new updated state much like the function form of useState but a little advanced
+We can set some initial state and initial function also (relevant in the use of http requests)
+
+Example of Reducer Function
+
+const emailValidity = (state, action) => {
+  if(action.type === "INPUT") return { value: action.value, valid: action.value.includes("@"); }
+  if(action.type === "BLUR") return { value: state.value, valid: state.value.includes("@"); }
+  return { value: '', valid: false }
+}
+
+const [emailState, dispatchEmail] = useReducer(emailValidity, {value: '', valid:false});
+
+const emailChangeHandler = (event) = {
+  dispatchEmail({type: 'INPUT', value: event.target.value})
+}
+
+const validateEmailHandler = () = {
+  dispatchEmail({type: 'BLUR'})
+}
+
+Similarly we can do it for password validator
+Now for the form validity we cannot use setFormValid(emailState.valid && passwordState.valid) because that can cause problems as react schedules
+state in its way and we might not get the updated state. Here we can make use of useEffect because we want to validate the form only after our
+email or password state changes
+
+This is the best place we can make use of setFormIsValid inside useEffect
+Also we can only fire useEffect function when the "valid" property of email and password state changes. We donot want to fire the function when only
+the value changes because the value can be valid and we can add more characters to it.
+
+We can destructure our state, take our "valid" property and assign it to new variable and use them as useEffect dependency
+const {valid: emailIsValid} = emailState
+const {valid: passwordIsValid} = passwordState
+
+useEffect(() => {
+  setFormIsValid(emailIsValid, passwordIsValid)
+}, [emailIsValid, passwordIsValid]);
+
+The order of use reducer is this
+  .First Component will be loaded
+  .Then JSX will be loaded
+  .When the dispatch function is fired then first component will be re loaded then the dispatch function and then the JSX
+
+
+
+
+UseReducer vs UseState
+When To use what for state management
+
+For useState
+  .When we are dealing with independent pieces of data
+  .When state updates are easy and of few kinds only
+  
+For useReducer
+  .When we need more power
+  .When we are dealing with related pieces of data
+  .When our state updates are complex
+  
+We will know already when to use useReducer and when to not. When our useState becomes more cumbersome and getting lots of bugs and unintented
+behavior we will know that useReducer will now save us.
+
+
+
+
+
+Context APi
+--
+
+Used for state management across the entire application
+
+Sometimes components just receives the props from their parent component and then forward the values to other components to be used
+The component itself does not uses that props because they dont need it and forward it to those who needs it.
+This forwarding can create a long chain of passing the values
+
+
+ |--------------App--------------|
+ v               v               v
+Auth            Shop            Cart 
+ v               v        
+Login Form    Products
+                 v
+               Product
+               
+               
+Considering this component tree, when we add to cart in Product component, we need to show that in the Cart component. There is no direct link
+between Product and Cart component so we need to forward the data from,
+        Product -> Products -> App -> Cart
+        
+In our application, the App.js file is passing the loggedIn state and loggedInHandler to the MainHeader component which is not using these props
+but simply passing it to the Navigation component which uses it to display the element.    
+<MainHeader isAuthenticated={isLoggedIn} onLogout={logoutHandler} />    
+        
+To avoid this situation, context comes to the rescue which allows us to change the state and directly pass it to the component where it needs it
+without making that props chain
+
+We create it using React.createContext which creates a component wide state.
+React.createContext() will return an object that will contain a component that we can sue to wrap it around other components. In this way all
+those components and their descendants will have access to this context component
+
+As we know that the object contains the component, we use
+  Provider to wrap all other components
+  Consumer to listen to the values of that component
+  
+Creating a file that will export our object
+..
+
+const AuthContext = React.createContext({ isLoggedIn: false })
+export default AuthContext;
+
+Now we can wrap it and remove the isAuthenticated prop,
+
+const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+<AuthContext.Provider value={isLoggedIn}>
+  <MainHeader onLogout={logoutHandler} />
+</AuthContext.Provider>
+
+We listen to this isLoggedIn state in the Navigation component
+So in the JSX of Navigation component,
+
+return (
+ <AuthContext.Consumer>
+   {return (ctx) => {
+    ctx.isLoggedIn;
+   }}
+  </AuthContext.Consumer>)
+  
+This is one way of listening to context and the other way is by using the useContext() hook which is more recommended
+We use,
+const ctx = useContext(AuthContext) and use the ctx variable just as is.
+
+Similarly we can pass function pointers to our context by
+<AuthContext.Provider value={isLoggedIn, onLogout:logoutHandler}>
+  <MainHeader />
+</AuthContext.Provider>
+
+
+We can pull our whole login in a separate context component which will manage the auth functionality (login and logout)
+
+export const AuthContextProvider = (props) => {
+
+  // Move All Code From App.js to here
+  ....
+  ....
+  ....
+  ....
+  
+  return (
+    <AuthContext.Provider value={{ isLoggedIn, onLogin: loginHandler, onLogout: logoutHandler }}> {props.children} </AuthContext.Provider>
+  )
+}
+
+And in the main index.js
+<AuthContextProvider> 
+  <App> 
+</AuthContextProvider>
+
+
+
+
+Limitations for Context
+  -It is not optimized for states that changes more frequently. So states that changes multiple times within a second will not be optimized if
+   used with context. For this, use Redux
+  -Components state should not be replaced with context for everything. Use props for shorter chains
+  
+props are used to make our components re-usable. If we use context, all our dynamic components will behave the same way
+  
+
+Rules for using React Hooks
+  -Always use hooks inside a component function and dont use outside of it
+  -Dont use hooks inside a nested function or in a block statement. Use hooks at the top level of react component
+  -For useEffect, always add everything you refer inside as a dependency
+
+
+
+There is a special hook called useImperativeHandle used with React.forwarRef which is used to expose the functionalities of child component to 
+parent component.
+Example that if we have a form with username and password field and with clicking on button, we should focus on the first field that is invalid
+We can use this hook to achieve this functionality
+We should always avoid doing these implementation but with features like this or scrolling related things we can achive by using this hook

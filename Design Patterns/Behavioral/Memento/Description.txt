@@ -1,0 +1,28 @@
+Memento
+--
+
+Keep a memento of an object's state to return to that state.
+
+Motivation
+--
+-An object or system goes through different changes like a bank account in which money gets deposited and withdrawn at
+several times
+-There are different ways for navigating those changes
+-One way is to record all the commands and teach it how to undo that command (Command Pattern)
+-Another is to simply save the snapshos of the system and then fall back to specific state.
+
+-A memento is a token which represents the system's state which is returned from a method. This token helps us roll back
+to that state when the token was actually generated.
+
+Example of a bank account where we keep track of all the deposits of amount using memento
+
+Limitations of Memento design pattern
+
+1) If we are setting any value by default using the constructor, then there is no way of storing that state because a constructor
+cannot return anything other than creating the instance. To avoid this we can remove setting any value through constructor and
+set manually by a method that returns Memento token.
+
+2) Memento stores the whole state of an object so that occupies a lot of memory. If there are minimal fields like 1 or 2 then
+it is okay but if our object contains huge data and we are storing every single memento state then huge amount of memory
+will be required. For this we recommend using Command pattern instead of Memento as Command stores changes to our object instead
+of a whole object everytime. Or also we can go with memento design pattern that stores the state with compressed data

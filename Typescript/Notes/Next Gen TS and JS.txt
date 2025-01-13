@@ -1,0 +1,34 @@
+Next Gen Typescript and Javascript
+----
+
+1- let and const
+2- arrow function
+3- default parameters
+4- spread operator
+
+5- Rest Paramter
+
+function add(...numbers: number[]){
+  return number.reduce((current, next) => { return current + next }, 0);
+}
+const result = add(5,10,4,5,87);
+
+
+6- Destructuring
+
+Array
+let x = [1,2,3,4,5,6,7,8,9,10]
+Taking out values
+let [one, two, ...remaining] = x
+one = 1
+two = 2
+remaining = [3,4,5,6,7,8,9,10];
+
+
+Objects
+let obj = {name: "Usama", age: 24}
+let {name, age} = obj
+-The name of variable is important. We cannot do
+let {firstName} = obj
+-If we want to take value in another variable we need to provide alias
+let {name: firstName, age} = obj

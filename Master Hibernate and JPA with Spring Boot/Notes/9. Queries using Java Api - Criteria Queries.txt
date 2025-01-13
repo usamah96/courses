@@ -1,0 +1,102 @@
+Queries using Java Api - Criteria Queries
+--
+
+-Some Java developers think that writing JPQL is also complex so why not building the query at the code level also
+-There are sequence of steps to follow to build the query at code level
+
+
+Example Query : Select c From Course c;
+
+1) Use the Critetia Builder to create a criteria query returning the expected result object
+..
+-The "where" and "from" can be generated from criteria builder
+
+CriteriaBuilder cb = em.getCriteriaBuilder();
+CriteriaQuery<Course> cq = cb.createQuery(Course.class);
+
+
+2) Define the roots for tables which are involved in the query
+..
+-Root defines which tables the data is fetched
+
+Root<Course> courseRoot = cq.from(Course.class);
+
+
+3) Define the Predicates (Order By or Where clause)
+// No where clause
+
+
+4) Add Predicate to Criteria Query
+// No Predicates
+
+
+5) Build the TypedQuery using the entity manager and criteria query
+..
+TypedQuery<Course> query - em.createQuery(cq.select(courseRoot));
+
+
+6) Fetch the result
+..
+List<Course> resultList = query.getResultList();
+
+
+
+
+Example Query : Select c From Course c Where c.name Like '%100Steps';
+..
+CriteriaBuilder cb = em.getCriteriaBuilder();
+CriteriaQuery<Course> cq = cb.createQuery(Course.class);
+
+Root<Course> courseRoot = cq.from(Course.class);
+
+Predicate like = cb.like(courseRoot.get('name'), '%100Steps');
+cq.where(like)
+
+TypedQuery<Course> query - em.createQuery(cq.select(courseRoot));
+List<Course> resultList = query.getResultList();
+
+
+
+
+
+Example Query : Select Courses withut Students (Select c From Course c Where c.students is empty);
+..
+CriteriaBuilder cb = em.getCriteriaBuilder();
+CriteriaQuery<Course> cq = cb.createQuery(Course.class);
+
+Root<Course> courseRoot = cq.from(Course.class);
+
+Predicate studentIsEmpty = cb.isEmpty(courseRoot.get('students'));
+cq.where(studentIsEmpty)
+
+TypedQuery<Course> query - em.createQuery(cq.select(courseRoot));
+List<Course> resultList = query.getResultList();
+
+
+
+
+
+Using Joins
+..
+Example Query : Select c From Course c JOIN c.students sc;
+
+CriteriaBuilder cb = em.getCriteriaBuilder();
+CriteriaQuery<Course> cq = cb.createQuery(Course.class);
+
+Root<Course> courseRoot = cq.from(Course.class);
+courseRoot.join("students");
+
+TypedQuery<Course> query - em.createQuery(cq.select(courseRoot));
+List<Course> resultList = query.getResultList();
+
+
+Example Query : Select c From Course c LEFT JOIN c.students sc;
+
+CriteriaBuilder cb = em.getCriteriaBuilder();
+CriteriaQuery<Course> cq = cb.createQuery(Course.class);
+
+Root<Course> courseRoot = cq.from(Course.class);
+courseRoot.join("students", JoinType.LEFT);
+
+TypedQuery<Course> query - em.createQuery(cq.select(courseRoot));
+List<Course> resultList = query.getResultList();

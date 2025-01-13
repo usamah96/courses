@@ -1,0 +1,55 @@
+Microservices Communication
+---
+
+We can communicate with microservices in 2 types
+1) Synchronous Communication with Http Client
+2) Asynchronous communication using Advanced Messaging Queue Protocol (AMQP)
+      .Sender Microservice will place the request inside the queue and does not wait for the response
+      .Like Video or Photo uploading
+      
+      
+We can use a popular Http Client "Rest Template" to communicate between our web services.
+   .RestTemplate also offers us Client Side Load Balancing
+   .Put @LoadBalance annotation when creating its bean.
+   
+   
+Feign Client
+..
+Declarative Web Service Client
+The main difference between Feign and RestTemplate is that Feign is a Declarative Http Client
+   .We create a Java interface and annotate it with @FeignClient 
+   .It has pluggable annotation for encoders, decoders, jaxers and also Spring Mvc
+It provides Load Balancing functionality. Spring Cloud integrated Ribbon and Eureka to provide this functionality with Feign
+
+
+-Add The fiegn client maven dependency into user microservice
+-Annotate the main User Application with @EnableFeignClients
+-Now a new interface that will hold all the information to access the microservice endpoint.
+-Create interface AlbumFeignClient in User Microservice and annotate it with @FeignClient("albums-ws")
+    .albums-ws is the application name which should match with the actual application service name
+-Write an abstract method with all the mappings
+-Use @GetMapping, @PostMapping, etc if the endpoint is a Http Get/Post method and specify the endpoint
+-Use @PathVariable, @RequestParams, @RequestBody etc relevant to the method 
+-Inject the interface, autowire it and use the method to communicate.
+
+Enable Logging with FeignClient that will log which request was hit, how much time it took, what is the response etc
+   .Add logging.level.<full-path-to-the-method>=debug
+   .Add the @Bean method to specify the Logging criteria. Either FULL, BASIC, HEADERS or NONE(Default)
+   
+Feign Provides an Error Decoder to handle the errors thrown by the service
+   .Create a class that will implement the ErrorDecoder interface
+   .Override the decode method that take 2 args. methodKey which holds the class and method name, response whch will hold error response
+   
+   
+There are situations when one microservice is down or it does not respond because it is busy in some other operations then in this case all other
+microservices depend on it will start to fail. To avoid this situation, we make use of Hystrix Cirtcuit breaker which will allow us to use a fallback
+method instead of actual service until the service is up and running.
+   .Add the netflix hystrix dependency in pom file
+   .Add this into property file feign.circuitbreaker.enabled=true
+   .Configure FeignClient to use the fallback method by defining the fallback property in the annotation
+   .Create a class that will hold the fallback methods
+   
+We can also log the cause for which the fall back method executed instead of the actual method
+   .Implement the new class with the FallbackFactory interface
+   .Create a new class that will hold the fall back method whos responsibility is to log the message and return back default response.
+   .Return the new instance of the class that will hold the fall back method

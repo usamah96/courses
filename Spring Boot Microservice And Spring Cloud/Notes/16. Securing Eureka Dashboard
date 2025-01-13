@@ -1,0 +1,22 @@
+Securing Eureka Dashboard
+---
+
+We weill secure our Eureka Discovery Server so that anybody wants to interact needs to provide the username and password
+
+Steps
+.
+1) Add spring security dependeny on Server service
+2) Add properties
+    .spring.security.user.name=admin
+    .spring.security.user.password=123
+3) Create WebSecurity class and extend it with WebSecurityConfigureAdapter
+4) Override the configure method and place some http security code in it
+5) Head over to eureka end point and see if it prompts for username and password
+
+Now we have register all the clients with eureka using username and password otherwise services will not be registered
+We have to set the property that links with eureka including username and password
+    .eureka.client.service-url.defaultZone=http://admin:123@localhost:8010/eureka
+    
+*Make sure to put eureka endpoint property inside a shared property "application.properties" file on config server
+*Also save the username and password value to specific discover-service.properties file so that no other service can see it.
+*Encrypt the password using config server secret key

@@ -1,0 +1,222 @@
+Understanding Database Internals
+..
+
+=> How Tables, Indexes are stored on Disk?
+
+Storage Concepts
+
+Tables
+..
+A table is nothing but a storage data structure which contains columns and rows that includes some data like primary keys, foreign keys, etc.
+
+What is a row id?
+That is an additional column internally and system maintained. In certain databases like mysql it is the same as the primary key column of a table,
+but in postgres there is a separate column with name 'row_id' / 'tuple_id'
+Example
+..
+  row_id  emp_id  emp_name  emp_dob  emp_salary
+    1       200     Usama	 1996       40k
+	2       300     Ali      1990       60k
+	3      .................................
+	4      .................................
+..
+
+
+Page
+..
+Page is a fixed size memory location which translates to disk location
+The rows of a table are stored and read in a loagical page
+So each page can be of a fixed size like in Postgres its 8Kb and in Mysql its 16Kb
+Each page can store one or more rows and when you query, one or more pages can be retrieved
+The database does not read single row, but it reads a page or more in a single I/O
+If a page can hold 3 rows with 1001 rows in total then it will require 1001/3 = 333 pages to store whole data
+
+This is important to understand because this is what makes database break and makes queries slows down if not handled properly.
+
+
+
+I/O
+..
+An I/O is a request to the disk and I/O operation should be as less as possible because it is costly
+An I/O can fetch 1 page or more depending on the disk partitions
+An I/O cannot read a single row, it reads a page which contains many rows which means that we get plenty of unwanted rows for free and afterwards
+the database filters out what you dont want.
+This is not possible that you want Page number 0 which holds 5 rows but you want first 2 rows. The I/O will fetch 5 rows and then 2 rows will be
+returned back by the database engine
+Some I/O goes to the OS cache instead of the disk and in Postgres, it relies very much on the OS Cache.
+
+
+
+Heap
+..
+Heap is a data structure where all our table data is stored in the form of logical pages one after another
+A typical representation of Heap is as follows
+..
+  Page 0
+    .Row 1
+	.Row 2
+	.Row 3
+  Page 1
+    .Row 4
+	.Row 5
+	.Row 6
+  Page 2
+    .Row 7
+	.Row 8
+	.Row 9
+  And So on...
+..
+Traversing the heap is a costly operation because we need to find in all the pages what we want and what we dont and that is where 
+indexes come into picture which tells what pages you need to look at to find the data you want
+
+
+
+Index
+..
+Index is no magic, but it is another data structure that has pointers to the heap location
+Index tells you exactly what pages to fetch in the heap
+These indexes are stored on the disk as when database starts, the index datastructure is loaded into the memory
+The index stores the row_id with the page number to look at
+A typical index representation is as follows if we create an index on employee_id
+..
+  Page 0
+    .10(1,0), 20 (2,0), 30(3,0)
+  Page 1
+    .100(10,3), 110(11,3), 120(12,3)
+  And So On
+..
+So what this shows is that the employee_id 10 is linked with row_id 1 which is located in page 0
+Similarly employee id 100 is located in row_id 10 at page 3
+So we directly make an I/O and get to page number 0 and select row_id 1 only and discard all information included in page 0 of heap.
+The database does this magic all behind the scenes
+
+The heap is not an ordered data structure but we can order it around a single index and that is what it is called Clustered Index
+Primary keys are culstered index if not specified otherwise, so when we create a primary key our table is organized around that key because it is 
+a clustered index
+
+There is a difference between postgres index and other database index. In other database, all other indexes point to the primary key but as
+we know that in postgres we have a row_id concept so all indexes are secondary indexes and all indexes point to that row_id instead of primary key and
+with that we have to bear a cost that whenever any update happens all indexes are updated in postgres
+
+
+=> Row Based vs Column Based Database?
+
+These are the 2 ways in which database stores tables on disk and each has pros and cons and both have different use cases.
+
+Considering the following operations on both row and column oriented databases
+Lets say we have an employee table with thousands of rows and columns like id, first_name, last_name, ssn, salary etc and in addition to there is
+a column with row_id which is system maintained as discussed in previous topic. So the operations are,
+  1) There are no indexes applied
+  2) Select first_name from employee where ssn = 666;
+  3) Select * from employee where id = 1;
+  4) Select sum(salary) from employee,
+  
+For Row Oriented Databases,
+  .The tables are stored as rows in disk and if we think the disk storage like a blob, every row is just stored like a string separated by hyphen.
+   Example 1,1,usama,abubakar,4000,34-2,2,ali,ali,5000,50,666
+   Every row has its own size because the amount data matters.
+  .So when we do I/O read operation, the read does not happen bit by bit, but the read loads a whole block which contains multiple bits or bytes.
+   Lets say 1-24 bytes read in single I/O read which may contain 2 rows or 5 rows with all their columns so whether you want it or not you will get
+   everything
+  .So more I/O reads needs to be done to get to the data which you want if you are doing a full table scan without indexes.
+  
+Now when applying queries to this database storage design
+Consider each block contains 2 rows
+
+1) Select first_name from employee where ssn = 666
+    .Lets assume this employee record is in block/page number 3 on disk
+    .So the I/O read will first check block 0 check ssn = 666 for 2 rows will not be found
+	.Block 1 will be checked for al 2 rows and will not be found
+	.Block 2 will be checked for al 2 rows and will not be found
+	.Block 3 will be checked and the row with ssn = 666 will be found
+	.Now the whole block 3 will be loaded into the memory and in this query we need only the first_name
+	.So for getting the first_name we dont need to go to the disk and fetch it because it is already there as whole block is being loaded which
+	 contains all information of the row. So that is one advantage of having row oriented design.
+	 
+2) Select * from employee where id = 1
+    .Lets assume this employee record is in block/page number 1 on disk
+	.I/O will read the first block and will get the desired result but if its not on first block it will sequentially read all blocks till it get
+	 to the desired id.
+	.It is not necessary that the desired row is present in the single block because the data can be huge enough that it spread upto several blocks,
+	 so the read will be done upto all the blocks if the desired result is all (*)
+	.If the desired result is only few rows then the database is smart enough to skip the blocks which contain rows that is not required.
+	.This is cheap in 2 ways
+	   a) If you are not doing vertical scaling which means your columns are stored not in a single place but here and there in memory
+	   b) If you are not doing column oriented design because select * is the worst in that design
+	   c) If your desired row is present at the starting blocks if you are using row oriented design, so no matter what, dont use select * anyway
+
+3) Select sum(salary) from employee
+    .In this query, we will have to scan all the blocks
+    .So if there will be as many I/Os as there are blocks in the disk for that table.
+    .We will pull block 1 with all the data for all rows in that block, sum the salary and then do another I/O to read the next block, sum all the
+     salary and so on till all records are traversed.
+    .Here we are pulling all the data but using very few data (salary) which is very ineffecient and that is the problem with row oriented datbaase.
+
+
+
+For Column Oriented Database,
+  .Tables are stored as columns on disk
+  .Each block/page will represent the column data associated with the row_id of the database.
+  .If there are many data in a table, the column data in block can expand upto multiple blocks as well.
+   Example
+   Block 1 (id column) => 1:1001, 2:1002, 3:1003
+   Block 2 (name column) => usama:1001, ali:1002, ahmed:1003
+   Block 3 (name column) => ibad: 1004, thandi: 1005, adeel:1006
+   ....
+   ....
+   ....
+  .One drawback is that if you update multiple columns, all the blocks will be updated containing that column  and also if you delete
+   any record, all blocks needs to be updated
+   
+Now when applying queries to this database storage design
+Consider each block contains 2 columns data
+
+1) Select first_name from employee where ssn = 666
+    .Now, the database I/O will not read block by block from the start. It will directly go and search the block where ssn column data
+	 is stored. It could be single block it could be multiple blocks
+	.This is done because database has all the metadetas available when tables are stored.
+	.So consider ssn number is spreaded through 3 blocks so it will check 1st block if ssn = 666 is there.
+	.It is not there so it will pull block 2nd and check if it is there, and it will find out
+	.But the problem here is that we want first_name and not the ssn so ssn will be associated with row_id number
+	.The row_id will be fetched lets say it is 1004
+	.The database I/O will directly jump to block 2 of first_name blocks because it knows it will find 1004 row_id at block number 2
+	 of first_name since every block contains 2 coulmn data. The first block will contain usama:1001 and ali:1002. The second block
+	 will contain ahmed:1003 and ibad:1004
+	 
+2) Select * from employee where id = 1
+    .This will go to the blocks where ids column is stored and check for id = 1.
+	.Now the user has asked for all the rows so it will fetch the row_id associated with id = 1 lets say it is 1001
+	.Now every I/O will be performed to all the blocks of first_name, last_name, salary, designation etc (all columns) with the
+	 row_id and will get the data one by one
+	.This is the worst to any database
+	.Never use select * in any design especially when it is column oriented
+	
+3) Select sum(salary) from employee
+    .This will directly jump to the block where salary column data is there and just sums up all the data there
+	.If there are multiple blocks where data is splitted then it will add all these blocks up
+	.So this is the fastest because it is done in 1 I/O read.
+	.Also column oriented database does one compaction that if some data is duplicated like multiple employees have same salary then
+	 it will just store the row_id with common data element like 10000:1001,1002,1003a
+	 
+	 
+Pros and Cons
+--
+1) Row Based are optimal for simple read and writes because all the data is stored at a single place, whereas in column based writes
+   are slower as columns are stored in different blocks and you have to update every block for newly inserted record.
+2) The compression is not effecient in row based because multiple rows are stored in a single block and all contain multiple type 
+   values like integer, string, boolean etc so there is a mixture of data, whereas in column based structure the block contain data 
+   of all similar type like salary block will contain all integer values so compression is effecient and easy.
+3) Aggregation is not effecient as we saw that when we want to sum(salary) we have to do a full table scan because the rows are 
+   spreaded in all blocks, but in column based structure we will get the column result at one place and it is way faster
+4) If the user asks for multiple columns in query then row based is much better because when we pull block into memory we get all the
+   data related to the record but if same occurs in column based, we have to do multiple I/Os with respect to how many columns are
+   requested in the query
+5) Row based is best fit when there are write operations and simple reads whereas Column based are best fit where you have to do only
+   reads that generates analytics, reports which include multiple aggregations in the query
+   
+Every database by default uses row based storage design but you can do a hybrid approach as well. For some table you can use column
+based storage where reads are there mostly and for some table row structure can be followed depends upon scenario.
+
+**The concepts of storage discussed is not obviously exact what the database storage does on the backend but it is logically done
+the same way. The database does every possibility to speed up the process by parallel processing, multi threading but the concept
+is same.**	

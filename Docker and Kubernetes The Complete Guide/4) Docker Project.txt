@@ -1,0 +1,86 @@
+Docker Project
+--
+
+In a typical node and express application, we create a package.json file and index.js file. The package.json file contains all the required dependencies and scripts to execute.
+We execute npm install to install all the dependencies and then execute npm start to start the index.js file and run express server.
+
+How to do this using docker?
+
+At first, we think to execute command like this,
+..
+ FROM alpine
+ RUN npm install
+ RUN ["npm", "start"]
+..
+
+Here first we will get the error that npm command not found, because the alpine base image does not contain npm command. It means we have 2 options
+  1) Manually install node after starting the container using alpine mimage
+  2) Find already built image that contains node packages.
+  
+We will go with second option, and on the docker hub we can find the node image. In this node image there are hundred of versions. If we directly use the latest version by 
+using FROM node, then we will get a lot of extra dependencies which we dont even want to use. At this point we only want limited features and there is a version with name alpine 
+which is very compact and contains relevant packages to run a typical node web application.
+Now, we can modify our Dockerfile as,
+..
+ FROM node:alpine
+ RUN npm install
+ RUN ["npm", "start"]
+..
+
+Now, we will get the error that package.json file is not found because npm install will look fod package.json file to install all the dependencies. Since container is started 
+in isolation, its file system will not contain any package.json filee even if the Dockerfile is present in the same directory where package.json file is present in our actual OS.
+In Dockerfile, we can create a configuration to access the files from our actual OS or copy the build files from our OS to the container file system.
+
+So before npm install, we can copy our project files from local machine to the container using the COPY command.
+..
+ FROM node:alpine
+ COPY ./ ./
+ RUN npm install
+ RUN ["npm", "start"]
+..
+The first ./ represents the directory inside localmachine and it references the path from build context which means that from where the build command is executed. The second 
+./ represents the container directory.
+
+After that, our web server with api will be deployed and started on port 8080 if we have started the server on port 8080 in index.js.
+When we access localhost:8080 from our localmachine we will see no response because there is no port mapping from local machnie to the container. The container is running in 
+isolation with its own set of ports. We have to tell that whenever the incoming request falls in local machine 8080 then redirect it to container's 8080 port and we specify this 
+port mapping at the time of running docker container.
+
+"docker build -t usamaa96/web-server ."
+"docker run -p 8080:8080 usamaa96/web-server"
+
+The first port is local machine port and second port is container port.
+
+One issue with normal COPY command is that it will copy all the files and folder into the root directory of container and if there are some files or folders with same name then 
+it will be overrided inside the container which can lead to problems. So in our Dockerfile, we specify a working directory so whenever we run COPY command, all the stuff go into 
+that working directory.
+..
+ FROM node:alpine
+ WORKDIR /usr/app
+ COPY ./ ./
+ RUN npm install
+ RUN ["npm", "start"]
+..
+We have specified the working directory using the WORKDIR instruction and now the copy command will place all files inside /usr/app instead of root.
+We now can build our dockerfile again
+After building, we can go into our container file system using "docker exec -it <container_id> sh" and we will notice that by default the directory loaded will be /usr/app
+
+
+If we want to make changes to our index.js file, we will have to rebuild our image and start the container. But it has one problem. In our Dockerfile, we run npm install after 
+copying the project files. Since we have changed index.js file, Docker Server will detect it and after the COPY command, every command will be run again because it will not be 
+picked from cache and since we have not modified package.json file, it is useless to re-run npm install again which might take several minutes if project is very large.
+We need to set a mechanism to only run npm install if there is any change in package.json file. We can tweek our Dockerfile in a way,
+..
+ FROM node:alpine
+ WORKDIR /usr/app
+ COPY ./package.json ./
+ RUN npm install
+ COPY ./ ./
+ RUN ["npm", "start"]
+..
+With this change, we first copy package.json separately and then the rest of the files separately after npm install. In this way if there is any change in package.json then it 
+will be detected and then npm install will be executed again. If there is no change then it will be picked from cache and then the last COPY will copy every other file which 
+might have changed.
+
+
+

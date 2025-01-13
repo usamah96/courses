@@ -1,0 +1,10 @@
+Spring Cloud Config - File System Backend
+--
+
+-We can setup a centralized application properties at our local system to be shared by microservices
+-Find any suitable location, create a folder and inside it create a properties file
+-Give the name to the properties file (must be the config server application name or application.properties)
+
+-Add the following configuration in the config-server application properties file to use the native local system file as a centralized file.
+    *spring.profiles.active=native
+    *spring.cloud.config.server.native.search-locations=file:///{full_path}

@@ -1,0 +1,93 @@
+class Creature{
+    private String name;
+    int attack, defense;
+
+    public Creature(String name, int attack, int defense){
+        this.name = name;
+        this.attack = attack;
+        this.defense = defense;
+    }
+
+    public String getName(){
+        return this.name;
+    }
+}
+
+class CreatureModifier{
+    protected Creature creature;
+    protected CreatureModifier next;
+
+    public CreatureModifier(){}
+
+    public CreatureModifier(Creature creature){
+        this.creature = creature;
+    }
+
+    public void add(CreatureModifier creatureModifier){
+        if(this.next != null) next.add(creatureModifier);
+        else this.next = creatureModifier;
+    }
+
+    public void handle(){
+        if(this.next != null) this.next.handle();
+    }
+
+    public String toString(){
+        return this.creature.getName() + " Attack: " + this.creature.attack + " Defense: " + this.creature.defense;
+    }
+}
+
+class DoubleAttackModifier extends CreatureModifier{
+
+    public DoubleAttackModifier(){}
+
+    public DoubleAttackModifier(Creature creature) {
+        super(creature);
+    }
+
+    public void handle(){
+        System.out.println("Doubling Creature's Attack");
+        this.creature.attack *= 2;
+        super.handle();
+    }
+}
+
+class IncreaseDefenseModifier extends CreatureModifier{
+
+    public IncreaseDefenseModifier(){}
+
+    public IncreaseDefenseModifier(Creature creature) {
+        super(creature);
+    }
+
+    public void handle(){
+        System.out.println("Increasing Creature's Defense By 3");
+        this.creature.defense += 3;
+        super.handle();
+    }
+}
+
+class NoBonusModifier extends CreatureModifier{
+
+    public NoBonusModifier(Creature creature) {
+        super(creature);
+    }
+
+    public void handle(){
+        System.out.println("Cancelling All Modifiers.");
+    }
+}
+
+public class Main{
+    public static void main(String[] args) {
+
+        Creature creatur = new Creature("Goblin", 2, 2);
+
+        CreatureModifier root = new CreatureModifier(creatur);
+        root.add(new DoubleAttackModifier(creatur));
+        root.add(new IncreaseDefenseModifier(creatur));
+
+        root.handle();
+        System.out.println(root);
+    }
+}

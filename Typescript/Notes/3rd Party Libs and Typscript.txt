@@ -1,0 +1,58 @@
+3rd Party Libs and Typescript
+-----------
+
+-Using lodash with typescript which is a popular JS utility librari
+..
+npm install --save lodash
+
+import _ from 'lodash'
+const arr = [1,2,3]
+console.log(_.shiffule(arr))
+
+-We will get the output but we will get errors also. Because lodash contains javascript code and 
+typesciprt dont know what to do with it. It will also give error to the import statement.
+-To get rid of errors, we need to translate this library to be used with typescript
+For that
+npm install --save-dev @types/lodash
+As soon as we install this, the errors will be gone.
+-With @types we can use almost any popular 3rd party javascript libraries with typescript like
+@types/jquery
+
+
+
+
+
+-What if we want to use the javascript variable inside our ts code
+..
+-If we have a script file that has var GLOBAL = "Global variable"
+-And inside our ts file
+..
+console.log(GLOBAL) // Error
+-It will execute perfectly in the browser but out compiler will complain about it
+-We can use the declare keyword to tell typescript that this variable exist and will contain some value
+-It is used as we developer know that something will exist
+..
+declar var GLOBAL: any
+console.log(GLOBAL);
+
+
+
+
+
+Class Transofrmer
+-Converting our json objects to map to our class
+npm install --save-dev class-transformer
+npm install --save-dev reflected-metadata
+
+..
+class Product {
+  title: string;
+  price: number;
+  
+  constructor(private title: string, private price: number)
+}
+
+const dataFromServer = [
+  {title: "Book", price: "12.99"}
+  {title: "Carpet", price: "10.99"}
+]

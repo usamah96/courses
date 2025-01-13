@@ -1,0 +1,71 @@
+Token Based Authentication - JWT
+--
+
+With default implementation, spring uses JSESSIONID for authentication process. It is acceptable and valid for small projects but not for enterprise
+level because of 2 major reasons
+  1) It is just a randomly generated value with no information related to user
+  2) It is stored as a cookie and if a user does not clear it then it will stored and there are chances it may get stolen
+  
+We use JWT which has 3 parts
+  1) Header, which contains the metadeta like what is the type of toke, what algorithm is being used.
+  2) Payload, which contains the user related information like roles, username, ids etc
+  3) Digital Signature, which will be used to verify that the data is not tempered.
+  
+These values are separated via dot (.) in a base64 encoded string.
+Once the token is generated, it is digitally signed and stored at the server
+Everytime the requests comes with that token, the hash is generated again and matched with the already generated hash to match the signature. If the
+result matches then it means the token is valid and the reuqest can go through further.
+
+We need to ad 3 dependencies for JWT from io-jsonwebtoken
+ 1) jjwt-api
+ 2) jjwt-impl
+ 3) jjwt-jackson
+ 
+Now in the code we have to make 2 changes.
+First we need to disable the default functionality of creating JSESSIONID by telling spring that we will manage our own token and Second to 
+make changes in cors configuration to expose respose headers because we will send jwt token back in Authoirzation Header and due to the different
+domain, the browser will not be allowed to read custom headers until cors allows it.
+
+First chaange will be to,
+http.sessionManagement.sessionCreatePolicy(SessionCreatePolicy.STATELESS)
+
+Second change will be in CorsConfigurationSource
+config.setExposedHeaders(Arrays.asList("Authorization"))
+
+Now we can write 2 separate filters. One for generating jwt token and one for validating. Bot the filters will extend from OncePerRequestFilter as
+we only want to generate and validate token once.
+
+But in addition, we can override the shouldNotFilter() method also. We can return true from the filter where we are generating the token and apply
+the condition that if the request path is other than /login then return true because we dont want to generate token other than login request.
+Similarly, we can return true also from filter where we are validating the token. We can apply the condition that if the request is /login then
+we dont want to validate the token and for every other request the token should be validated.
+
+We can generate the key, set the clains on jwt in this manner.
+Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+SecurtyKey key = Keys.hmachShaKeyFor(KEY.getBytes(StandardCharset.UTF_8));
+String jwt = Jwts.Builder().setIssuer("My App").setSubject("My Jwt Token")
+            .claim("username", auth.getUsername())
+			.claim("authorities", convertAuthoritiesToString(auth.getAuthorities()))
+			.setIssuedAt(new Date())
+			.setExpiration(new Date().getTime() + 30000)
+			.signWith(key)
+			.compact();
+response.setHeader("Authorization", jwt);
+
+And we can validate it in this way
+String jwt = request.getHeader("Authorization")
+SecurtyKey key = Keys.hmachShaKeyFor(KEY.getBytes(StandardCharset.UTF_8));
+Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+				.build()
+				.parseClaimsJws(jwt)
+				.getBody()
+String username = String.valueOf(claims.get("username"))
+Set<GrantedAuthority> authorities = convertToGrantedAuthorities(String.valueOf(claims.get("authorities")));
+Authentication auth = new UsernamePasswordAuthenticationToken(username, null, authorities);
+SecurityContextHolder.getContext().setAuthentication(auth);
+
+We can add the generating filter after the BasicAuthenticationFilter.class and we can add the validating filter before BasicAuthenticationFilter.class
+
+Note that the jwt can be easiy decoded as it is simple base64. The only thing that saves our jwt is from tampering it because we are validating
+it using the digital signature

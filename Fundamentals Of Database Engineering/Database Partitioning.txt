@@ -1,0 +1,51 @@
+Database Partitioning
+--
+
+It is a technique to split up huge table into multiple tables and let the database decide which table to hit based on query
+where clause.
+
+Lets say we have a customers table with 1Million rows
+What partitioning will do is to split these data into 5 smaller tables
+  1) Customers_200K, data from id 1 - 200K
+  2) Customers_400K, data from id 201K - 400K
+  3) Customers_600K, data from 401K - 600K 
+  4) Customers_800K, data from 601K - 800K
+  5) Customers_1M, data from 801K - 1M
+  
+Each partition contains a meta_deta attached to it which includes information related to what information it holds.
+So if a query comes like, "Select name from Customer Where id = 700001", then the database checks meta_data and it will know
+that it will have to query partition number 4. With index on each partition, the query result will be so muh fast.
+
+Q: What is a best way to query billion row table
+A: Not to query billion row table. And that what database does.
+
+
+Horizontal vs Vertical Partitioning
+  With HP, we split number of rows into multiple tables as discussed before
+  With VP, we split the columns like if there is a very large column lets say a blob which is barely queried and takes too much
+  time to query, we can move that column into a slow access drive in its own tablespace.
+  
+  
+Partition Types
+  1) By Range, we can split based on dates or ids or any other range
+     Example: moving 1995 data, 2000 data and 2010s data into its own table.
+  2) By List, we can split based on some discreet values
+     Example: moving data for users living in Paksitan, India, America. Splitting based on Zip Code
+  3) By Hash, we can split based on hash function
+     Example: Here consistent hashing comes into picture. We see this implementation on proxies like the proxy decide which backend
+	 to hit based on hashing the incoming ip address, called IP Hashing.
+	 
+	 
+In postgres, there are multiple commands that we can use to create billion row table, create partitions and attach a partition
+to the parent table so that when we query the parent table, the database automatically does the operation on the partition based
+on our where clause.
+See create_partition script inside Data folder. It is an automated script that creates and attaches the partitions. It will
+have all the postgres queries required to create table and attach partition to it
+
+Always sure that postgres partition pruning is turned on because if it is off then database will not use partitions.
+
+The disadvantage of partitioning is,
+  1) Updates that moves record from one partiton to another partition is bad. The db will have to delete the record from old
+     partition and insert the record into new partition.
+  2) Ineffecient queries can lead upto scanning all the partitions resulting in more slower performance that one huge table 
+     because database will have to jump from one partition to another partition to select data from.

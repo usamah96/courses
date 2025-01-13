@@ -1,0 +1,123 @@
+Fragments, Portals and Refs
+--
+
+Limitations with JSX.
+
+With JSX we need to return one root element to render it on the DOM. We cannot return more than one root element
+
+Example
+return (
+  <div> Element One </div>
+  <p> Element Two </div>
+  <Card />
+)
+
+This is wrong as with JavaScript and JSX this is invalid. We will have to wrap the contents inside one root element like,
+return (
+   <div>
+     <div> Element One </div>
+     <p> Element Two </div>
+     <Card />
+   </div>
+)
+
+One alternative is to return an array. But with array react will ask for the key for every element to make every element unique from others
+return (
+   [
+     <div key="elem-one"> Element One </div>
+     <p key="elem-two"> Element Two </div>
+     <Card key="elem-three" />
+   ]
+)
+
+This is quiet cumbursome so the usage of <div> wrapper is more readable. But with this we are ending up with unneccessary div element that can
+break our styling. In large application we can end up with "div Soup" i.e
+<div>
+  <div>
+	<div>
+	   <h1> Hey </h1>
+	</div>
+ </div>
+</div>
+
+One approach to avoid this issue is to create a wrapping component and render all JSX code there like,
+Wrapper.js
+
+const wrapper = props => {
+  return props.childred
+}
+export default wrapper;
+
+Use Wrapper like,
+<Wrapper>
+  <div> Element One </div>
+  <p> Element Two </div>
+  <Card />
+</Wrapper>
+
+Here we returned props.children which is a single root element which contains the inner html of the <Wrapper>. From this we avoided extra div
+elements
+
+
+Now this is the custom wrapper we have built. React provides us with this wrapper called Fragment
+We can use it in three ways
+
+1) Either use empty html tags and wrap the code around <> </>
+2) Use <React.Fragment></React.Fragment>
+3) import Fragment from React and use <Fragment></Fragment>
+
+
+
+
+
+Portals
+..
+A React portal provides a way to render an element outside of its component hierarchy, i.e., in a separate component.
+In React, the parent component always wants to go where its child component goes. That's why React portal concept comes in.
+
+The common use-cases of React portal include:
+  .Modals
+  .Tooltips
+  .Floating menus
+  .Widgets
+  
+We know that the modals are used to display any information or get user information and they are displayed as a popup on the whole page. If they
+are linked with regular parent child then we might see some styling difference or need some extra styling to adjust the modal in large application.
+With portals, we can render modals on the root level of the DOM to detach it with its original parent.
+
+The modal basically is the overlay to the page and is above everything on the page. It will work technically if it is inside nested components
+but ideally it is not good code. It should be beyong everything else in the DOM. The modal must be at the root level
+
+Create empty div on root level index.html beside <div id="root"></div>
+<div id="my-modal"></div>
+
+Use portals to render the element like,
+let Element = <p> Portal Element </p>
+ReactDom.createPortal(<Element />, document.getElementById("my-modal"))
+
+
+
+
+
+Refs
+..
+Refs are very powerful and allow us to interact with the DOM elements and work with them but they are to be used with greate care
+For Example we can attach refs to out form elements to get the value
+
+With states, we attach input field with it and with every key stroke our state is changed. In the case where we want the form element
+values only when the form is submitted there is no need to change the state with every key stroke. We can use and get the value with refs
+
+Donot update the DOM using refs and rarely use it if it is needed.
+
+Example
+
+const nameInput = useRef();
+<input type="text" refs={nameInput} />
+
+If there is onyl reading of values then go with refs otherwise use states. But it totally depends on the requirement to use refs or state
+
+
+If we use state then the input fields are controlled by react so the component will be termed as Controlled COmponent
+If we use refs then the input fields are not controlled by react. We need to manipulate the values to reset it that is why the component will be
+termed as Uncontrolled component
+

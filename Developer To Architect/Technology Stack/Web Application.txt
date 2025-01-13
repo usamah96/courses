@@ -1,0 +1,169 @@
+Technology Stack
+--
+  
+
+Apache Web Server
+..
+It can be used for 3 different purposes
+  1) Static Content
+     .Can be served to deliver static contents like html, css, js, image files.
+	 .We have to note that static files are delivered through disk of a web server which can be slow
+	 .What apache web server does is that when any file is requested for the first time, it is loaded from disk into RAM and then delivered to
+	  the client. Next time the same file is delivered directly from the RAM for fast processing
+	 .For that we have to make sure that the RAM size of Apache Web Server is very large like 32GB or 64GB like if our content files are very
+	  large or many in numbers.
+	  
+  2) Dynamic Content
+     .It can generate dynamic content and it is known for that as well as it does this job very effeciently
+	 .If we have script files on php, pearl, python then the data is gathered from service layer and using the CPU cycles at web server the
+	  dynamic content is generated
+	 .Note that there are no servlet containers at apache web server so it cannot generate jsp files. It is limited to files like php, pearl or
+	  python
+	  
+  3) Reverse Proxy
+     .It can also act as a Load Balancer or Reverse Proxy but it is not what is designed for
+	 .We can use it as a Reverse Proxy if our application is a small application with not that much load
+	 .There are other great solutions for LB/RP which they are especially designed for it and Apache Web Server is not recommended to be used
+	  in this way but eventually it can do the job too.
+	  
+	  
+	  
+Apache Web Server works on a request-response model which means that a request will come from a client and and it will process it and 
+server the response. The request can be of anything.
+How it works is that when the request comes from a client, a persistent connection is assigned it it by the web server and a specific thread
+is allocated from the thread pool which will take some memory whose responsibility is to serve that thread only. If the request is to get 
+the static data then that thread will do an I/O for disk access to get the static content. If that request is to get dynamic data then at 
+some point there are multiple tasks going on like using CPU cycles to generate the file, using of memory, Network I/O to get the data from
+database or services then after receiving the data the processing will be done to prepare the dynamic file which will utlize more CPU cycles
+So when there will be multiple clients in parallel requesting for dynamic data, the load will eventually get increased which means there
+should be some good scalability solution to manage the load
+
+Apache Web Server's scalability depends upon how it is used. As we know we can use apache web server either by serving static or dynamic
+content or by using it as a load balancer or reverse proxy. 
+When using it as a Web Server for serving dynamic or static web pages, we can horizontally scale the web server as much as we want because 
+the instances of the webserver are behing the load balancer and the load balancer routes the incoming client request to any of the instance 
+to server the web page. This approach is CPU intensive so when we believe the load is getting higher we can create more instances behind the 
+load balancer.
+When using the Web Server as a Load balancer itself, we cannot horizontally scale it because the main responsibility of the web server will
+be to route the incoming request which is more of Memory intensive task as threads will be blocked at web server till it is returned back to
+the client. So when the memory is full due to heavy load we need to increase the thread pool size which means we will vertically scale the
+web server and vertically scaling is limited. We cannot unlimit the thread pool size and also it will become very costly. So that is why
+we avoid using web server as a load balancer and instead use a different approach that uses thread pool in a load balancer very effeciently.
+
+
+
+Nginix Web Server
+..
+It is similar in comparison with Apache Web Server in terms of functioning with few differences
+It can be used for multiple purposes like,
+  1) Static Content
+     .Like Apache Web Server, Nginix can also be used to server static content
+	  
+  2) Dynamic Content
+     .Like Apache Web Server, Nginix can also be used to serve dynamic content but it is not at its best. Dynamic Content is best served by
+	  Apache
+
+  3) Reverse Proxy
+     .It is best designed to be used as a Load Balancer or Reverse Proxy
+	 
+  4) Cache Content
+     .It is also good in caching the content
+	 
+
+Nginix follows event driven approach and async IO model. Like in Apache Web Server, the client sends the request and the request is assigned
+a persistent connection. But from here onwards, every request is not allocated a separate thread from thread pool like in Apache because there
+is only single worker thread assigned to serve the incoming request. This thread never leaves the CPU which means there is no context switch
+which increases its performance. Now if any request wants to access static file (disk access) or access any service or database then nginix
+works on async IO model which means that nginix will send async IO requests to disk or async IO network call. The thread won't wait for the 
+response and after sending the async request, it checks and polls for new requests to be served. When the response is available from async
+IO calls, then the thread polls that response and sends back to the same connection which it remembers. In this way the prformance is increased.
+
+With this flow, we clearly see that nginix is best suited for a load balancer or reverse proxy because it just has to route the request which
+is done in an async way. If there is CPU intensive task then nginix might not be the best choice that is why it is not good for serving dynamic
+content. It is good for serving static content and load balancer.
+
+The number of worker thread in nginx can also be increase from one. Suppose we are also using nginx as a cache and when fetching data from the
+cache, it will not involve traditional I/O and when using a single worker thread, other incoming requests will get blocked when the single 
+thread will be busy fetching the data from the cache. So here we can increase the number of threads to support concurrent processing also.
+
+
+
+Web Containers & Spring
+..
+Apart from serving static web content and dynamic web content, web containers are used to serve dynamic content that involves a much more
+complex business logic without hosting any scripting language like php, pearl, python etc that are easily hosted on web servers
+
+These web containers provide servlet engines where the business logic can be written as servlets. The 2 most common web containers are 
+Tomcat and Jetty which provide servlet engine
+Other choice can be to go for full fledge Application Servers which apart from servlet engine provides ejb containers, session clustering,
+connection pools, jms, jmx and many other features. These application server comes under license like WebLogic, WebSphere. Some of them are
+also open source like Wildfly/Jboss
+
+Using full fledge application server is sometime not worth paying for because many requirements are filled with using web containers in
+combination with spring framework. When using spring framework, the other way of running web container is through running spring boot which
+comes with embedded web containers (tomcat and jetty)
+Spring Container runs inside a web container and provides many capabilites like
+  .Inversion of Control / Dependency Injection for business logic
+  .MVC architecture
+  .JDBC template for database
+  .Connection Pools
+
+
+
+NodeJs
+..
+
+NodeJs can be used as an http server to serve the requests through javascript engine (on web app layer or service layer)
+Javascript engine was especially designed to serve high intensive I/O requests and is highly effecient in handling large number of
+connections
+
+Note that NodeJs perfectly works and in an effecient way if the requests are more of I/O bound rather than CPU bound. If we are doing much
+more computation then Node server is not best suited to use.
+
+It is single threaded just like nginx that handles all the connections which saves memory and avoid context switching.  
+A single thread continuesly running to check for incoming requests which is called an Event Loop. All the incoming request comes to 
+operating system first and stored in IO Queue. The Event Loop periodically polls the IO Queue to check if any reuqeust is available to be
+served. It polls the request, process it in single threaded fashion and whenever there is an IO call like calling external api or a timer
+function, then it hands over the async task back to operating system. Now its operating system responsibility to make external call or
+disk call and behind the scene event loop continues to work on. When the response is available for the IO request then it is stored in 
+operating system IO Queue so when Event Loop polls the IO Queue it will get the response, process it and place the final result back to
+IO Queue from where the result is sent back to the network channel which has came from the client.
+
+
+
+Cloud Solutions for Web
+..
+There are many cloud vendors that offers solutions for all the problems and deployments to be used as infrasturcutre as a service. Some
+of the cloud vendors are Google and Amazon.
+
+These cloud vendors provide managed services like,
+  .Hardened solutions => There are hadrly any issues with the services
+  .Automated Deployments => They are deployed automarically once taken access
+  .Built-in Scalability and Reliability => They are designed to provide scalable and reliable solution
+  .Global Dependency Solution => Application can be deployed anywhere in the world to serve users globally
+  
+Some of the popular services are
+  .CDN (Google Cloud CDN / AWS CloudFront)
+  .Storage (Google CLoud Storage / Amazon S3)
+  .Load Balancer (Google External HTTP LB / Amazon Application LB)
+  .Deployments (Google App Engine / Amazon ELastic Beanstalk)
+  ...
+  ...
+  ...
+  
+Both Layer 4 and Lyaer 7 LB can be used. Layer 7 can be used when we want to route the traffic intelligently like when the user wants to
+request static data or dynamic data. So when the user wants static data, the LB can directly serve the data from Amazon S3 or any storage
+service used and when the user wants dynamic data it can be routed to any service running.
+
+
+Cloud CDN is a very effective service to deliver static content faster for users accessing the application globally. Because as we know
+that if our data center is located in continent 1 and if our user is located in continent 4 then when the user will visit the website there
+will be some images, css files, javascript files needs to be downloaded first in order to show content. This will create high latency because
+the data needs to transferred through multiple continents and then it will be downloaded. CDN servers helps minimizong this effort
+CDN servers are installed close to every location so that when user accesses data from that particular location, all static data are being
+served from CDN which is being used as a cache here.
+CDN provides 3 main benefits 
+  .Low Latency when there is a cache hit
+  .Persistent Connections as TCP connections will stay alive for sometime so whenever there is a need to download more data, the same
+   connection can be used to avoid TCP Handshake rountrips.
+  .Lower Load on backend as static data are served through CDN cache and users are not routed to backend for each and every image or file

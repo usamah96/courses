@@ -1,0 +1,41 @@
+User Registration Using Spring Security
+--
+
+-Create releavnt entities, responses and classes for user creation
+-Save the user using Spring Data Jpa and H2 database.
+
+Adding Spring Security To User Microservice
+..
+-Add the dependency of spring security starter
+-Create a class WebSecurity that will extend from WebSecurityConfigurationAdaper and annotate it with @Configuration and @EnableWebSecurity.
+-Override the configure method that will take HttpSecurity as an argument.
+
+-To allow requests from an endpoint that starts with user/
+httpSecurity.authorizeRequests().antMatchers("/user/**").permitAll();
+
+-To allow requests from a specific ip address
+httpSecurity.authorizeRequests().antMatchers("/user/**").hasIpAddress("192.168.0.106");
+
+
+Adding the Filters
+--
+
+1) Adding Built In Filter (UsernamePasswordFilter)
+-By configuring this filter, spring security will automatically configure the "/login" POST request that we can test from postman.
+-Create a new class AuthenticationFilter that will extend from UsernamePasswordAuthenticationFilter
+-Overrid the attemptAuthentication(HttpServletRequest req, HttpServletResponse res) method. This method will be called when we hit 
+/login from the postman. In this method we get the authentication manager and authenticate the credentials. When we call authenticate,
+spring security will call the loadUserByUsername() method which is the method signature in the UserDetailsService. We have implemented it
+in the UserService that implements UserDetailsService. The loadUserByUsername() method's responsibility is to verify the user if it exists
+from the database and return UserDetail with the following information (email, password, isEnabled, isAccountVerified, isCredentialsNotLocked, 
+isAccountNotLocked, ListOfAuthorities). Based on these information the authenticate method of authentication manager will decide if the login
+is successfull or not. If the login is successfull then spring security will automatically call the successfulAuthentication() method in
+which we will create JWT token based on the information and put it in the response header to be used by the client
+
+-Add the filter using http.addFilter(getAuthenticationFilter());
+-Create a function getAuthenticationFilter() and create a new instance of AuthenticationFilter class
+-Also override the configure(AuthenticationManagerBuilder auth) method in which we will specify which service to use and what type of
+password encoder to use
+-To add the custom URL -> authenticationFilter.setFilterProcessesUrl("user/login");
+
+

@@ -1,0 +1,205 @@
+Route53
+---
+
+We know that a DNS (Domain Name Server) resolves a human friendly domain name into machine ip address
+We have multiple DNS terminologies,
+  .Domain Registrar, where we register our domains like Amazon Route53, GoDaddy, etc...
+  .DNS Records: A, AAAA, CNAME, NS, etc...
+  .Zone File, which contains DNS records,
+  .Name Server, which resolves the DNS queries. It can be authorotative or non-authorotative
+  .Top Level Domain, like .com, .us, .gov, etc
+  .Second Level Domain like, example.com, google.com
+  
+  
+In a whole URL => https://api.www.google.com.
+The last dot is called a root
+.com is the TLD
+google.com is the SLD
+www.google.com is the Sub Domain
+api.wwwo.google.com is the Fully Qualified Domain Name
+https is the protocol
+
+So Route53 is a highly available, scalable and fully managed authoritative DNS. It authoritative which means that the customer can 
+update the DNS records. Route 53 is also a domain registrar whhere we can register our domains. It also has the ability to check 
+the health of our resources. The number 53 references to the traditional DNS port.
+
+We can add multiple DNS records in order to define how to route the traffic. Each record contains,
+  -Domain/Sub-Domain Name, eg: example.com
+  -Record Type, eg: A / AAAA / CNAME / NS
+  -Value, eg: 12.34.56.78
+  -Routing Policy, how Route53 responds to DNS queries
+  -TTL, amount of time the record needs to be cached into DNS resolver.
+  
+The important record types are,
+  A => maps hostname to IPv4
+  AAAA => maps hostname to IPv6
+  CNAME => maps hostname to another hostname and the target hostname can have A or AAAA record
+  NS => Name Server for the Hosted Zones
+  
+  
+When a client request for a url the flow is,
+Local DNS Server -> Top Level Domain Server 
+Local DNS -> Sub Level Domain Server
+Local DNS -> Amazon Route53, GoDaddy, etc ... Registrat
+Response is cached in Local DNS with TTL.
+  
+  
+Route53 Hosted Zones
+..
+It is a container for records that define how to route the traffic to a domain or sub-domain
+Whenever we buy a domain, we can create 2 types of hosted zones,
+  1) Public Hosted Zones, which specify the record how to route the traffic on the internet like application1.mydomain.com
+  2) Private Hosted Zonesz, which specify record how to route the traffic within a private VPC. They are not available over the 
+     internet like application1.company.internal
+	 
+We pay 0.5$ per hosted zone per month
+
+
+CNAME vs Alias
+..
+Whenever we use AWS serivce like ALB or CloudFront, AWS exposes a domain for us like lb1.1234.us-east-1.elb.amazonaws.com.
+Now we want our domain to point to this aws created domain,
+
+We can create,
+  CNAME, which will point hostname to any other hostname. The record should be non root domain like test.mydomain.com.
+  Alias, which will also point hostname to any other hostname but the record can be root or non root domain. Also it is free of charge 
+  and native health check capability. We cannot set TTL for Alias record, it is set by Route53 internally 
+  
+The target for Alias records can be ALB, CloudFront, Api Gateway, Elastic Bean Stalk, S3 Websites, VPC interface, GLobal Accelerator.
+We cannot set alias record for EC2 DNS name.
+
+
+Route 53 Health Checks
+..
+We can create health checks with amazon route53 hosted zones record in order to enable continuous checking of health. So lets say 
+if we want to create a DNS record that resolves the query based on latency then if a certain region is down or EC2 instance, ALB is 
+down in the user's closest region, then the Route53 DNS resolver return the healthy region instance endpoint which might be far from 
+user but the user will not face timeout or connection issues. So health checks are great for automatic failovers
+We can create health checks,
+  1) That monitors an endpoint
+       .There are about 15 global AWS health checkers that checks the health of an application by consuming the /health endpoint
+	   .We can set the checking of health interval to like 30 seconds or fast health checks can be at 10 seconds periodically but it will
+	    cost more money
+	   .If 18% of the global health checkers responds with either 2xx or 3xx status codes then the application is considered healthy
+	   .Health checks can be setup to pass or fail based on some text also and the health checker will check first 5120 bytes of text 
+	    based response based on some string to match
+	   .We should configure our instance to allow incoming requests from health checkers ip range and the ip ranges can be found out 
+	    at => (ip-ranges.amazonaws.com/ip-ranges.json)
+  2) That monitors another health check
+      .Also known as Calculated Health Checks
+	  .We can setup lets say 3 health checks in our Route53 that monitors EC2 instances and we can setup a parent health check within 
+	   Route53 that monitors the child health checkers. We can then use OR, AND or NOT operation to combine the result of child health 
+	   checks into single parent health check and specify how many child health check to make the parent health check pass.
+	  .We can set up to 256 child health checks
+  3) That monitors CloudWatch alarms
+      .It is a common use case if we want to monitor health check on some private hosted zones
+	  .All the Route53 health checkers are public and it cannot access private VPC resources
+	  .So the way is we create a CloudWatch metric which generates an alaram if that metric is breached. The Route53 health check
+	   monitors the CloudWatch alaram and when the alaram is generated, the health check works accordingly
+  
+Health checks can be integrated with CloudWatch metrics also.  
+
+HandsOn
+***
+
+In Route53 service we go to health checks and setup the following things,
+We define a health checker name and select an option whether to check endpoint, calculated health check or cloud watch alarms
+Selecting the endpoint option and then specifying the application IP address or hostname
+We can put IP address in case of ip and hostname in case of hostname
+Also we specify the port of our endpoint and the uri to check whether it can be /health, /check or simple root /.
+In advanced configuration we can select request interval and we can leave the standatd 30 seconds
+The failure threshold can be 3 which means after 3 invalid response the application will be considered unhealthy
+We can select if we want to enable string matching or not
+
+To make an application unhealthy, we can edit the inbound rule of EC2 instance and delete the rule that accept request on port 80 from 
+which the health checker will be unable to request to our endpoint.
+
+***
+
+
+
+Routing Policies
+..
+Defines how Route53 responds to DNS queries. This routing is not the same as what load balancer does to route the traffic to EC2 
+instances and we should not confuse it with ALB. The DNS does not route any traffic, it just responds to DNS queries which means 
+it just resolves the endpoints to the hostname which the client can use. No traffic goes through DNS.
+
+Some of the routing policies are,
+
+1) Simple
+    .It typically routes to a single destination
+	.Client requests Route53 with a hostname and it responds with IP address
+	.We can specify multiple values to single hostname and in this case client will pick a random IP address 
+	.We cannot specify health checks
+	.When we create a record in hosted zone, we specify routing policy as simple
+	
+2) Weighted
+    .Controls the percentage of requests to go to each resource according to assigned weights
+	.DNS name and record must be same for all weighted routing policy
+	.We can assign each record a weight and a total does not need to be 100
+	.Can be associated with health checks
+	.The use cases can be load balancing, testing new application version to rout certain percentage of traffic to specific resource.
+	.Assign a 0 weight if dont want to send the traffic to a resource
+	.If we assign 0 weights to all the resources then it will considered equally for all.
+	.When we create a dns record, we give it a name lets say weighted.example.com and assign a value with certain weight. Then to assign
+	 a different weight to different resource, we will have to create a new record with name weighted.example.com too.
+	
+3) Latency Based
+    .Redirect the users to the resources that has the least latency
+	.Latency is based on traffic between users and AWS regions
+	.Germany users may be redirected to US if it has low latency
+	.Can be associated with health checks and has a failover capability as well.
+	.When we create a dns record, we give it a name lets say latency.example.com and assign a ip value with specified region location as well 
+	 where our EC2 is deployed. Then to assign a different latency to different resource, we will have to create a new record with name 
+	 latency.example.com, assign a differenct ip value to it with the relevant region location.
+	 
+4) Failover
+    .The concept is same where if our primary instance goes down, the secondary backup instance is promoted to serve as a primary instance.
+	.When creating a dns record, we select the dns name lets say failover.example.com and assign a ip value to it. Also we specify that 
+	 whether this instance is primary or secondary. Then we associate a health check to it. Next we create another record with dns name 
+	 failover.example.com and assign another instance ip value to it. This time we select failover record type as secondary to specify 
+	 that this is the backup instance. Similarly we assign a health check to it which is optional in case of secondary.
+	.Our client when connecting to failover.example.com, will be routed to primary instance by default and when primary is unhealthy 
+	 then they will b erouted to seconday instance
+	.There can only be one primary and one seconday instance in failover record type.
+	
+5) GeoLocation
+    .It will redirect to the location where the user is from
+	.If the geolocation configuration is not found for certain user's location then the redirection will happen to the default configuration
+	.When we create a record with dns name lets say geolocation.example.com and assign ip value to it, we specify the routing policy 
+	 as geolocation and assign at which location this instance is from. Similarly we can create multiple record with dns name 
+	 geolocation.example.com and assign different location for different instances
+	.Geolocation is different from Latency based routing. Geolocation routing policy will route request to a certain location but will 
+	 not guarantee the lowest latency.
+
+6) GeoProximity
+    .It will allow to route the traffic based on user's and resources's location with a chosen bias value.
+	.The bias value helps to shift more traffic to a specific resource
+	.Lets say in a certain location, I have 2 instances one in us-east-1 and one in us-west-1 with bias value to 0 for both. There are 
+	 4 user in total, 2 of them are closer to us-east-1 and 2 of them are closer to us-west-1. So us-east-1 will receive 2 request and 
+	 us-west-1 will receive 2 requests. When i update the record and chose a bias value 50 for us-west-1, then 3 of the total 4 users will 
+	 be redirected to us-west-1 and one user which is the closest to us-east-1 will be reidrected there.
+	.Difference between weighted and geoproximity is, weighted routing policy is to route traffic to multiple resources in proportions 
+	 that you specify. We use it when we want to send 80% to one destination and 20% to another. Geoproximity routing policy is when 
+	 you want to route traffic based on the location of your resources and, optionally, shift traffic from resources in one location to 
+	 resources in another. We Use Geoproximity to divide the world into sections and route traffic based on the source, such as 
+	 sending all traffic in Oceania to Sydney and all traffic from South America to Ohio. The bias can be used to make particular 
+	 sections 'bigger' to make some sections larger than others.
+	 
+7) IP Based
+    .It is very simple as we define a range of ip addresses (CIDRs) to specify which instance they will be routed to
+	.Lets say we define CIDR 1 with some IP ranges eg: 203.0.113.0/24 and with CIDR 2 as 200.5.4.0/24
+	.Then when creating record we can define CIDR 1 to be route to instance 1 and CIDR 2 to be routed to instance 2.
+	 
+	 
+
+With Route53 Traffic Flow feature, we can build a complex routing decision trees. It simplifies the process of creating and maintaining
+records in large and complex configuration. We get the visual editor to manage our tree
+For Geoproximity, we can see the global map as well and play with bias value to see which user in which part of the world will be 
+routed to which instance.
+
+
+We can but our domain name from any 3rd party service like GoDaddy and still use Amazon Route53 to manage our dns records using the 
+public hosted zones. For that what we need to do is create a public hosted zone on Amazon Route53 and then update the Name Server (NS)
+records on Godaddy to use the Name Server provided by Amazon Route53. This is because when Godaddy answers the dns query, it should 
+check which name server to use. It will see that the name server setted up are of Amazon Route53 so it will start using it.

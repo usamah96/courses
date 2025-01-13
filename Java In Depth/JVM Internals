@@ -1,0 +1,202 @@
+JVM Internals
+---
+
+When we run a java command from commnand line, a runtime instance of JVM is created and loaded into memory before the execution of the program. JVM
+makes sure java program runs very fast. Most JVM uses JIT compilation which caches frequently uses byte code in the form of machine code and it provides
+the code from the cache instead of interpreting again.
+
+We hava abstract specification which tells how the JVM should work. Anyone can implement the specification and tell how the JVM should work. Popular
+concrete implementation of the specifications are Oracle's Hotspot JVM and IBM's JVM 
+
+
+
+
+
+Reflection
+--
+
+Allows us to introspect the code.
+Allows us to determint the fields, method names of the class without knowing their names at compile time.
+Getting the meta information direclty at runtime
+
+Common Use cases
+.Intellisense feature of IDE. By using dot operator we can see all related features of the class
+.Junit testing which uses annotation processor. Junit will load the class and load all the methods annotated with @Test and executes it at runtime
+.Dynamic Proxies which are created via Reflection to identify multiple behaviors like how much time a method takes to execute
+
+
+Accessing the Class Objects
+
+1) objectRef.getClass()
+     .Class clazz = "foo".getClass() -> returns back String class
+     .Set set = new HashSet(); Class clazz = set.getClass() -> returns back HashSet class
+
+2) Class.forName(String class)
+     .Fully qualified class name is required
+     .Class.forName("java.lang.String")
+     .Class.forName("[D") -> [ represents 1 dimension array and D represent primitve double data type
+     .Class.forName("[Ljava.land.String;") -> reprenst 1D array of String type
+     .Class.forName("[[Ljava.lang.String;") -> represent 2D array of String type
+
+3) Class Literals
+     .By appending .class to the type name
+     .It works with classes, interfaces, arrays and primitives
+     .String.class, boolean.class, int[][][].class, void.class
+     
+Every Boxed primitive has a static method TYPE which returns back corressponding primitive class.
+   .Boolean.TYPE
+   .Integer.TYPE
+   ....
+
+
+
+
+
+
+
+Runtime Data Areas
+---
+
+As every process is assigned a chunk of memory when it is started, JVM also gets some memory as it is also a kind of process. The memory is then
+split up into different areas to store different things. The memory which is assigned has 2 parts i.e: User Space and Kernal Space. The User space
+of a process is unique to every process but kernal space of process is shared among other processes as well
+
+The User Space of JVM
+..
+We have different sections in it like,
+  .Native Heap
+  .Java Heap
+  .Method Area
+  .JVM Stack
+  .PC
+  .Native Method Stack
+  
+The Native Heap is the total User Heap minus Java Heap i.e NativeHeap = UserHeap - JavaHeap
+
+Java Heap -> Java objects (Class Objects, Arrays)
+Java Heap Size performs an important role in the performance
+
+Method Area -> All the data pertaining to a class (method bytecode)
+
+*The Method Area and Java Heap is shared among the threads when program running in a multi-threading enviroment*
+Those which are not shared among the threads include
+
+Stack -> Method invocation state (in which order the methods were invoked), local variables, etc
+PC -> Program Counter to specify the next instruction of a program
+
+
+Linux Kernal vs User Space: https://stackoverflow.com/questions/17208648/linux-kernel-space-and-user-space
+Kernal: http://www.linfo.org/kernel.html
+
+
+
+Method Area And Heap
+---
+
+JVM allocates space to an object inside the heap based on how much data it contain which is based on number of instance variables and what are the
+types of those variables.
+Heap is all about objects.
+
+The methods of an object is considered to be the class data and not object data and every class data will be stored inside Method Area
+Method area is all about classes
+
+When we create a new instance of a class, the ClassLoader checks whether the instance is already on the heap otherwise JVM will create the 
+Class Object inside the heap and Class Data inside Method Area. Then if a new object is created again then only the object will be stored inside
+the heap and no Class Data will be created again as ClassLoader knows that Class Data is already being created
+
+The Method Area will include
+  .Names of type, super class, super interface
+  .Class or Interface
+  .Modifiers like public, abstract etc
+  .Field information and their types. If the field is an instance variable with primitive data type then the value itself will be stored inside the
+   heap. If the field is static then the value will be stored inside method area. If the field type is any object then the object will be stored
+   inside heap whether it is static or non-static
+  .Method information liek method name, type, number of parameters, return type etc
+  .Method table that contains array of references to instance methods. If an instance method is executed then method table would be used to find the
+   method code that needs to be executed (contains pointer to the method bytecode)
+  
+All these meta-information can be accessible by the Class object 
+
+In Method tables, the order in which the methods are written in class file do make an impact. If foo() is written after bar() then the method
+table will contain methods as
+  index 0 -> bar()
+  index 1 -> foo()
+
+Method Tables only applicable for instance methods and not static methods as static methods are statically bound. JVM already know at compile time
+where these static methods are.
+Also Method tables only applicable for concrete classes and not abstract classes as they cannot be instantiated
+ 
+In Method tables, references to super class methods will be stored first before the methods of the own class and it is only applicable to classes
+only and not interfaces which leads to an interesting fact that when invoking a method overriden from interface will be slight slower than that of
+class because JVM will have to search the method table to find that method. For classes, JVM would know the index already as method table will
+contain super class methods first and then the current class methods. See figure!
+   .The slowness is very minimal and not to be concerned of
+
+
+
+
+
+
+
+
+Stack
+--
+
+A type of Runtime Data Area
+
+JVM needs to track about the methods and currently executing methods
+Information related to method execution in the order are stored on stack
+Stack also stores information about local variables in each method
+
+Each thread has its own stack
+2 users of a web application will be served via different threads and stack
+
+Stack Frame Contents include
+
+1) Local Variable Array
+     .Stores all local variables of a method including method parameters as they are also local variables. Method parameters are stored before any
+      method local variables inside the array. If the method is an instance method then the first element of array (0th index) will be the "this"
+      reference to access any instance properties. If method is a static method then 0th element will be first parameter of the method.
+      The array also contains the return address. When the method completes its execution then the Program Counter will be updated with that return
+      address so that JVM execution engine will execute instruction at that memory address
+
+
+2) Operand Stack
+     .It holds the operand used by operators to perform operations.
+     .JVM Uses operand stack just like CPU uses General Purpose Registers
+     
+   Example
+   int x = 1;
+   int y = 3;
+   int z = x + y
+   
+   Corressponding Operand Stack (Bytecode Instructions)
+   iconst-1  ->  push the value "1" to the top of stack
+   istore-1  ->  pops the value on top of stack and store the value inisde local variable array at index 1("i" represents int data type)
+   iconst-3  ->  push the value "3" to the top of stack
+   istore-2  ->  pops the value on top of stack and store the value inisde local variable array at index 2("i" represents int data type)
+   iload-1   ->  load the value from local variable array at index 1 and push to operand stack
+   iload-2   ->  load the value from local variable array at index 2 and push to operand stack
+   iadd      ->  pops the 2 elements from top of operand stack and perform add operation and sets back result into operand stack
+   istore-3  ->  pops the value on top of stack and store the value inisde local variable array at index 3("i" represents int data type)
+
+
+
+
+
+Bytecode Instruction
+--
+
+We can use javap Disassembler to see the corressponding byte code of out program that comes with jdk
+   .javap -v Hello.class
+   
+   
+Useful Flags
+  .-c : prints bytecode of each of the methods in the class
+  .-v : prints bytecode of each of the methods in the class including constant pool and some meta information
+
+
+
+Create a .java file compile it to get the .class file and then use javap
+   .javac Hello.java
+   .javap -v Hello.class

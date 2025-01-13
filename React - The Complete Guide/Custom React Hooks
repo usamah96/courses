@@ -1,0 +1,77 @@
+Custom React Hooks
+--
+
+Custom hooks are functions that contain stateful logics. Unlike regular function, custom hooks can also make use of built in react hooks
+It is used to make our code re-usable
+
+When using custmo hooks inside a component, the state of the hook is tied with that component only. If we are using useState or useEffect inside our
+custom hook, these hooks are tied with that particular component only. Using the custom hook inside some another component will fire the code and
+react hooks state again for that component. The logic is shared between component and not the state
+
+Basic Counter Example
+2 components in which one is incrementing the counter and other is decrementing
+
+Forward.js
+
+const [counter, setCounter] = useState(0);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCounter((prevState) => prevState + 1);
+  }, 1000)
+  return () => clearInterval(interval);
+}, [])
+
+return <div> {counter} </div>;
+
+Backward.js
+
+const [counter, setCounter] = useState(0);
+
+useEffect(() => {
+  const interval = setInterval(() => {
+    setCounter((prevState) => prevState - 1);
+  }, 1000)
+  return () => clearInterval(interval);
+}, [])
+
+return <div> {counter} </div>;
+
+
+The code is exactly the same but the only difference is that the counter is incremented or decremented
+We can make a custom hook which can re-use the code and make it configurable to either increment or decrement our counter
+
+use-counter.js
+
+const useCounter = (forward = true) => {
+  const [counter, setCounter] = useState(0);
+  
+  useEffect(() => {
+  const interval = setInterval(() => {
+    if(forward) 
+      setCounter((prevState) => prevState + 1)
+    else 
+      setCounter((prevState) => prevState - 1)
+  }, 1000)
+  
+  return () => clearInterval(interval);
+  }, [forward]);
+  
+  return counter;
+}
+
+Now we can use it as,
+
+Fowrard.js
+const counter = useCounter(true);
+return <div> {counter} </div>
+
+Backward.js
+const counter = useCounter(false);
+return <div> {counter} </div>
+
+
+
+
+A more realistic example would be to make a custom hook for sending http requests
+We can make useHttp custom hook to send any kind of request to any url and provide any implementation related to formatting data

@@ -1,0 +1,35 @@
+Spring Cloud Bus
+--
+
+-To apply dynamic configuration updates to our microservices while our app is running
+-The properties will be loaded first time only from the config server and we have to restart all our services if any changes are made to the
+config properties.
+-Spring cloud bus helps push updates to these configuratuion while the services are running.
+-Our microservice will be used as a subscriber to config-server
+-The updates in the config-server will be broadcasted to all the subscribers with the help of messaging technology, 
+    *(AMQP -> Advanced Messaging Queuing Protocol)
+-We also have to configure RabbitMq which is a messaging broker. Gives application common platform to send and receive messages
+-When we update any changes to our config-server properties and want to broadcast to our microservices about the changes, we hit a POST
+request to an endpoint /bus-refresh
+
+-Add the 2 new depdencies to config-server and all the microservices that needs update of properties
+   *spring-cloud-starter-bus-amqp
+   *spring-boot-starter-actuator (for the use of /bus-refresh POST request)
+
+-Add the following into config-server properties to enable bus-refresh endpoin
+   *management.endpoints.web.exposure.include=bus-refresh
+
+-Download, Install and Run RabbitMQ
+-The server will be running on localhost:15672 with guest as username and password
+
+-Add the following properties to all the rabbitmq clients (config server, microservices)
+   *spring.rabbitmq.host=localhost
+   *spring.rabbitmq.port=5672
+   *spring.rabbitmq.username=guest
+   *spring.rabbitmq.password=guest
+
+-Run the server and all the services
+-Test with old values
+-Go to guthub and change the properties
+-Hit an endpoint localhost:8888/actuator/busrefresh with POST request. (the port is of config-server)
+-Test again and the new value should be populated from property file

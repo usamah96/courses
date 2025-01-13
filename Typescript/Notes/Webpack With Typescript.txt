@@ -1,0 +1,119 @@
+Webpack with Typescript
+-------
+
+-Bundling tool that help bundle our files together
+
+Problem:
+-In our project we have a lot of files and all the files required export and import to be used
+by oher files
+-If we have 10 files and our app.ts file has 10 import statements, the browser will generate 10
+http request to download that file and prepare the JS file to be used by the browser. See the network
+tab once the browser is refreshed
+-Now these request take some time and if out project is deployed to a server we can face certain amount
+of latency
+
+
+-Webpack helps in reducing all these htp requests
+-It also optimises our code (minify).
+
+For Using
+Install a couple of dependencies
+npm install --save-dev webpack webpack-cli ts-loader typescript webpack-dev-server
+
+Understanding all the dependencies intalled
+..
+webpack: heart of all the setup we are gonig to create (combine all our js code and bundles it)
+webpack-cli: run webpack command in our project
+webpack-dev-server: starts webpack under the hood, watches files for changes, automatically triggers
+webpack when something changes and servers our pages
+typescipt: other than install typescipt globally, it is a good practice to install typescript per
+project because if you have you global version changed, the installed typescript version in the 
+project will be the same as installed and it will not break our code.
+ts-loader: used with webpack and it tells the webpack how to convert the TS code into JS
+
+
+Configuring the project to use webpacl
+"target" -> es5 or es6
+"module" -> es2015
+"outDir" -> specify output file
+"sourceMap" -> true
+no rootdir needed as webpack will detect automatically
+
+Add a configuration file besides tscconfig.json
+
+a- Specify the entry point. In our case we have app.ts file
+   webpack will look into the imports of app.ts file and the import of the imports and so on till it
+   detects all the imports and files.
+b- Remove all the extensions in the import as webpack will automatically look for it
+c- Speicfy the filename to contain all JS code
+d- Specify the path to stor the file. Should be same as tsconfig.json outDir but should contain as an
+absoulte path. Use path.resolve() to generate absoulte path. Also specify the publiPath for webpack-dev-server
+e- Tell webpack what to do with the typescript files and imports inside a module property
+f- Specify certain rules that should be applied to all the files
+g- rules will be an array that will hold the "test" key that will run on all the files
+h- rules will be an array that will hold the "use" key that will specify what should do with that files
+i- rules will be an array that will hold the "exclude" key that will files/folders not to take into consideration
+j- specify the resolve object to tell the extensions that our imports will carry we have removed it earlier
+
+"webpack.config.js"
+Export a JS object in a nodejs way
+..
+const path = require("path")
+module.exports = {
+  entry: "./src/app.ts",
+  output: {
+    filename: 'bundle.js',
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: "dist"
+  },
+  devtool: 'inline-source-map' // For good Dev experience. Relates with sourceMap key in tsconfig.json. We can debug in the browser under the webpack option in dev tools
+  module: {
+    rules: [
+      test: /\.ts$/,    // Look for files that has extension ts
+      use: 'ts-loader'  // All TS files should be handled by the ts-loader tht knows how to deal with a TS file
+      exclude: '/node_modules/'
+    ]
+  },
+  resolve: {
+    extensions: ['.ts', '.js']
+  }
+}
+
+-Inside tsconfig.json under scripts section add
+"build": "webpack"
+-Now execute npm run build and it will generate bundle.js file which will be minified and optimized
+-Now in our network tab only the http request is generated is against the bundle.js file
+
+
+
+Using the webpack-dev-server
+Go inside tscnfig.json file under scripts add,
+"start": "webpack-dev-server"
+
+
+
+If using the webpack for development specify the mode key before entry key inside webpack.config.js file 
+so that we can see the error msgs more meaningful and less optimized code so that we can debug it easily.
+
+
+
+If using the webpack for productiong
+Create another file webpack.config.prod.js
+Copy all the code from webpack.config.js and tweek a little bit
+..
+-change mode to production
+-set devtool to none because we dont want our whole TS code inside dev tools
+-specify the plugin key after resolve to tell webpack to delete our previous bundle.js file and create
+new file whenever we build our project. For that we need to install a package
+npm install --save-dev clean-webpack-p
+Usage.
+const CleanPlugin = require('clean-webpack-plugin')
+plugin: [
+  new CleanPlugin.CleanWebpackPlugin()
+]
+-It will tell webpack to clean whatever insite the "output" key before generatin new output
+
+-To use this file instead of default webpack.config.js
+-Inside tsconfig.json set the "build" to "webpack --config webpack.config.prod.js"
+-The --config tells what file to use other than default file
+-Run npm run build and good to go

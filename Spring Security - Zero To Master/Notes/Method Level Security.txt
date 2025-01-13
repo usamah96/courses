@@ -1,0 +1,70 @@
+Method Level Security
+--
+
+Method level security is used to protect methods inside our controllers, serices or repositories
+We can leverage this feature as a second level security after securing our web apis. Also when we are developing any desktop application where
+apis are not there, then this kind of security is very handful.
+
+Method level security provides following approaches of authorization
+  1) Validates if certain user can invoke the method or not
+  2) Validates what the method can receive through its parameters and what the invoker can receive back from the method
+  
+We have to apply this annotation to enable the method level security, @EnableMethodSecurity
+Inside this annotation there are certain attributes
+  1) securedEnabled, if set to true then it will allow using of @Secured annotation. By default it is set to false
+  2) prePostEnabled, if set to true then it will allow using of @PreAuthorize() and @PostAuthorize() annotation. By default it is set to true
+  3) jsr250Enabled, if set to true then it will allow using of @RoleAllowed() annotation. By default it is set to false
+  
+@Secured and @RoleAllowed annotations are less powerful then @PreAuthorize and @PostAuthorize
+
+We can use many different options inside @PreAuthorize and @PostAuthorize annotation likes,
+..
+  @PreAuthorize("hasAuthority("VIEW_LOANS")")
+  OR
+  @PreAuthorize("hasRole("ADMIN")")
+  OR
+  @PreAuthorize("#username == authentication.principal.username")
+  public Loan getUserLoan(String username){
+    ..
+  }
+..
+
+..
+  @PostAuthorize("returnObject.username == authentication.principal.username")
+  OR
+  @PostAuthorize("hasPermission("returnObject, 'ADMIN'")")
+  public Loan getUserLoan(String username){
+    ..
+  }
+..
+
+We can use hasAnyAuthority, hasAuthority, hasRole, hasAnyRole in any of the @PreAuthorize and @PostAuthorize.
+
+There is an interface PermissionEvaluator which ha 2 abstract overloaded methods hasPermission() which we can override and check for complex
+permission logic and return true or false. In this way we can leverage this interface also to be evaluated in @PostAuthorize("hasPermission")
+
+Similar to @PreAuthorize and @PostAuthorize, we have filtering criteria in the form of @PreFilter and @PostFilter. These 2 annotations are 
+applied when we are dealing with the Collection interface as an input and output.
+
+@PreFilter is useful when we want to filter out some elements before the method starts
+Example
+..
+  @PreFilter("filterObject.contactName != Test")
+  public List<ContactResponse> saveConteactInfo(@RequestBody List<Contact> contacts){
+    ..
+  }
+..
+
+Here, all the contacts will be filtered out with contactName property as Test and only those will come in the method not having contactName as
+Test.
+
+Similarly we can use @PostFilter annotation to filter out unwanted data
+Example
+..
+  @PostFilter("filterObject.contactName != Test")
+  public List<ContactResponse> saveConteactInfo(@RequestBody List<Contact> contacts){
+    ..
+  }
+..
+
+This will execute the method and before returning it will filter out all the contacts with the contactName as Test.

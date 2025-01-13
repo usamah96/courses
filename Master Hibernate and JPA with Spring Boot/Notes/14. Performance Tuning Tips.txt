@@ -1,0 +1,51 @@
+Performance Tuning Tips
+--
+
+For Performane Tuning
+
+Tip 1
+..
+-Always first monitor the performance, then tune it up.
+-Premature (done before, too early) performance is the root of all evil
+
+
+Tip2
+..
+-Create the right indexes for your database
+-The primary key is being indexed automatically
+-If you application queries a table with a certain column frequently, then create an index for it.
+-For example finding a student by their city
+
+
+Tip3
+..
+-Use appropriate Caching
+-Dont make the first level cache so big that searching becomes slow
+
+
+Tip4
+..
+-Use Lazy Fetching strategy mostly
+-Relationships with ToOne (ManyToOne, OneToOne) are Eager by default and ToMany (OneToMany, ManyToMany) are Lazy by default
+
+
+Tip5
+..
+-Avoid n+1 problem
+-3 solutions to avoid it
+-Either use Eager Fetch but thats not the best strategy
+-Use entity graph with entity manager
+-Use Join Fetch on query level
+
+Example (Entity Graph)
+..
+EntityGraph<Course> eGraph = em.createEntityGraph(Course.class);
+SubGraph<Object> subGraph = eGraph.addSubgraph("students");
+
+List<Course> courses = em.createQuery("Select c From Course c", Course.class).setHint("javax.persistence.loadgraph", eGraph).getResultList();
+for(Course c : courses){ 
+  log.info(c.getStudents()); 
+}
+
+-We are setting the hint to tell that when loading the courses, also load the students as well
+-Hibernate will generate left outer joins with students table as well

@@ -1,0 +1,179 @@
+View Encapsulation
+-----
+
+Under The Hood
+
+We know that every individual component has its own css file and the purpose of this is that
+angular encapsulates the styles according to the component. The global style file is style.css
+and there is a separate file for the component styling.
+
+Behind the scenez how angular identifies individual styling.
+-Angular by default applies some attributes to individual components with some counter number.
+..
+Assume having app.component.html and a generated component <app-comp-one>
+
+<h1> Hello From App </h1>
+<app-comp-one></app-comp-one>
+
+Inside app-comp-one.html
+<h1 class="app-1"> Hello From Comp One </h1>
+
+Inside app-comp-one.css
+.app-1{ color: red }
+
+-Angular will individually assign attributes to different components like when you inspect you
+will see
+..
+
+<h1 _ngContent-ajx-11> Hello From App <h1>
+<app-comp-one _ngContent-ajx-11>
+  <h1 _ngContent-ajx-12 class="app-1"> Hello From Comp One </h1>
+</app-comp-one>
+
+In the styles we will see,
+.app-1[ngContent-ajx-12]{ color: red; }
+
+These attributes will differentiate the styling. So if we have another component and inside it
+we also have app-1 selector for styling, it will differentiate it with ngContent-ajx-13. No
+overriden of styling will be done
+
+
+
+
+
+
+The Host Selector
+
+-Special property available with angular view encapsulation mechanism that allows us to target
+the host element of the component
+..
+If we have this inside app.component.html
+<h1> Hello </h1>
+<app-comp-one></app-comp-one>
+And if we need to apply some styling to the component's host element which is 'app-comp-one'
+we need to apply it like this
+..
+Inside app.component.css or style.css
+app-comp-one{ display: block }
+
+But the style is related to app-comp-one so its better to move this style inside app-comp-one.css
+but there we cannot style it like this because angular can only see the inside html of the
+component and not the host element. We need to use the special keyword.
+
+Inside app-comp-one.component.css
+:host{ display: block; }
+
+
+
+
+
+
+
+
+
+Bypassing View Encapsulation with ng-deep
+
+-There is a situation where you need to by pass the angular default view encapsulation
+mechanism and that is when you are content projecting some of the elements
+..
+
+Inside app.component.html
+..
+<h1> Hello From App </h1>
+<app-comp-one>
+  <div class="comp-description"> Some Description </div>
+</app-comp-one>
+
+Inside app-comp-one.component.html
+<h1> Hello From Comp One <h1>
+<ng-content select=".description"></ng-content>
+
+When applying styling to comp-description selector, it will only work either in app.component.css
+or inside global style.css. But since the description is related to the component, we have to
+move the styling to app-comp-one.component.css
+Inside app-comp-one.component.css
+..
+.comp-description{ margin: 0 auto; color: red }
+
+But the style wont be applied to it because since the <div> is not part of the app-comp-one
+and it has been content projected. Angular will consider it as a part of app.component.html
+and will apply its attribute i.e: ngContent-ajx-11. So here we need to by pass angular
+view encapsulation using ng-deep
+..
+Inside app-comp-one.component.css
+::ng-deep .comp-description{ margin: 0 auto; color: red; }
+
+Anything after ::ng-deep will not be considered as part of the component.
+Anything before ::ng-deep will still be considered as part of the component.
+
+.course-image ::ng-deep .course-description{ margin: 0 auto; }
+Here angular will do this
+.course-image[ngContent-ajx-12] .course-description{ margin: 0 auto }
+-So .course-image still encapsulated, but .course-description is considered as globally
+
+One of the use case of using ng-deep is when you are content projecting some elements.
+
+
+
+
+
+
+
+
+
+Host Context Selector
+
+-If we want to apply some theme using a css class to a component and the theme is being
+selected from the parent component then we can use host context selector
+..
+Inside app.html
+<h1> Hello From App </h1>
+<div class="salmon-theme">
+  <div> Test </div>
+  <app-comp-one></app-comp-one>
+</div>
+
+Now we want to apply class "salmon-theme" as a parent to the app-comp-one
+
+Inside app-comp-one.html
+<div class="app-1">
+  <h1> Hello From Comp One </h1>
+</div>
+
+Inside app-comp-one.css
+..
+If we do this,
+.salmon-theme .app-1{ background: salmon; }
+-Since .salmon-theme belongs to app.html it wont get affected here
+
+If we do this,
+::ng-deep .salmon-theme .app-1{ background: salmon; }
+-This would work as expected but since every selector is after ng-deep, our .app-1 will also
+get affected by it.
+
+Solution
+:host-context(.salmon-theme) .app-1{ background: salmon }
+-This will not change the view encapsulation mechanism for .app-1 but will make .salmon-theme
+visible to all
+
+
+
+
+
+
+
+
+
+
+Default Vs Shadow DOM
+
+Different modes are there for ViewEncapsulation
+
+1- Emulated: Default by angular which applies different attributes to the component
+2- None: Will consider every style globally and will eventually combine all the style 
+into a single global file
+3- ShadowDom: Works similarly to the Emulated one but the difference is that angular will not
+apply different attributes to the individual component but instead it will create a separate
+shadow root under each component and under this shadow root all the styles will be applied which
+will only be seen to the component itself.
+4- Native: Deprecated and not recommended to be used.

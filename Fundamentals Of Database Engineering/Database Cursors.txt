@@ -1,0 +1,65 @@
+Database Cursors
+--
+
+It is a very bad idea to work with very large resultset like if we have a table with 12 million rows and we execute the query
+"select id from grades where grades between 90 and 100" then it will take so long to execute the query
+This query can return upto 1 or 2 million records
+
+Sometimes there is no other way but to work with large result set. The database does a lot of work. At first it needs to execute
+the query plan to check what indexes to use and all that stuff. Next the database does the actual fetching. Then it compiles the
+result and if the query is executed from a different machine then it needs to transmit the resultset onto the TCP protocol to
+pass the data onto the network.
+The client will have to wait for all the results to come back and also should have enough memory storage to store all the results
+too
+
+For these reasons, database cursors were introduced. Specifically, in server side cursors, we create cursor on database. We dont
+pull all the data from the database but instead ask the cursor to give the resultset whenever it is asked
+
+Example
+"Declare c Cursor For Select id From grades Where grade Between 90 And 100";
+
+The database will create the cursor and when we do,
+"Fetch c;"
+The database will return a single record one by one everytime
+
+Fetch C -> record 1
+Fetch c -> record 2
+Fetch c -> record 3
+Fetch c -> record 4
+
+Also we can do "Fetch Last" and in this the cursor will one by one scan the row and when it reaches the end it will return the last
+row. Somtime the database knows how to effeciently get the last row using Index Backward scan but sometome it doesn't
+
+Advantages
+ .Saves a lot of memory. We can pull 100 rows work with those hundred rows and then ask the cursor to give 100 more rows.
+ .We can stream the data into sockets and pulling the data from cursor and throwing the data into the stream
+ .Can be used for pagination
+ 
+Disadvantages
+ .It is stateful which means there is a memory allocated for it in the database
+ .Long running transactions because if we iterate through a cursor, the transaction will be keep running. Long running transactions are
+  not a good idea for databases. Shared lock will hald write operations on the table.
+  
+  
+Client Side vs Server Side Cursors
+..
+With client side cursors, all the result set is fetched once from the database and is stored on the client side. The client is now
+responsible to retrieve the data from the cursor as it is required
+The advantage is that
+  .Evetytime the data is requested, it is fetched from the client's memory and is very fast.
+The disadvantage is that
+  .The network bandwidth will be consumed as huge payload will be transferred over the network.
+  .The client's memory will be consumed.
+
+With server side cursors, the cursor itself is created on the database level and the data is fetched from the database when it is
+requested from the cursor.
+The advantage is that
+  .The load is on server and client is free from managing the cursors
+  .We can assign one thread/process to execute the task by using cursor.
+The disadvantage is that
+  .Cursors are stateful so if there are 100 200 different requests opening and closing curors, we might leak the cursor connections
+   and that is dangerous for the database
+  .Every fetched data from the cursor will invoke a database roundtrip.
+  
+When using client side cursors, never select * from table. Always use where clause and select only the required columns from the database
+or use limit to reduce the resultset.

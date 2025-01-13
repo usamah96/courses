@@ -1,0 +1,49 @@
+Collections Class
+--
+
+Similar to Arrays classs we also have a utility class Collections. It is different from the singular Collection which is an interface
+
+Some of the Operations include,
+
+1) addAll()
+   It takes a Collection interface and an array and add all the items in an array to the list.
+   We can also add all items using the Collection interface too by, 
+     list.addAll(Arrays.asList(array))
+	 but it will be slower than Collections.addAll().
+	 
+2) sort()
+   It will sort the elements of the collection.
+   Notice that the sort() will take List interface because only ArrayList or LinkedList can be sorted. There is no point in sorting HashSet
+   so there is no overload for Set interface. If a Set needs to be sorted then either convert it into TreeSet or first convert Set into
+   List then apply Collections.sort()
+   
+3) binarySearch()
+   Behaves the same way as Arrays.binarySearch().
+   The time complexity will be O(logn) if the elements are sorted. If they are not sorted then it can perform ineffecient linear search
+   It also takes List as an interface because for List it will take O(logn) time complexity. If we make use of contains() method of Collection
+   interface then it will take linear time O(n)
+   There is no overload for Set interface because it internally uses HashMap and search complexity is already constant time => O(1), and
+   for TreeSet it is already O(logn)
+   
+4) reverse()
+   It just reverses the element of the List
+   It also takes List interface only.
+   
+5) swap()
+   It swaps the element of the list based on 2 indexes provided
+   
+6) shuffle()
+   It shuffles the element and change their index position on random
+   
+7) max()
+   It returns the max element of the Collection
+   It not only takes List interface but applies to every Collection
+   Needs natural ordering (comparable interface implementation) to find the max element
+   It also has an overload that takes Comparator interface
+   
+7) min()
+   It returns the min element of the Collection
+   It not only takes List interface but applies to every Collection
+   Needs natural ordering (comparable interface implementation) to find the min element
+   It also has an overload that takes Comparator interface
+   

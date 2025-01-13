@@ -1,0 +1,51 @@
+If we pass VM argument as -verbose:class we would see all the JVM related internal classes being loaded on the console.
+
+At first the Bootstrap ClassLoader will be loaded and will load all the core Java Api Classes like,
+   .java.lang.Object
+   .Serializable
+   .Comparable
+   .CharSequence
+   ......
+   ......
+   ......
+In the end that class will be loaded which has the main() method and in this case is ClassInitializationDemo.
+
+Execution Steps
+..
+
+1) Since this class has the static initializer block so it will get executed when loaded. No instance initializer block will be run since no instance 
+   of this class is created uptil now.
+
+2) First line of main method will get executed which says "JVM invokes the mainm ethod"
+
+3) Second line will get executed which prints Subclass.STATIC_FINAL method as it is a compile time constant field and Subclass will not be loaded now.
+
+4) Third line will get executed which says "Invoking Subclass.STATIC_FINAL2"
+
+6) Now here since Subclass.STATIC-FINAL2 is not a compile time constant, it is being injected via random math function, the Subclass will be loaded
+   by the JVM. And before loading this, it will load the SuperInterface, SuperClass because it implements and extends it. Since SuperClass is loaded
+   it will run its static initializer block which says "SuperClass Static Initializer". Nothing printed from the SuperInterface because Interfaces
+   only gets initialized if any static method is accessed or any non-compile time constant filed.
+   
+7) Then classes related to math random will get loaded as JVM loads classes lazily and after that SubClass's static initializer block will get
+   executed which says "Subclass static initializer"
+   
+8) Finally fourth line will get executed and the value of Subclass.STATIC-FINAL2 will get printed now. 
+
+9) Fifth line will get executed which says "Instantiating SubClass"
+
+10) Sixth line creates new instance of SubClass and since SubClass is loaded, JVM will not load it again as it is in the memory already. Same case
+    for SuperClass as SubClass extends SuperClass. But here SuperClass instance initializer will get executed followed by its constructor due to
+    constructor chaining and the control will come to SubClass. 
+    
+11) Now SubClass's will load the instance fields which is ObjectReference instance. JVM will load the classes related to it and and executes its
+    constructor. After that SubClass instance initializer block and constructor will be executed
+    
+12) Finally the last line invokes the static method of SuperInterface which will initialzes the Interface. In the initialization phase the non
+    compile time constant field STATIC-FINAL3 field will be injected and for this ClassInitializtionDemo instance is created which will execute its
+    intance initializer block and then it will call getInt() method. After that the static method of interface will be executed.
+    
+13) Now If we uncomment the line which accesses STATIC-FINAL3 field of the interface and also uncomment the line which initialzed STATIC-FINAL5 field
+    in the interface we will see that by accessing STATIC-FINAL3 field, STATIC-FINAL5 field also gets initialzed because with interfaces we know that
+    by accessing non compile time constant filed the interface will be initialzed. 2 times the ClassInitializerDemo instance initialzer block will
+    get executed and then the actual method.

@@ -1,0 +1,192 @@
+Understanding tsconfig.json
+------
+
+-With tsc --init we get the tsconfig.json file and that tells that the project is
+under typescript compilation
+-With tsc -w, all typescript files in pur project will get compiled to JS file
+which we can run into our browser
+
+Inside tsconfig json file we have lot of options.
+
+1)
+We have the target key
+-In this we can define to what version of JS we want our TS code to get compiled.
+-By default its ES5 but we can modify it to older versions like ES3 to support older
+browsers or to the latest like ES6 (ES2015)
+-In ES5 we did not have the let and const keyword so when out TS files get compiled
+to JS, we will see all our variables changed to var
+-Byt if we set target to ES6, we can now see let and const as well
+
+
+2)
+We have the include and exclude key
+-In this we can explicitly define include and exclude key to tell what files to 
+compile and what not to compile
+-By default we have "exclude": ["node_modules"] which is not written but
+is considered as default because if there is a 3rd party package using any TS
+file, we dont want that to compile for our project
+-We can define our own files as
+"exclude": [
+  "app.ts",  // Only excludes app.ts
+  "*.dev.ts",  // Excludes all files with .dev.ts extension
+  "**/*.dev.ts"  // Exclude all files inside any folder with .dev.ts extension
+]
+
+
+3)
+We have the lib key
+-The lib key is by default commented out which means that TS includes some Core JS
+libraries by default that we can use in like,
+document.getElementById and console.log are some Vanilla JS features.
+-With lib key uncommented, we cannot use features like these not even console.log.
+For its usage we have to explicitly define in the lib array as
+"lib"" [
+  "dom",
+  "dom.iterable",
+  "es6",
+  "scripthost"
+]
+These items will ensure all core javascript features to be used inside a TS
+file. If the lib is commented out, by default it uses these 4 features.
+
+
+4)
+We have allowJs and checkJs
+-With allowJs checked to true, it will allow other JS files to be recompiled
+-With checkJs checked to true, it will not compile JS file but will check the 
+syntax of JS for any errors.
+
+
+5)
+We have the sourceMap key
+-With sourceMap checked to true, it will allow debugging the TS files in the
+browser. It will generate files with js.map extension that act as a bridge 
+which is understood by modern browsers and the developer tools
+
+
+6)
+We have the rootDir and outDir key
+-With these 2 options we can organize our files in our directory
+-With rootDir we can specify the root directory where our TS files lives
+-With outDir we can specify the output directory where we want our compiles JS
+files to live
+..
+-If we set "outDir": "./dist" and dont set rootDir
+TS compiler will look into all folders and subfolders for TS file, compile those
+into JS files and put inside dist folder. The folder structre are also replicated
+inside dist folder as in the root folder
+-If we want compiler to look into specific folder for TS files we can give rootDir
+as "rootDir": "./src"
+
+
+7)
+We have the removeComments key
+-With this, if we have comments in our TS file, those will not be reflected in
+the compiled JS files. This can be helpful to make our files smaller by removing
+all the comments.
+
+
+8)
+We have the noEmit key
+-With this checked to true, there will be no JS files created when tsc command 
+is run for the compilation.
+-This is useful, when you just want to check if you TS code is all good and no
+errors are there and you dont want to emit any output file.
+
+
+9)
+We have the downLevelIterations key
+-We can check this to true if we have loops in our TS code and the compile JS code
+is not working as expected regarding the loops.
+
+
+10)
+We have the noEmitOnError key
+-This key is not by default present in the tsconfig.json file
+-This is a very helpful key if we check this to true. By default it is false if 
+not set
+-With this key set to false, it there are errors in our TS code, it will still 
+generate JS file after compiling it and will show errors in TS compilation process.
+-Our JS code might work fine, but the errors still exist in our TS code.
+-So this key when checked to true, no JS file will get created if there are errors
+in a single TS file.
+
+
+---
+Strict Type Checking options
+-In this by default we have the stickt checked to true which means that under
+strict, all other options are checked to true.
+-We can override the default behaviour of any sub-properties of strict by
+setting them to false, but by checking strict to true means all sub-properties
+of strict are set to true.
+
+
+1)
+We have the noImplicitAny key
+-With this set to true, we get an error if TS dont recognize the type in our
+code for variable declared as any
+For example
+function printData(data){ 
+  console.log(data); 
+}
+printData("Hello");
+-As functions are declared first and calls are made afterwards, at the time of
+execution of line 1, typescript dont know of what type 'data' is so it will give
+red line underneath it. We have to specify data: string for the error to be
+removed.
+-However this dont happen with simple vatiables like,
+let logged;
+function printData(data: string){ 
+  console.log(data);
+  logged = true;
+  console.log(logged);
+}
+printData("Hello");
+-Here TS identifies logged as boolean so it will not complain
+
+
+2)
+We have the strictNullChecks key
+-With this set to true, TS will complain if it detect something to be null
+and you are performing any operation
+For Example
+const button = document.querySelector("button");
+button.addEventListener('click', () => { console.log("Hello World"); })
+-Here TS will complain on button element because it dont know whether the button
+element exist on html or not because it dont look at the html. So if button
+tag is not present, button variable will be null and you cannot call
+addEventListener on a null.
+-There are 2 possible solutions
+  a) const button = document.querySelector("button")!;
+  -The '!' will tell TS that ignore the null because the developer knows that there
+   is a button in html page.
+  b) wrap in a null check as if(button){ button.addEventListener();  }
+  -If you are unaware that button will exist in a page or not then you can wrap 
+  your code in a if block.
+
+
+-Other options dont really matter
+
+
+
+---
+Additional Checks
+
+1)
+We have the noUnusedLocals key
+-By setting this we get the compilation error if there are local variables that 
+unused in our code. The compilation error dont occurs for global variables 
+because they might be used in other scripts
+
+
+2)
+We have the noUnusedParameters key
+-By setting this we get the compilation error if there are function parameters
+that are unused in our code.
+
+
+3)
+We have the noImplicitReturns key
+-By setting this we get the compilation error if our function dont retrun in 
+every branch. Either our function dont return, or if it returns at one place it
+should return at every other place it goes.

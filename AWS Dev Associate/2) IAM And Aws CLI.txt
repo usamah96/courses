@@ -1,0 +1,147 @@
+IAM and AWS CLI
+--
+
+IAM (Identity and Access Management) is a Global service where we create users and assign them groups.
+A user is not neccessarily be a part of any group but that is not a good practice. We must assign some group to a user.
+
+At first, the root account is created and from which we create multiple users and groups. After that this root account must not
+be used or shared with anyone.
+
+The purpose of IAM is to give permissions to the users. We assign a JSON document to a user or a group of users called policies.
+These policies defines that what services and what activities on those services a certain user or group can perform.
+
+
+
+**
+Hands On IAM
+**
+
+We can simple search for IAM and from the left menue select Users.
+Create the user and assign it a group
+  .Creating user 'ad-usama' with group 'admin' and giving 'AdministratorAccess' as a policy
+Clicking on Dashboard and upon right hand side, we can give alias to our account to simplify our aws urls.
+  .Giving alias 'aws-udemy-usama' which we can use create a sign in link as => https://aws-udemy-usama.signin.aws.amazon.com/console
+  
+  
+
+
+IAM Policy Structure
+--
+The users inherit the policies in 2 ways
+  1) If a user is part of any group and that group is assigned a policy, then that user will inherit the policy
+  2) If a user is not part of any group then a policy is created called 'Inline Policy'
+  
+The policy JSON document looks like this
+{
+  "Version": "2024-03-15"
+  "Id": "S3-Account-Permission"  (Optional field. Identifier for what the policy is)
+  "Statement": [
+    {
+	  "Sid": 1 (Statement Id. Optional Field)
+	  "Effect": "Allow"  (Whether the statement is allowed or denied access)
+	  "Principal": {
+	    "AWS": ["arn:aws:iam:12345:root"]  (The account/user/role for which this policy should be applied to)
+	  },
+	  "Action": [         (List of actions this policy allows or denies as per Effect property)
+	    "s3:GetObject",
+		"s3:PutObject"
+	  ],
+	  "Resource": ["arn:aws:s3::mybucket/*"]  (List of resources for which the actions applied to as per the Actions property)
+	}
+  ]
+}
+
+
+AWS provides many pre-defined policies and we can see those in the Polcies section. Some of the pre-defined policies are
+AdministratorAccess which will give all the service access to perform any operations. Another policy is IAMReadOnlyAccess, 
+which will give IAM service access to read only data like GetGroups, ListGroups, GetUsers, ListUsers, etc...
+
+Similarly, we can create our own policy with the help of JSON policy builder which aws provides us when we click on Create Policy.
+We can choose which service to pick, which action and api calls to pick.
+
+
+There are 2 defense mechanism that we should know to protect our accounts
+  1) Password Policy, where we set passwords so that our created users and groups should not be compromised
+  2) MFA, Multi Factor Authentication which is the combination of password we choose and a security device we own.
+  
+There are 4 types of MFA device options
+  1) Virtual MFA Device
+      .We can use google authenticator for a single device and Authy for multi device. With Authy we can have multiple tokens on
+	   a single device which means we can use root account, IAM users on a single device which makes it very easy to use.
+  2) Universal 2nd Factor (U2F) Security Key
+      .It is a physical device provided by the YubiKey (3rd party Service provider). They provide their device to AWS which can 
+	   be used to use multiple root, IAM users.
+  3) Hardware Key Fob 
+      .It is also a physical device provided by Gemalto to AWS
+  4) Hardware Key Fob for AWS GovCloud
+      .If we are using Cloud for the government of US then there is a special device provided by SurePassID (3rd Party)
+	  
+	  
+	  
+AWS CLI
+--
+There are 3 ways which we can use AWS
+  1) Aws Management Console (protected by password + MFA)
+  2) AWS CLI (protected by access keys)
+  3) AWS SDK (protected by access keys)
+  
+  
+To use AWS CLI, we can download and install aws cli and run 'aws --version' command to verify if it is installed properly or not.
+With AWS CLI, we can call and access AWS through command line now.
+
+Now to access aws from CLI, we will fist have to create access keys for the user.
+  .Creating access key for admin user (ad-usama) by going on to the user, clicking on security credentials and clicking on
+   create access keys
+  .The keys generated are (Access Key: AKIAVNK5TUT447THFT6I, Secret Key: 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)
+  .Now configuring it from cli as,
+    -Command: aws configure (this will ask for keys and the region)
+	-After configuration, we can test it by typing Command: "aws iam list-users" which will list all the users
+	-Similarly, the cli command will return no response if i remove the user from admin group and if i try to access any admin
+	 related operations from cli.
+	 
+	 
+AWS also provides an in-build CLI name as AWS CloudShell where we can issue commands just like normal terminal withing the aws
+management console. We will not have to provide the keys there. As soon as we launch CloudShell it will automatically configure
+it for us with the default region selected from upper right. AWS recommends to use CloudShell instead of normal OS's terminal
+but we can use both and there is nothing harm in using the normal OS terminal.
+
+
+IAM Roles for Services
+--
+There are certain aws services which needs to perform some actions on the behalf of users, means lets say we have a service
+EC2 which is a virtual server provided by AWS and it needs to perform some actions on our behalf. So we will have to create an
+IAM Role and assign those role to that specific aws service to be able to perform the action.
+
+The Common roles includes,
+  -EC2 Instance Roles
+  -Lambda Function Roles
+  -Roles for CloudFormation
+  
+Creating an IAM Role for EC2 and attaching a permission policy to read everything inside IAM by attaching the policy named as
+"IAMReadOnlyAccess"
+  .Going to the section Roles
+  .Selecting Create Roles
+  .Selecting the type "AWS Service"
+  .Selecting "EC2" as the use case and also "EC2" in specified service
+  .Attaching "IAMReadOnlyAccess" permission policy
+  .Giving it a name and then finally creating the role
+  
+We will use this role when using the EC2 service but for now, we can have it for our records.
+
+
+IAM Security Tools
+--
+There are 2 security tools in our AWS IAM
+  .IAM Credentials Report
+    .This is on account level
+    .This contains all the users and the status of various account credentials.
+  .IAM Access Advisor
+    .This is on user level
+	.It shows the service permissions granted to the user and when those services were last accessed
+	.We can use the information to revise our policies and reduce the priviliges to the user if the services are not used for long
+	 time.
+	 
+To download the credentials report, we can go to Access Reports section on left bar and click on Credentials Report to download it
+To see the user's services through access advisor, we can go to a specific user and then click on Access Advisor tab to see
+which service is coming from which permission and if the service is not used by the user we can give granular access by restricting
+them.

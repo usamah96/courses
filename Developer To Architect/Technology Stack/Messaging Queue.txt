@@ -1,0 +1,126 @@
+Technology Stack
+--
+
+Messaing Queueing system is used where asynchronous messaging is possible where the caller does not need to wait for immediate response rather
+it can process whenever the response is available in the future.
+
+This works in this way,
+  .There are 2 ways of delivering the message which are Push and Pull.
+  .The caller, instead of directly sending the message to the receiver, delivers the message in to the messaging queueing
+  .It is the receiver's/subscribers responsibility to pull those messages from the queue or the queue itself pushes the message to the service
+  
+The Design Goal of Messaging Queue
+  .The delivery of the message is guraneteed assuming our messaing queue is highly available. Even if our subscriber service is down, it will
+   get the message whenever it will be up again.
+  .Messages are delivered in FIFO fashion so the sequence is maintained
+  .Interface Decoupling, which means that it does not matter what communication technology is being used by service 1 or by service 2. Without
+   using messaging queue if service 2 is a restful service then service 1 needs to be a restful client in order to send the message. Without
+   messaging queue, no matter service 2 is restful or ejb or SOAP based, service 1 just needs to put its message to the queue
+  .Consumer Decoupling, which means that the caller service does not need to know the host and port of the subscriber service. It just needs to
+   know the host and port of the messaing queue and then its the queue's responsibility to deliver all the messages to the subscriber. Without
+   messaing queue, the caller serivce needs to have the data for all the subscribers i.e: host and port name to deliver the message
+  .Message Rate Decoupling, which means that if the messaging queue allows different rate of messaged from both ends. Lets say service 1 is
+   sending message to the queue at a very high rate but service 2 takes time to process it. With messsaing queue, the queue will acknowledge
+   service 1 about the delivery of the message and when service 2 finishes processing previous message it starts picking new messages for
+   processing. Without messaging queue in between when service 1 sends messages at a very high rate it is very likely that service 2 goes
+   down due to overload because service 2 takes time to process each message.
+   
+   
+The consumer can chose either Push or Pull strategy for consuming the message
+  .With pull, the consumer fetches the message whenever it has free threads and computation power. Typically useful when there are streaming of
+   messages and the rate is higher (Best suited with Kafka)
+  .With push, the message is delivered whenever the queue gets the message. It is used when the rate is not higher (Best suited with RabbitMQ)
+  
+
+
+
+About RabbitMQ
+  .It is a widely used general purpose message broker
+  .Messages are being pushed to the consumer as soon as any consumer is available
+  .Messages are deleted once they are acknowledged by the consumer about its delivery
+  .The message ordering is guarenteed in fifo fashion
+  .Both persistent and transient messages are supported. Persistent means that when the message comes in the queue, it is first saved in the
+   disk and then pushed to the consumer so that the message is recoverable in case the queue is restarted or goes down. For transient message,
+   the message is not saved in disk and is directly pushed to consumer. It is used for fast processing and when there are stream of 
+   incoming messages and message lost is not a big problem.
+  .Uses in-built router exchange component that routes the message to specific queue or topic
+  
+The Flow of RabbitMQ
+When any service wants to delivers its message to rabbitmq messaging queue, the message is first arrives to exchange router component.
+From here, the message is routed to the specific topic or queue based on the message and for what it was intended for because there can be 
+multiple topics and queues. After the message is arrived in a queue then it is saved to disk if the message is persistent supported and not
+transient message. After that, the message is transferred to the slave node of rabbitmq where it is first received at exchange router
+component and the process is repeated at slave node level. Then at the master node level, the acknowledgment is sent to the service that the
+message is being received and now its the broker's responsibility to deliver the message to the subscribers. Now when any of the consumer or
+subscriber is available, the message is pushed to it and upon receiving the message the service acknowledges it for it. If there is no
+consumer, then broker will wait for it holding the message in queue till any consumer is available.
+
+All the write operations and loads are on master level. There is no read load in rabbitmq so slave node is just acting as a backup when
+the master goes down then slave is used for recovery. The service can connect to any of the node either master or slave, but if it is connected
+to slave then messages are still written to master node and then replicated to slave node. This is the reason rabbitmq does not scale well
+horizontally. It can only scale vertically.
+
+
+
+About Kafka
+   .It is an ideal choice for streaming worloads where producers producing messages at a very high rate and that is why it is much faster than
+    RabbitMQ
+   Kafka Message Storage
+    .Kafka internally writes all the messages produced by producers in a log file. It just sequentially add the message to the log file and producer's 
+     job is done which is why kafka is fast and can handle simultaneous producers. In comparison with RabbitMQ, it has to maintain certain 
+     datastructure to store the data like B-Trees (used in databases). Write overhead in B-Tree is more than that of storing just sequentially in a 
+     database.
+   Kafka Message Reading
+    .It is the consumer's responsibility to read the messages from the log files. The consumers tell kafka their offsets and the messages are read
+     from that offsets. At a later point in time the consumer can go back to older offsets also
+    .We can configure the time duration to delete the log files to free some space and also we can keep the log files forever too depending upon the
+     requirements
+    .Kafka uses OS cache to improve its performance. When the messages are written on the log file and if those messages are read by any consumer then
+     OS uses its page cache to store that messages. At a later point in time when the same messages are requested by some other consumer than those
+     chunks of messages are not read from kafka log files rather they are delivered directly from OS's page cache to improve performance. This is the
+     reason kafka is able to read very fast
+   Kafka Partitioning
+     .The log files in kafka can be partitioned to distribute the load
+	 .We can create 100 partitions of log file and each partition can be stored in a different machine. In this way kafka is horizontally scalable
+	 .On consumer end, some consumers can read from partition 0, some can read from partition 1 and so on. So at consumer end, it is horizontally
+	  scalable too.
+	 .The trade-off with this approach is that the global ordering of message is lost because data is distributed among multiple partitions. One
+	  solution to this is that, producer can choose at which partition they want to store data so we can assign producers to store specific data
+	  at specific partitions only so that the order is maintained for that specific data. If that is not the case then we have to maintain a single
+	  log file and we cannot scale log file horizontally.
+   Only Pull
+     .The consumers can only pull the data. There is no concept of kafka pushing the messages to the consumer
+	 .Due to this feature, kafka is not designed for service integration where service A needs to push data to service B.
+   Streaming Analytics
+     .Kafka is designed and is very useful for streaming analytical worloads like we want to view page clicks in our website using click streams,
+	  logging, ingestion, etc. It is designed to manage high incoming messages.
+	  
+	  
+	  
+About Redis
+  .Redis is an excellent choice for in-memory datastore but it has additional functionality which is Pub/Sub model when it comes to certain kind
+   of problems
+  .Consider redis when we just need to pass on the messages to the subscribers without any persistence of data
+  .The topics in redis are called channels
+  .When the publisher publishes the message to channel, the message is immediately sent to the subscribers and if any subscriber is down at the moment
+   it would miss the message and not get it when it comes up again because messages are short lived. It is much lika synchronous called
+  .Redis does not guarentee delivery. If it fails to deliver the message it will not deliver it again
+  .Use cases like showing a leaderboard of a game best fits this scenario where the status of each player changes in a matter of seconds. The messages
+   are sent to every user seeing the leaderboard. If any message is missed due to bad connection, then its not a big deal because the next set of 
+   messages are more important than old message. If the old message is delivered after a period of time then it will make no sense because leaderboard
+   status is gone beyond that state.
+  .It supports millions of message per second and best bits for the scenario where we want to fire a message and forget about it (Fire and Forget)
+  .We can compare it with RabbitMQ in such a way that we can run RabbitMQ in transient mode. In this way it will just deliver the message but with
+   RabbitMQ there is still delivery acknowledgment and if any subscriber is not available then it will try to deiver that message when it comes back
+   up again. For leaderboard scenario, it is useless because old messages are meaningless
+  .For Kafka, there is no comparison because kafka works on pull model and stores message on log files.
+  .For scenarios like leaderboard, redis is best choice
+ 
+ 
+ 
+The Cloud Solutions for Messageing Queues are,
+  .If need to replace self managed RabbitMQ cluster then we can go for Amazon SQS
+  .If need to replace self managed Kafka then can go for Amazon Kinesis
+  .Goolge provides a Pub/Sub model which can do both Push and Pull strategy and can be replaced for both RabbitMQ and Kafka
+  .These services work in a similar way as RabbitMQ or Kafka but the only difference is that they are managed by the cloud itself about their
+   reliability and availability.

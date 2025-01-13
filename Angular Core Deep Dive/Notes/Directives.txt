@@ -1,0 +1,198 @@
+Directives
+----------------
+
+Custom Attribute Directive
+
+-Create using ng g d highlighted
+-the directive will be instantiated whenever it is applied to any host element 
+
+<course-card [course]="courses[0]" highlighted></course-card>
+
+Here <course-card> is the host element of the directive 'highlighted'
+
+-The HostBinding decorator allow us to modify the DOM properties of the host element like
+classes, styles and attributes.
+
+.highlighted{ border: 1px solid red; }
+
+@Directive({
+  selector: '[highlighted]'
+})
+export class HighlightedDirective{
+
+  @Input('highlighted') isHighlighted: boolean = false;
+
+  @HostBinding('class.highlighted')
+  get cssClass(){ return isHighlighted }
+
+  @HostBinding('style.width')
+  get cssStyle(){ return "120px" }
+
+  @HostBinding('attr.disabled')
+  get attributes(){ return "true" }
+}
+
+
+-The HostListener decorator allow us to interact with the native DOM events of the host
+element
+
+@Directive({
+  selector: '[highlighted]'
+})
+export class HighlightedDirective{
+
+  @Input('highlighted') isHighlighted: boolean = false;
+
+  @HostBinding('class.highlighted')
+  get cssClass(){ return isHighlighted }
+
+  @HostListener('mouseover')
+  onMouseOver(){ this.isHighlighted = true; }
+
+  @HostListener('mouseleave')
+  onMouseLeave(){ this.isHighlighted = false; }
+}
+
+
+We can also grab the event and emit the values if we want from the directive to the component
+
+@Directive({
+  selector: '[highlighted]'
+})
+export class HighlightedDirective{
+
+  @Input('highlighted') isHighlighted: boolean = false;
+  @Output() toggle = new EventEmitter();
+
+  @HostBinding('class.highlighted')
+  get cssClass(){ return isHighlighted }
+
+  @HostListener('mouseover', ['$event'])
+  onMouseOver($event){ 
+    this.isHighlighted = true;
+    console.log($event);
+    this.toggle.emit(this.isHighlighted);
+  }
+
+  @HostListener('mouseleave')
+  onMouseLeave(){ 
+    this.isHighlighted = false;
+    this.toggle.emit(this.isHighlighted);
+  }
+}
+
+Inside app.component.html
+<course-card [course]="courses[0]" highlighted (toggle)="onToggle($event)"></course-card>
+
+Inside course-card.component.ts
+onToggle(isHighlighted){ console.log(isHighlighted); }
+
+
+
+
+
+Export As and when to use it.
+-If we want to access the directives internal methods.
+
+@Directive({
+  selector: '[highlighted]',
+  exportAs: 'hl'
+})
+export class HighlightedDirective{
+
+  @Input('highlighted') isHighlighted: boolean = false;
+  @Output() toggle = new EventEmitter();
+
+  @HostBinding('class.highlighted')
+  get cssClass(){ return isHighlighted }
+
+  @HostListener('mouseover', ['$event'])
+  onMouseOver($event){ 
+    this.isHighlighted = true;
+    console.log($event);
+    this.toggle.emit(this.isHighlighted);
+  }
+
+  @HostListener('mouseleave')
+  onMouseLeave(){ 
+    this.isHighlighted = false;
+    this.toggle.emit(this.isHighlighted);
+  }
+
+  toggleHighlighter(){
+    this.isHighlighted = !this.isHighlighted;
+    this.toggle.emit(this.isHighlighted);
+  }
+}
+
+Inside app.component.html
+<course-card [course]="courses[0]" highlighted #highlighter="h1" (toggle)="onToggle($event)">
+</course-card>
+Now we can use this highlighter to access the methods
+<p (dblClick)="highlighter.toggleHighlighter()"> Double Click Me. </p>
+
+Or inside course-card component.ts
+@ViewChild(HighlightedDirective, {static: false}) highlighter: HighlightedDirective;
+
+
+
+
+
+
+
+
+Structural Directive
+-They have the additional feature of the star syntax
+-Under the hood angular creates a ng-template and then the structural directive is applied to
+this template as an attribute directive.
+..
+When we write
+<div *ngIf="true"> Hello </div>
+
+Under the hood angular does this,
+<ng-template [ngIf]="true"> 
+  <div> Hello </div> 
+</ng-template>
+
+Or when we assign any variable like
+<div *ngIf="course[0] as course">
+  {{ course.name }}
+</div>
+
+Angular BTS does this,
+<ng-template [ngIf]="course[0]" let-course>
+  <div> {{course.name}} </div>
+</ng-template>
+
+
+
+Custom Structural Directive
+-Creating a directive opposite to ngIf, means to display something when condition is set to false.
+ng generate directive ngx-unless
+..
+@Directive({
+  selector: '[ngIf]'
+})
+export class ngxUnless{
+  visible: boolean = false;
+  constructor(private templateRef: TemplateRef<any>, viewCont: ViewContainerRef){}
+  @Input()
+  set ngxUnless(condition: boolean){
+    if(!condition && !visible){ 
+      this.viewCont.createEmbeddedView(this.templateRef);
+      this.visible = true;
+    }
+    else if(condition && visible){
+      this.viewCont.clear();
+      this.visible = false;
+    }
+  }
+}
+
+-templateRef is for grabbing the ng-template programmatically which is created under the hood 
+by angular itself.
+-viewContainerRef is for instantiating the template. The template is not going to display the
+html inside it by itself. We need to instantiate it by our self.
+-the visible property is to keep track whether the view is instantiated or not because we dont
+know how many times angular calls the setter of this directive so to avoid creating view if
+it is already been created we have to keep track of it by the use of visible flag.

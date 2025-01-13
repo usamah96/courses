@@ -1,0 +1,191 @@
+Exceptions With Best Practices
+---
+
+We have a class called Throwable (java.lang.Throwabale) which is the super class for all Exceptions
+
+1) Checked Exception
+     .Exceptional Statements
+     .Compiler ensures to handle the exception with try/catch block and also ensures to inform the invoking method by using throws keyword
+
+
+2) Unchecked Exceptions
+     .Runtime Exceptions or Errors
+     .Caused by programming faults or system errors
+     .Compiler does not ensures it since they are programming faults, but we can catch it as it is optional.
+     
+In catch block, the sub class should be caught before the super class. The order should be sub-class -> super-class
+
+Exception and Method Overriding
+..
+Rule 1: If the super class method does not declare an exception, then the overriding method in the subclass cannot declare a checked exception, 
+but can declare an unchecked exception.
+
+Rule 2: 
+(a) If the super class method declares a checked exception, then the overriding method in the subclass can declare same exception or a subclass 
+    exception or no exception at all, but cannot declare parent exception.
+(b) If the super class method declares an unchecked exception, then the overriding method can declare any unchecked exception or no exception at 
+    all, but cannot declare a checked exception.
+
+
+Finally Block
+  .Optional block that containts the cleanup code like closing of opened resources like database connections, files, etc.
+  .It will always get executed until and unless some sever JVM error occurss or some one calls System.exit(int) which terminates the JVM
+  
+The try block must have at-least one catch block or a finally block. It cannot stay alone
+
+Possible situation
+1) If no excetpion is generated then try block will be executed, finally will be executed and the code after finally block
+2) If exception is generated then the rest of the try block is skipped, the catch block will be executed which catches the exception, finally will be
+   executed and the code after the finally block
+3) If exception is generated then the rest of the try block is skipped, finally will be executed if no catch block catches the exception and the
+   rest of the code after finally will also be skipped and the control will be back to the invoking method and the process repeats.
+4) If the exception is generated then the rest of the try block is skipped, catch block will be executed which catches the exception, and if that
+   catch block also throws the exception then finally will be executed and the rest of the code after finally will be skipped and the control will 
+   be send to the invoking method and the process repeats.
+   
+
+Try with Resources
+  .Introduces in Java 7
+  .Without try-with-resources we have to create a finally block to close the resources and also in that finally block we have to check if the
+   resource object is not null then close it and enclose that code in a try/catch block also so it becomes very ugly
+  .With try-with-resources, the JVM auto inserts finally block with resource closing code in a byte-code so we dont have to do that manually
+  .Try with resources only work if the declaration and initialization is done at the same place. We cannot declare outside the block and initialize
+   in the try-with-resource block
+  .The object constructed inside try-with-resources block is by default final so it cannot be re-assigned inside the try block.
+  .Since with try-with-resources the resources are managed implicitly, this phenomenon is called ARM (Automatic Resource Management)
+  
+Example without try-with-resources
+
+1)
+FileInputStream in = null;
+try {
+  ...
+  in = new FileInputStream(fileName);
+  ...
+  ...
+} 
+catch(FileNotFoundException fne) {}
+catch(IOException ioe) {}
+finally {
+  try{
+    if(n != null ) n.close();
+  }
+  catch(IOException ioe) {}
+}
+
+Example with try-with-resource
+
+2)
+try(FileInpueStream in = new FileInputStream(fileName){
+  ...
+  ...
+}
+catch(FileNotFoundException fne) {}
+catch(IOException ioe) {}
+
+Multiple resources can also be opened at the same time in try-with-resource block. We will separate the opening of the resources by semi-colon.
+Note that the resources will be opened from left to right and closed right to left. If any resources failed to open then all the left hand side
+opened resources will be closed.
+
+Example Opening multiple resources
+try(FileInputStream in = new FileInputStream(fileName1); 
+    FileOutputStream out = new FileOutputStream(fileName1)){}
+    
+The class used inside try-with-resources must implement Autoclosable interface which only has one method close(). If the close() method
+does not throw any exception then the try-with-resources can be written without ant catch or finally block.
+
+
+Suppressed Exception
+  .When Exceptions are suppressed by any important or upper level exception
+  .We know that if the close() method of Autocloseable interface throws an exception then the try-with-resource need to handle it but if the
+   try block itself throws an exception, then the close() method's exception will be suppressed by the try block's exception
+
+Example
+
+class Test implements AutoCloseable {
+
+  @Override
+  public void close() throws Exception {
+    throw new Exception("Close Exception");
+  }
+}
+
+try (Test t = new Test()) {
+  throw new IOException("Test Exception");
+} 
+catch (IOException ioe) {
+  System.out.println(ioe.getMessage()); -> Prints Test Exception
+  System.out.println(ioe.getSuppressed()[0].getMessage()); -> Prints Close Exception
+} 
+catch (Exception e) {
+  System.out.println(e.getMessage());
+}
+
+The control flow will be on IOException catch block. We can get the suppressed exception by getSuppressed() method that returns an array of
+Throwables.
+
+
+Masked Exception
+  .When the exception gets lost
+  .See the example where Exception 1 gets lost and ignored
+  .One solution is to add the Exception 2 inside Exception 1 suppressed with addSuppressed(e) method.
+  
+Example
+
+try{
+  throw new IOException("Exception 1");
+}
+catch (IOException ioe){
+  throw new RuntimeException("Exception 2")
+}
+
+
+Best Practices
+1) Always throw checked exception for exceptional cases. Create custom exception and extend from checked exception so that compiler will ensure to
+   handle it
+2) Dont ignore any exception
+3) Always provide meaningful information separately when throwing exceptions
+4) Use specific exception rather than generic one like "throws Exception" or "throws Throwable"
+5) Do Exception Translation and Chaining
+     .To encapsulate lower level exception into higher level exception.
+     .Donot pollute Higher Level Exception with Lower Level Exception.
+   Example 
+     .If an API or partner throws NumberFormatException then donot propagate it to the higher level because it does not understandable to the 
+      high level. Extract meaningful information that caused the exception and propagate a new translated Exception to the high level. There are 
+      cases when developers want to know the exact cause and exception which was generated so we can also chain that exception 
+      
+Example Exception Translation and Chaining
+
+public void parseResponse(String response, String data){
+  try{
+    Integer.parseInt(response)
+  }
+  catch(NumberFormatException nfe){
+    APIFormatException e = new APIFormatException(response, data);
+    e.initCause(nfe);
+    throw e;
+  }
+}
+
+
+
+Assertions
+  .Use assertions for method level validations like validating the method parameters
+  .They are disabled by default and we need to enable it by the -ea flag on command line
+  .Use assertions on non-public method which are not invoked by the client.
+  .Use exceptions on public methods which are invoked by the client.
+  .They serve us detecting bugs at the development and testing time
+
+Example
+
+private void test(int i){
+  assert i >= 0 : "Value i cannot be less than 0";
+  ...
+  ...
+  ...
+  ...
+}
+
+A Software robustness ensures how software handles the errors
+A Software correctness ensures how much software is correct
+Exceptions helps with robustness and Assertions helps with correctness of our application

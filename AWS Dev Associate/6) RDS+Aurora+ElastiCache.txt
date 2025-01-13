@@ -1,0 +1,223 @@
+RDS + Aurora + ElastiCache
+--
+
+RDS is a Relational Database Service which is AWS managed service for database that uses Structured Query Language (SQL)
+It allows us to create database on cloud and the supported engines are
+  1. Postgres
+  2. Mysql
+  3. MariaDB
+  4. Oracle
+  5. MS Sql Server
+  6. IBM DB2
+  7. Aurora (Aws Proprietary database)
+  
+Advantage of using RDS over Manual EC2 deployed database
+  .Automated Provisioning, which means to automatically setting up the necessary hardware and software infrastructure required to run a database. Some
+   of the neccessary things are database instance setup, databae engine installation, network and security configiration, etc
+  .OS Patching, which means to apply updates and fixes to the operating system that hosts your database instance. Regular OS patching is crucial for 
+   maintaining security, stability, and performance.
+  .Continuous backups and restore to a specific timestamp which is called Point in Time Restore.
+  .Monitoring dashboards
+  .Read replicas for improved performance
+  .Multi AZ setup for disaster recovery
+  .Can scale both hotizontally and vertically
+  .Storage is backed by EBS (gp2 or io1) in the underlying EC2 instance.
+  
+We cannot SSH into the underlying EC2 instance of our RDS because it is a managed service and we cannot do any modifications by going into it.
+
+RDS also supports auto scaling if we have very unpredictalbe loads. We will have to set the maximum threshold for storage before the auto scaling
+increases it. Some of the metrics can because
+  .When free storage is 10% left
+  .When low storage lasts at least 5 minutes
+  .6 hours have passed since last modifications.
+  
+  
+Read Replicas vs Multi AZ
+..
+Read replicas are for scaling reads and we can have upto 15 read replicas of our rds instance.
+The read replicas can be withing the AZ, cross zone AZ or cross region.
+
+The replication mechanism is asynchronous in nature which means that our application reading from read replicas will get eventually consistent data.
+The replicas can be promoted to master database too that can accept writes also.
+
+If we have a production application using production database and we want to build some reporting feature. We must introduce a read replica for 
+reporting service to use the information from it so that our production database must not get overloaded with reporting queries.
+
+With AWS serivces, we bear a cost when there is some data transfer from one region to another region. With RDS, if we have a master database in one
+region (us-east-1a) and read replica in another region (us-east-1b) then the replication data transfer is free of cost. But if our replica is in
+aother region (us-west-1b) then we have to bear the cost for replication data transfer.
+
+
+With Multi AZ, we mainly use multi AZ feature for disaster recovery.
+With multi AZ, we have a production master database with synchronous replication to standby instance. The standby instance does nothing it is just 
+there to support the master instance in case of failovers and if anything happens to the master due to any disaster or anything. So we get one DNS
+name to connect to the database and in case of failovers, the standby instance comes up as a master to server the data.
+
+We can also use read replicas for Multi AZ disaster recovery using the asynchronous replication strategy. But the trade-off is that there 
+may be some data loss if the source system fails before the data is fully replicated to the destination system.
+
+If initially we have set up a single AZ setup for our database and we want to go Multi AZ, then we dont need to stop the instance and then configure 
+it, we just click on modify and enable multi AZ settings. Internally, AWS will take a snapshot of our master db, restore this db into another AZ
+as a standby instance, create a synchronous replication connection between the 2 and then we are good to go.
+
+
+Hands On
+***
+
+When creating a database we will select the database type (MySql in this case)
+Select the engine version
+Choose the relevant template
+Select single or multi-az for availability and durability
+Set up the root credentials
+Choose the underlying EC2 isntance type with attached EBS storage
+Set the access to public so that we can connect using any mysql client
+Assign a security group and edit the inbound rules accordingly
+
+***
+
+
+Aurora
+..
+Aurora is a proprietary technology from AWS which is not open sourced. Both postgres and mysql supports it and it gives 5 times more performance
+than mysql and 3 times more performance than postgres
+The storage grows automatically. If we start from 10GB then it will grow till 128TB
+It can have 15 read replicas and the replication is much faster than what we get in mysql
+It costs more than mysql appprox 20% more but is more effecient too.
+
+For aurora high availability and read scaling, whenever we write anything to the database, we get 6 copies of it across 3 different AZs. So if any 
+write operation is performed, 2 copies will be in us-east-1a, 2 in us-east-1b, 2 in us-east-1c. 4 our of 6 copies are needed for writes and 3 out of
+6 copies are needed for reads. Aurora uses shared volumes across different AZs which is expandable according to the storage which makes it possible 
+to do this. The automatic failover mechanism for master database is on average withing 30seconds which is impressively fast.
+Aurora does self healing for data which means that if some data is corrupted or bad, it does self healing with peer to peer replication 
+all on the backend.
+
+We can have a master prod database with 15 read replicas and it also supports cross region replication too. They way client connect to the 
+master and all these read replicas is in a way that aurora provides us with the write endpoint which always point to the master database. Even if
+the master goes down, it redirects to the standby instance which is promoted to master. For read replicas, we have a reader endpoint which is kind 
+of a load balancer where the load is balanced among all read replicas
+
+We can backtrack and restore data at any point in time. It does not use backup strategy but uses something else where we can jump at any timestamp
+we want to restore the data.
+
+Amazon Aurora uses a quorum-based approach to maintain consistency and durability of your data.
+Write Quorum (4/6): 
+  .For a write operation to be considered successful, it must be acknowledged by at least 4 out of the 6 copies.
+  .Even if 2 storage nodes or an entire AZ goes down, Aurora can still process writes because 4 out of the remaining 6 nodes can form a quorum.
+
+Read Quorum (3/6): 
+  .For a read operation, data can be read successfully if at least 3 out of the 6 storage nodes provide a consistent state of the data.
+  
+  
+For Hands On, the creating is similar to that of normal RDS mysql or postgres. After creating the database we can add a policy to it for read replicas
+autoscaling by defining a target metric for example average cpu utilization or connection count to be made consistent at a desired value. By defining
+the policy we can tell how many minimum and desired read replicas we want if there is a need to scale.
+
+
+
+RDS and Aurora Security
+..
+1) At-rest encryption: 
+    .We can encrypt our data on volumes using AWS KMS but this need to be defined at the launch time
+	.If we want to encrypt the existing database, we need to take the snapshot and restored as encrypted database
+	.If the master database is not encrypted then read replicas will not get encrypted..
+2) In Flight encryption
+    .The databse created are TLS ready by default and all the requests are encrypted.
+3) IAM Authentication
+    .The database can be connected directly without username and password if the relevant IAM roles are given like EC2 instances.
+4) Security Groups
+    .We can control the in-bound rules to disallow any IP or Security group to access the database.
+5) No SSH
+    .We cannot SSH into RDS and Aurora since it is a managed service except RDS Custom service.
+6) Audit Logs
+    .If we want to know what queries are being executed and analyze them, we can enable audit logs and send them to CloudWatch service for longer 
+	 retention because audit logs are temporary.
+	 
+	 
+
+	 
+RDS Proxy
+..
+We know that we can deploy our RDS instance into our VPC, we can also deploy a fully manage database proxy for RDS.
+
+If we can connect to the database directly, then what is the need for creating a proxy?
+  .It will allow to pool and share databsae connections
+  .It will introduce database effeciency by reducing stress on database resources like CPU or RAM by reducing the number of connections
+   and minimize open connections
+  .It is serverless, auto-scalable and highlt available (multi AZ)
+  .It reduces RDS and Aurora failovers by 66% compare to clients directly connected to RDS instance.
+  .It also allows us to enforce IAM Authentication as well and securely store its credentials over AWS Secret Manager service. This 
+   increases the security since the proxy will only allow the incoming request which contains the relevant IAM role.
+  .We can never connect to the RDS instance directly, it will only be allowed connecting through VPC. It is the additional layer 
+   of security to our RDS.
+   
+   
+ElastiCache
+..
+Just like RDS is to get managed relational database, ElastiCache is to get managed Cached service like Redis or Memcached. They are 
+in-memory databases with high performance and low latency. It helps reduce the workload from the database by caching the most 
+frequenlty used queries and also putting the application state inside it to make our application stateless.
+
+AWS take care of OS patching, optimization, failovers and backups.
+With ElastiCache we have to changes in our application first to query ElastiCache before or after querying the actual database.
+
+With redis, we get read replicas, multi az feature, backups and restore and supports Sets and SortedSets
+With memchached, we get multi-node partitioning of data (sharding), no replications, no backups and restore and is a multi threaded
+architecture.
+
+HandsOn
+***
+
+We can go to ElastiCache service and choose redis as our cache manager
+We can now select deployment option to be either serverless where auto scaling is enabled with no servers to manage but it is expensive, 
+or we can go with custom configuration with design our own cache option.
+We can then select our cache creation method with either restore it from some backup, easy creation where we will get the recommended
+and best practices approach or we can select the cluster cache to set all the configuration customized
+With selecting cluster mode to see all options, we can select the cluster mode to be enabled or disabled. With disabled option we will
+get single shard with one primary and 5 read replicas and with enabled we can get multiple shards. We can select disabled for
+simplicity
+We can then set a name for, select multi AZ for high availability if needed (needs more cost) and set the cluster settings. In the 
+cluster settigs we can define the redis engine, node type, port and number of replicas we need
+Next we define the vpc where our cluster needs to run and the subnets are auto selected in multiple AZs.
+We then select if we want to encrypt our data stored in our dist. If yes then we need select the key for it.
+Next we select if we want to encrypt data between server and client which is encryotion in transit. If yes then we have the feature 
+to select who can access our cache. The options are Redus Auth default user access where we define the password and redis auth token to
+connect to redis cluster or user group access control list and we can create user group from elasticache console.
+We can select security group where we define which application have access to our cluster on network perspective
+We can enable logs to be shown on CloudWatch also.
+***
+
+Caching Design Pattern
+  1) Lazy Loading / Cache Aside / Lazy Population
+      .The flow is that whenever a request comes from application, the data is first checked from ElastiCache. If there is a cache hit,
+	   then data is returned to the client. If there is a cache miss, then data is requested from RDS and then is updated into ElastiCache.
+	   After that it is returned to the client.
+	  .The advantage is that only the requested data is cached and the cache is not filled with unused data.
+	  .The disadvantage is that we have a total of 3 rountrips in case of cache miss and the data can be outdated in the cache if RDS has 
+	   updated data.
+  2) Write Through
+      .The flow is that whenever any write occurs to RDS, the data is also updated to the cache. The read requests from client always
+	   will now be cache hit.
+	  .The advantage is data in cache is never stale and outdated and our reads are very faster. In compare to Lazy Loading design 
+	   pattern, we have 2 rountrips as when we update the RDS, we need to update the ElastiCache as well.
+	  .The disadvantage is that we have missing data in cache until there is a write operation on RDS. So here to avoid this we can 
+	   combine Write Throigh strategy with Lazy Loading so if we have missing data then we fetch from RDS and update the cache. The other 
+	   con is that we have so much data that might never be read by the client and becomes a problem if we have a small cache.
+	   
+Cache Evictions and TTL
+..
+We can evict our cache in 3 ways
+  1) Either we delete the item
+  2) LRU strategy if the cache is fully
+  3) Assign TTL to an item
+
+TTL are very helpful for data like leaderboards, comments, activities, ect... and it can range from seconds, to hours to days. If 
+we see too many evictions from our cache, we can consider trying scaling our cache.
+
+
+Amazon MemoryDB for Redis
+..
+It is a redis compatible, durable, in-memory database service
+While redis is totally intendent for a cache service with some durability, MemoryDB is a database service that has redis compatible
+api.
+It provides ultra fast performance with over 160million requests per second
+It scale seamlessly from 10GBs to 100TBs of storage and popular use cases are web and mobile apps, online gaming, media streaming

@@ -1,0 +1,157 @@
+States And Events
+--
+
+In React all the default events start with the prefix "on"
+Example
+<button onClick={myFunc}> Button </button>
+
+We dont use parenthesis around myFunc() because the function will get executed once the JSX will be parsed. We just pass the pointer to the function
+
+We know that the components are just simple functions and in react they are special type of functions that returns JSX code. These functions are
+never called by us instead we use these as an html tag eg: <Expenses />
+By using them like html tags, react call these functions and executes it line by line like a simple Javascript function. It goes nested where there
+is a component that does not use any other component.
+The very first component/function called is the <App /> component in the index.js file which is executed when the page is loaded
+Once the functions are executed, react does not repeat it. It does not go back and execute the code again 
+
+Example
+
+let title = props.title;
+const clickHandler = () => {
+   title = 'Updated';
+}
+return (
+  <div>
+    <h1> {title} </h1>
+    <button onClick={clickHandler}> Button </button>
+  </div>
+)
+
+Here we display the title passed to the component. On the button when we click it we are updating the title variable value which is displayed in the
+<h1> tag. But when the value is changed, the value is not reflected in the <h1> tag and that is the reason because dont render the whole component once
+again as it has done executing the function once. Here the concept of State comes in
+
+
+
+State is not a react specific concept
+State adds reactivity in our application
+
+React provides us with a special function called "useState" termed as React Hook in which it allows us to define values as states where changes to 
+these values triggers the react component once again and the component is re-rendered.
+useState() registers values as a state for the component in which it is called.
+The useState() hook is called directly inside the component function and they should not be called inside any function or outside component
+function. It returns a array whose first value is the actual variable to which it is assigned to state and the second value is the function which
+is used to update the value.
+
+Example
+const [title, setTitle] = useState(props.title)
+
+Now whenever we want to update the title we will use this function as setTitle('Updated')
+React provides us this function because this function does 2 things
+  1) Updates the title value
+  2) Re renders the component where this state updating function is called
+  
+By just doing title = 'Updated' wont help us because the component is not re-rendering
+
+setTitle() will not immediately re-renders the component but instead schedules it until the next line of code gets executed and the stack becomes
+empty
+Example
+const clickHandler = () => {
+   setTitle('Updated');
+   console.log(title)
+}
+Here console will show old title value because at that time the component is not re-rendered until the function gets executed completely.
+
+We use const while using the useState() because we never change the value by "=" sign. We just use the state updateing function and react manages
+it for us
+React keeps track of the usage of useState(). It takes the initial value which is registered as a state and whenever the state updating function gets
+called and component is re-rendered, the useState() will return the latest updated value and identifies that the value was already registered before.
+
+
+We can have multiple states like if we have a form for user input and we want to save the values and register them as a state
+const [enteredTitle, setEnteredTitle] = useState('')
+const [enteredAmount, setEnteredAmount] = useState('')
+const [enteredDate, setEnteredAmount] = useState('')
+
+An empty string is used because at the start, all form values will be initialized to empty.
+
+An alternative way of using multiple state is to use it like an object
+const [userInput, setUserInput] = userState({ enteredTitle:'', enteredAmount: '', enteredDate: '' })
+
+While updating the state, we will have to provide the updated value including the old values as well because react does not updates partially, it
+replaces the old state with the new state
+
+To update the title we will have to do setUserInput({ ...userInput, enteredTitle: 'Updated Title' })
+To update the amount we will have to do setUserInput({ ...userInput, enteredAmount: 'Updated Amount' })
+To update the date we will have to do setUserInput({ ...userInput, enteredDate: 'Updated Date' })
+
+Using spread operator to copy all the values and override the updated value
+
+Using this approach is fine but may lead to some problem if our state is dependent upon the previous state. We know that react does not immediately 
+updates the state instead it schedules it until the stack becomes empty. So if we update multiple states at a single time then we may ran into a 
+problem where we dont get the latest updated state.
+Use the callback function approach which receives previousState as an aregument and returns back updated state in which react guarentees that the 
+previousState received is the latest state with all scheduled updates state.
+i.e: 
+setUserInput( (prevState) => {...prevState, entetedTitle: 'Updated Title'} );
+
+
+Child To Parent Relationship
+..
+We know that using props, we can communicate from Parent To Child and pass data between them.
+For Child to Parent, we have to create our own event handlers that will be called by the child which will pass the data in it and the Parent's event
+will be triggered to get that data
+
+Example
+
+export default function ParentComp(){
+
+  const addDataHandler = data => {
+    console.log(data);  ->  Will Print Hello World
+  }
+
+  return (
+    <div>
+      <ChildComp onAddData={addDataHandler} />
+    </div>
+  )
+}
+
+export default function ChildComp(props){
+
+  const passData = () => {
+    props.onAddData("Hello World");
+  }
+
+  return (
+    <div>
+      <button onClick={passData}> Click </button>
+    </div>
+  )
+}
+
+
+Controlled vs Uncontrolled Component
+Stateful vs Stateless Component
+
+
+
+
+
+
+Rendering List And Dynamic Contents
+..
+
+Displaying dynamic lists as a child component need a "key" to identify the new addition as without the key property leads to several of the problems.
+In our case we are populating the new item at the start of the list
+Without the key property, react will first add the value at the end of the list and then traverse all items in the list and updates all the contents
+of the list according to the order. This will lead to problem if our child component is stateful we could loose our state as react updates the list
+item one by one.
+In short, This way React can handle the minimal DOM change.
+
+{props.items.map( item => 
+   <ChildComp title={item.title} amount={item.amount} date={item.date} key={item.id} />
+)}
+
+Becareful when using index value of array as the key because if we are ordering, filtering, adding and removing items in array then it can be
+dangerous. Static arrays can be fine

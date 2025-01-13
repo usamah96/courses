@@ -1,0 +1,169 @@
+Basics 3
+--
+
+Static Initializer vs Instance Initializer
+-Static initializer can be used when initialization needs multiple lines, populating a data structure or handling exceptions. They cannot
+access instance variables or methods.
+-Instance initializer can be used when we want to share some initialization code between multiple constructors.
+
+Constant Variables
+--
+These are type of a final variables.
+To make a variable constant, it should be
+   .final
+   .primitive or String
+   .initialized in declaration statement and not inside a constructor or initialization block
+   .initialized with a compile time constant on the right hand side
+
+Compiler when see a constant expression assigned to a variable, it direclty assignes the value in it to overcome runtime overhead.
+For example if we do
+int piValue = Math.PI then Math.PI is a compile time constant. Compiler will directly assign 3.14 as piValue at compile time instead of
+goind into math class fetch the pi value at runtime.
+
+Constant variable valid examples
+final int x = 2;
+final String = "hello" + "world";
+final y = 2 + x;
+
+Constance variable invalid examples
+int x = 2;
+final int y = 3 + x;
+
+final int x;
+constructor(int x){ this.x = x; }
+
+static final int x;
+static { x = 5; }
+
+
+
+
+Boxed Primitives
+--
+-We have a Boxed Primitive class for each of our primitive data type
+-Boxed Primitive encloses our primitive value
+-They provide some useful utility methods to be performed on our primitive type
+-They can be used to populate data structures like ArrayList or HashMap because we cannot use primitives for this
+
+-The valueOf static method creates the boxed primitive. It means object creation and is known as simple factory
+-With Integers, for better performance use Integer.valueOf for creating new instances instead of new keyworrd
+-valueOf method returns an instance from Integer cache if the value is in the range of -128 to 127.
+-Integer class maintains a static final Integer cache[] that gets initialized with pre loaded integer instances in a static block. Whenever
+the valueOf method is accessed the instance is returned via cache if the number is under the range.
+
+
+AutoBoxing
+-Compiler will create boxed primitives for you by calling the constructor implicitly
+Integer a = 24;
+Compiler will do new Integer(24) for you
+
+Auto-unboxing
+-Compiler will unbox the boxed primitives for you by calling the intValue method on it
+int b = a;
+Compiler wll do a.inValue();
+
+AutoBoxing feature makes our code less verbose but it can be performance problem if not handled properly at some cases
+**FROM EFFECTIVE JAVA -> Prefer primitive types instead of boxed primitives
+
+Example
+..
+Long sum = 0L;
+for(long i=0; i< Integer.MAX_VALUE; i++) sum = sum + i;
+
+-Here first sum will get unboxed to primitive, added to i and then due to assignment operator will get autoboxed again to be stored in sum
+-Roughly 2^30 new Long instances are being created here due to very long loop.
+-Nearly 5 seconds will be taken to execute this. By changing Long to long it will get 5 times faster since no boxing and unboxing is done now.
+
+-Also using boxed primitives with relational operators or comparison operator, compiler will first unbox it using intValue.
+Example
+
+Integer i;
+compareValue(){
+  if(i == 0) sout("Hello World")
+}
+
+-It will throw NullPointerException as i was not assigned to anything. Compiler will try to do i.intValue() and will throw an error.
+
+
+
+
+Coding Conventions
+--
+Class Structure Should be,
+..
+1) Variables
+2) Static Initializers
+3) Static Nested Classes
+4) Static Methods
+5) Instance Initializers
+6) Constructors
+7) Instance Nested Classes
+8) Instance Methods
+
+Class Size
+..
+1) Should follow SRP to achieve better abstractions and design several lossely coupled classes
+2) Less than 2000 lines of code. If your class exceeds 1000 lines of code think of splitting up the code.
+
+Method Size
+..
+1) Should be small, focused and should do only one thing
+2) Not more than 20 lines of code.
+
+Local Variables
+..
+-Always declare the variable when they are first used
+
+Good Example
+void go(){
+  // 50 lines of code
+  double d = 3.56;
+  foot(d);
+}
+Bad Example
+void go(){
+  double d = 3.56;
+  // 50 lines of code
+  foo(d)
+}
+
+-Prefer For Loop instead of While Loop
+
+Example while loop mistake
+..
+int list1[] = getRandomList(3);
+int i = 0;
+while(i < list1.size()) foo(list1[i++])
+
+-We then copy and paste the code to do the same thing with list 2 using index j
+int list2[] = getRandomList(3);
+int j = 0;
+while(i < list1.size()) foo(list1[j++])
+-But we did a mistake here we forgot to change the index j in while loop check. This will not show any compilation error and will also go
+undected at runtime which can be harmful for real world scenarios.
+
+Example For Loop
+..
+int list1[] = getRandomList(3);
+for(int i : list1) foo(i)
+
+int list1[] = getRandomList(3);
+for(int i : list1) foo(j) // Will give compilation error straight away.
+
+-For loops are more readible compare to while loop also.
+
+
+Wrapping Lines
+--
+If the statements are too long and go beyong 80 characters, break them into separate lines
+-If the statement is a method declaration or a method call then break after comma
+-If the statement is an arithementatic operation, if block then break before the operator.
+-After breaking the code, use 2 tabs spaces (8 spaces) from the line it gor broken up.
+
+Example
+public void method1(Integer a, Integer a, Integer a, Integer a, Integer a, Integer a,
+        Integer a, Integer a, Integer a, Integer a)
+
+if(a != b && b == c || c <= d && !j || a <= isValueValid(b)
+        && b != c || f >= h)
+

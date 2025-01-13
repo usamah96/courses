@@ -1,0 +1,49 @@
+Many To One Relationship
+---
+
+
+-Defining the relationship between Course and Review
+..
+
+
+public class Course{
+  ..
+  ..
+  @OneToMany
+  private List<Review> reviews;
+
+  public void addReview(Review r){}
+  public void deleteReview(Review r){}
+}
+
+public class Review{
+  ..
+  ..
+  @ManyToOne
+  private Course course;
+}
+
+Retrieving and Adding Reviews
+..
+
+Course c = em.find(Course.class, 1001);
+
+Review r1 = new Review("Review 1");
+Review r2 = new Review("Review 2");
+
+c.addReview(r1);
+r1.setCourse(c);
+
+c.addReview(r2);
+r2.setCourse(c);
+
+em.persist(r1);
+em.persist(r2);
+
+
+-The OnetoMany side of the relationship is by default Lazy Fetch
+-The ManyToOne side of the relationship is by default Eager Fetch
+
+**To Remember
+  ..ToMany -> Lazy
+  ..ToOne -> Eager

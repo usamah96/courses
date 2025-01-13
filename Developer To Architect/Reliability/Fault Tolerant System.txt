@@ -1,0 +1,251 @@
+Reliability
+--
+
+How to design a Fault Tolerant System?
+For a Fault Tolerance system we should follow,
+  Provision Redundancy in a System -> Fault Detection -> Recovery
+  
+  
+Redundancy
+--
+
+What is Redundancy?
+The concept is similar to that of a spare tyre in a car that is used as a secondary tyre when the primary tyre goes flat during the drive.
+So in a 3-tier architecture (Web App, Business Layer, DB), we should have a redundant component at every tier that will be useful and act
+as a backup when the primary instance goes down
+
+The Types of Redundancy includes
+  a) Active Redundancy - Hot Spare
+     .It is similar to load balancing where multiple insttances are running and the load is distributed among all the nodes. If one of the
+	  nodes goes down then all its load is transferred to other available nodes.
+	 .In this all node do the processing and is the ideal way for providing high availability.
+	 .Example of Aeroplace Engine 
+	 
+  b) Passive Redundancy - Warm Spare
+     .In this, only the active node do the processing and handle all 100% load
+	 .When the primary instance goes down the load is automatically shifted towards secondary instance which was inactive when the 
+	  primary instance was running
+	 .Ideal for quick recovery
+	 .Example of substitued football players which comes to the field when any player comes off.
+
+  c) Cold Redundancy - Spare Backup
+     .In this, only the active node do the processing and handle all 100% load
+     .The backup node is not in use and is not powered on until the primary instance goes down
+     .Spare nodes are brought up only at the time of failure which means it takes some amount of time and manual effort
+     .Example of Spare tyre in a car.
+
+
+We will have to identify the single point of failures in our system and then provide redundancies for them. 
+In a large scale application with several load balancers, caches, messague queues, databases, any component can go down which will result
+in partial failure of the system like catalog-database goes down which means that catalog service will no longer respond to dynamic data
+and the web application will no longer show products to the user. So we will have to identify such failures in our system
+
+Redundancy for Stateless Components
+  .It is the same as we do horizontal scaling for our services (replication of instances)
+  .The difference is that in redundancy, it should be over and above our scalability needs
+  .Example => If our application needs 2 instances of catalog-service to handle all the user load, then there must be more than 2 minimum 3
+   instances of catalog-service with 1 acting as a redundancy service so that if any 2 of them goes down, the 3rd one become active to 
+   balance the load
+  .Making our services stateless is one of the reason to achieve high scalability and we can make our web application and bakcend service
+   stateless for that.
+   
+Redundancy for Stateful Components
+  .The stateful components in our system could be databases, message queues, caches
+   a) Database Redundancy
+      .For databases, as discussed in scalability section the redundancy can be active-active or active-passive.
+	  .We usually consider Master-Slave configuration where the slave instance does not act as a read-replica for redundancy but act as a 
+	   standby system so that when primary goes down, it will be promoted to primary instance to serve the services.
+      .We have to make a choice whether to make this redundant instance as active (synchronous) or passive (asynchronous) as in synchronous 
+	   the data will be completely in sync as one transaction will update both the primary and seconday instance and transactions will be a 
+	   bit slow in this case. But the advantage is that when the primary goes down, the standby active instance will be immediately promoted 
+	   to parimary in no time and no catchup will be required as all data is in sync. In asynchronous approach, the standby instance will be 
+	   eventually consistent as updates are propagated after a while and transactions are fast for that reason because only primary needs to 
+	   be updated. In this approach if primary database goes down, then before promoting the redundant database to primary, it will need to 
+	   catchup the recent transactions done by checking the logs to be completely in synced. But unfortunately if the whole system went down, 
+	   then there will be data loss as redundant instance will no longer be able to catchup with latest logs. So based on our business logic 
+	   we will have to decide for which approach we will have to follow.
+   b) Message Queue Redundancy
+      .The concept is similar to Database Redundancy where we can have either Active instance or Passive instance and based on our business
+	   logic we can decide to choose on that.
+   c) Content Servers
+      .Content Servers are used for providing static data like images, css, js files and here we are not worried about the write conflicts
+	   because if we upload an image on one server then that image will not be modified rather it will be overriden by a new image
+   d) Caches
+      .The types of caches can be Object Cache, Session Cache, Http Cache
+	  .We have to first make a choice that do we need a cache redundancy or not because caches are not the primary source of data. If any
+	   data is not available in a cache then it will be fetched from the primary source which can be database.
+	  .The only way we would need redundancy for cache is that if our cache server goes down, then we will be hitting the database everytime
+	   which will bring down performance till the time that cache server goes up again.
+	  .So we can use Memcache if we dont require any redundancy because memcache does not support redundancy.
+	  .We can use Redis if we require redundancy.
+	  
+
+Besides Application Component Redundancy in the form of Stateless and Stateful Redundancy, we also want to turn our attention to
+Infrastructural Components Redundancy
+One of the Infrastructural Component Redundancy is Load Balancer Redundancy. If we donot provide redundancy for the Load Balancer then it
+can easily become a single failure point in our system, so a secondary load balancer must be there besides a primary load balancer.
+
+Other than that in Infrastructural Component many things comes under like LAN Connection which can go down, Power Supply Connection where there
+can pe power failures. So these types of components are clubed and grouped into one compinent which is Data Center which can go down due to
+any reason like Earthquack, Flood, Power Shutdown, Internet Breakdown, Fire outrage, etc
+These types of issues can take upto hours and even days to recover and availability is the key factor for us then the things we need to
+address is the Data Center Redundancy.
+Data Center Redundancy can be done in 2 ways
+  1) Zonal Redundancy
+     .It means that the whole Data Center is location in different zones less than 10 miles distance between them. Most probably in the same
+	  city
+	 .What this will ensure is very high availability as if one data center caught up fire, the other zonal data center can immediately takes
+	  over
+	 .It looks simple in setup but becomes complex when executing the transaction. Typically we have a Master-Slave configuration with synchronous
+	  approach in this kind of system. Data Center 1 will contain master database and all the read replicas will be on Data Center 2. Data Center
+	  2 services will communicate with Data Center 1 database for every write/update operations and all these transactions will synchronously
+	  update the slave database also to be in sync with each other.
+	 .At the time of earthquack it is possible that both data centers are destroyed because both are located close to each other. So Zonal
+	  Redundancy will not work in this scenario.
+  2) Regional Redundancy
+     .It means that the data center is located in a different region or continent.
+	 .Each region can have zonal redundancies with 3 data centers close to each other.
+	 .This is helpful in disaster recovery like when earthquack comes in.
+	 .Typically Active-Passive setup is followed here because the data centers are located far from each other.
+If multiple data centers are  Active Redundancy type than the DNS will route the request based on geographical location discussed earlier.
+
+
+
+Fault Detection
+--
+
+There are different Fault Models which we can classify as faults 
+  1) Response Failure
+     .Client failing to reach the server or server fails to respond for incoming messages.
+  2) Timeout Failure
+     .Client successfully reaching the server but server taking more time than it should due to load.
+  3) Incorrect Response Failure
+     .Server sending back incorrect response. Client expects status 200 but server sending 201 or 500
+  4) Crash Failure
+     .Server working fine but in the middle of nowhere disappears or unable to respond due to machine going down or some unexpected error 
+	  that turn down the server.
+	  
+	  
+Monitoring Health of our System
+There are 2 ways in which we monitor our instances whether they are health or not
+  1) External Monitoring Service
+     .This is the service which keeps on pinging our instances periodically to check if they are healthy or not and how much is the load
+	 .The ping request can be Http, Tcp what the server supports and there will be some configuration about what should be expected status
+	  code of that request, maximum response time and how many retries to be done after declaring the service as DOWN.
+     .Based on the ping response, the external monitoring service can generate an Alert if it sees that a particular service is down
+      and needs a recovery and send that alert to an automated system which is responsible for automatic recovery of instance. Also it
+	  can generate an Event for scaling puprose if it feels that a particular isntance is taking up 90% cpu or memory.
+	 .What if the external monitoring service goes down? There will be nobody to monitor our internal services and when one of the internal
+	  service goes down it will be too late. One solution which is not recommended is to set up another external monitoring service which
+	  monitors and ping the primary external monitoring service. But when that external monitoring service goes down we will be in a similar
+	  position again. So the solution is to create Internal Cluster of External Monitoring Service discussed above.
+  2) Internal Cluster
+     .In this, each service sends its hearbeat to other service. Lets say there are 3 services. Service 1 will send heartbeat to
+	  service 2 and 3 and similarly for others. All these services will exchange information about their heartbeats and based on that
+	  make decisions.
+	 .So lets say if Service 1 goes down, Service 2 and 3 will realize that they are not being monitored by service 1 and also they cannot
+	  send their heartbeat to service 1 which means something has gone wrong at service 1 level. So based on that, service 2 and service 2
+	  can agree on some terms and initiate a recovery protocol in order to provide services which were provided by service 1
+	 .Another example is of Load Balancer that we can have Primary and Seconday Load Balancer both sending their heartbeat to each other for
+	  monitoring purposes. If for some reason Primary LB goes down, secondary load balancer will realize it and will initiate recovery protocol
+	  to transfer the virtual ip address and promote itself to primary load balancer. Next time when the original primary load balancer comes 
+	  up, it will be acting as seconday load balancer.
+	 .The only downside of this approach is that it is complex and complicated. The usecases which implement this approach are Load Balancers
+	  or NOSql MongoDB Cluster. The advantage is that no external service is required for monitoring purpose only.
+	 
+At most places, external service is a good approach but the way it is implemented is that there is no single external service but rather there
+is a cluster of external monitoring service sending their heartbeat to each other so that if any service goes down, other seconday services
+can cordinate and promote any one service to act as primary service.
+
+
+Recovery
+--
+
+Stateless Recovery
+  .It is very straight foward as we just use our redundant instance to provide the availability of our service
+  .There are 2 approaches we can follow
+    a) Hot Standby
+	   .Lets say we want 2 instane of our servie to serve the client and the load. In this approah we have an instance active and running
+	    as a separate which means we have a total of 3 instance serving at the same time. So if any one of the instance goes down due to any
+		failure, we still have 2 instanes running to handle all the load till the 3rd instance is recovered and up again.
+	b) Warm Standby
+	   .In this approach, considering the previous example of hot standby, we have 2 instances up and running and one instane on standby.
+	    If our external monitoring service detects any failure in any one of the service, it either informs autoscaler to restart the
+		broken instance after a fix if the delay can be handled or start a new instance by killing the previously damaged instance using
+		virtual machine and container images.
+		
+		
+Failover and Stateful Failover
+Failover is a mechanism that allows a backup system to take over the tasks and responsibilities of a primary system in the event of a failure 
+or outage. Failover is typically used to ensure high availability and reliability of critical systems and services.
+
+Stateful Failover mainly done in 2 ways
+  1) Virtual IP Address
+     .In this mechanism, a floating ip address is assigned to the primary instance. Lets say we have a Load Balancer that routes requests
+	  based on any algorithm and we have a Primary LB and Secondary LB (Standyby) with its own internal ip address. The DNS is configured 
+	  with the domain name and corresponding to that domain name a floating ip is assigned to it which is for the Primary LB. So all the 
+	  requests will be routed to Primary LB. The Primary LB and Secondary LB has a internal monitoring mechanism using heartbeat and if for 
+	  some reason the primary LB goes down, the seconday LB will initiate recovery protocol that will assign the floating ip address to the 
+	  seconday LB. In this way when the DNS sends floating ip address back to browser of client, all clients will be routed to Seconday LB 
+	  and it will become the new Primary LB.
+  2) Registery/Router/DNS
+     .In this approach, we have a component that can be a registery service, a router or a DNS that provides the ip address for the instance
+	  to connect. Lets say we have a Primary database and a Standby database and there is a registery service exposed on certain ip address.
+	  Both the database instances are registered on registery service and the registery service knows which is the primary one and which is
+	  the standby one. Both database instance continuously sends their heartbeat to registery service to tell it is alive or not. When the client
+	  wants to make a database connection, it will communicate with the registery service which will return back the ip of the database
+	  instance for which client will then connect to. In case if primary databse goes down, it will stop sending heartbeat to registery service
+	  and the registery service will know that it is not alive and based on that the standby service will become active and becomes the new
+	  primary. At the same time, the client will loose connection to the database and when the client again communicates to registery service
+	  to have a connection with the database, the registery service will return back new ip address which will be the standby instance. In this
+	  way the availability will be ensured to the client.
+	.Different vendors uses different mechanism for this. Like Oracle uses registery approach
+	.AWS (RDS and Aurora Service) uses DNS approach (a DNS name is used to represent the database instance). For DNS, one thing to keep in 
+	 mind is that client usually caches the ip address returned  back by the DNS. So client will need to check what is TTL value DNS is 
+	 providing so that if any instance goes down client does not keep on using the cached ip address which will result in connection timeout 
+	 everytime.
+	 
+	 
+Database Recovery
+The recovery of database mainly can be done in 3 ways. These are mainly Master-Slave configuration because in Master-Master configuration 
+there can be write conflicts so that is why they are not that much popular
+  1) Hot Standby
+     .In this approach, as discussed in database replication, using master-slave configuration both the primary and secondary instances are
+	  in sync with each other at a given time because the transaction successful acknowledgment is given to the client when the transaction is
+	  done successfuly on both the instances as in synchronouse replication. Client directly communicates with primary instance for write 
+	  operations and in case of any failover, then secondary is promoted to primary.
+	 .The limitation is that both the instances needs to be located close to each other otherwise there will be very slow writes.
+	 .This setup provides almost no downtime with no data loss
+  2) Warm Standby
+     .In this approach, the setup is same as hot standby but the configuration is asynchronous replication.
+	 .As it is async replication, the secondary instance always needs to catcup to be in sync with primary instance. So there is always a 
+	  catchup going on between primary and instance if there are many number of transactions going on per second.
+	 .It provides high performance but we will have to always be ready for lost updates because at a given time, the whole primary machine
+	  can go down so there will be no logs available for seconday instance to catch up from.
+	 .Mostly this configuration is used for disaster recovery like there can be a situation where the whole datacenter goes down in one 
+	  location so any nearby replica will also be gone down so there is always a backup location far away from original location available 
+	  where we have configured async updates going on in background.
+  3) Cold Standby
+     .This is the approach which is normally done in every database design because it is not another option for recovery rather it is the
+	  need for everyone
+	 .In this approach, a database backup is periodically done lets say after every 4 hour, 8 hour or after a whole day to keep things
+	  in sync for future purposes because if our data gets corrupted in future, there will be no way of correcting that data and replication
+	  wont help us either because replicated instances will also be corrupted in the same way.
+	 .What exactly is done when the transaction is done to the database, it is first written to the log files and then applied to the database.
+	  After some time, periodically, the backup is done using these log files. So in any case if our data gets corrupted we can get the 
+	  latest backup which we think our data is correct there and fire a new instance with these recent correct changes
+	 .All the corrupted data can be fixed beind the scenes and can be applied to the new instance to get the data in sync.
+	 .This is helpful if we want to migrate the data to some other region or location where the data got corrupted. So the backups can be moved
+	  from one location to other also.
+	 .It has some significant downtime as backup is done and new instance needs to be fired up.
+	 
+	 
+Best Practices for Failovers
+  1) Failover Automation
+     .The failover mechanism should be automated because the activity is time consuming to bring available resources up and running on any
+	  failure
+	 .There may be no one available like early in the morning or late at night to to do the failover activity manually.
+  2) Failover Testing on Production
+     .The testing should be done on production environment also besides dev and test environment
+	 .The testing should be done again and again because if something worked 6 months ago is not neccessarily to be in working condition today
+	  because system keeps on evolving.

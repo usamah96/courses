@@ -1,0 +1,83 @@
+Spring Security - Zero To Master
+--
+
+**All Architecture diagrams of Spring Security Internal and Notes are in the PDF**
+
+Create a new project with following dependency on spring initializer
+  1) Spring Web
+  2) Spring Dev Tools (For Hot reloads)
+  
+Start the app and test any controller and it will work fine.
+
+Now go to spring initializer again and add the Spring Security Dependency and press Explore button
+Copy the pom.xml file and paste in the project and run the project again
+It will show the login page which is coming from internal spring security.
+
+To proceed, we will need to provide username as "user" and password as "auto-generated" in the logs.
+After that if we try and hit the url again, it will not ask for the credentials again as it is cached by spring security
+
+We can overrid the default username and password by these properties
+spring.security.user.name=usama
+spring.security.user.password=usama123
+
+The Flow
+..
+  .Whenever the requests comes from the browser, it is first catched by the Servlet Containers Or Web Servers (Apache Tomcat) which converts that 
+   http message into Http Servlet Request Object which is given to the actual Java Code or Framework we are using
+  .Similarly, when sending the response back, the Servlet COntainer will convert that Http Response Object into http message which can be understand
+   by the browser.
+  .It is all done by the servlets which is very crucial in our application
+  .We dont directly work with the servlets, spring internally manages it
+  .Beside servlets, we have filters in our application which is a special kind of servlet which intercepts all incoming requests and execute some
+   pre-defined logic before going to the actual java code.
+   
+There are more than 20 default spring security filters which work when the request comes from the browser. So the login page we see at the
+start and not see that page again after authenticating, is actually done by these filters to check if the user is already authenticated or not.
+The authentication is stored in a thread-local SecurityContext managed by SecurityContextHolder.
+
+Spriing Security generates a JSESSIONID which is stored in a browser's cookie which is used to keep login the user. If this id is removed or tampered,
+the login page will be displayed again.
+If we access any resource for the first time, spring security will redirect the user to show the login page first
+
+There is a filter called "DefaulLoginPageGeneratingFilter" which checks if the login page is to be displayed or not.
+There is a filter called "UsernamePasswordAuthenticationFilter" which checks and authenticate the user from login page with the help of,
+  a) ProviderManager which checks how many Authentication Providers are there.
+  b) DaoAuthenticationProvider authenticates() method
+  c) InMemoryUserDetailsManager loadByUsername() method (by default)
+These are the basic classes which are called for user to authenticate from the login page
+
+Also there is BasicAuthenticationFilter which is used when we send username and password through Authorization Header Basic. It also invokes
+Provider Manager for further authentication process like in UsernamePasswordAuthenticationFilter does.
+
+All the default spring security configuration is placed in SpringBootWebSecurityConfiguration.class
+The configuration includes,
+  .Authenticating every request coming from either form (formLogin()) or postman (HttpBasic)
+  .formLogin() and httpBasic() means credentials will be received either request parameter of in Basic Headers.
+It will built a bean of SecurityFilterChain
+
+Before Spring Security 5.7, everyone used to extend the WebSecurityCOnfigurationAdapter and override the void configure() method to add their
+spring security configuration. But that class is now @Deprecated and now the spring security team wants to use the @Bean style method of defining
+configuration.
+So inside a @Configuration class we can define @Bean of SecurityFilterChain just like in SpringBootWebSecurityConfiguration class to overrid the
+default SecurityFilterChain bean.
+
+**http.authorizeRequest() is now deprecated so new method is http.authorizeHttpRequests()**
+
+There are scenarios where we want to allow all requests go through the security whether the user is authenticated or not, like in dev/qa environment
+we dont want to apply for security so we create @beans conditionally for SecurityFilterChain
+In this case we will use permitAll() method like
+   http.authorizeHttpRequests().anyRequest().permitAll();
+   
+Similarly, there are scenarios where we want to restrict all requests go through the security whether the user is authenticated or not
+In this case we will use denyAll() method like
+   http.authorizeHttpRequests().anyRequest().denyAll();
+   
+And, we use requestMatchers() to perform authentication for some request and making some request public like,
+   http.authorizeHttpRequests()
+     .requestMatchers("/a", "/b").authenticated()
+	 .requestMatchers("/c", "/d").permitAll()
+	 .and()
+	   .formLogin()
+	 .and()
+	   .httpBasic()
+   .build()

@@ -1,0 +1,87 @@
+Maintaining Sets of Containers with Deployments
+--
+
+Whenever we create or update anything inside kubernetes cluster there are 2 ways of doing this
+ - The imperative approach, where we need to define each and every step on how to do a certain task
+ - The declarative approach, where we just need to define what task need to be done and all the process is handled by the Master node.
+ 
+Lets say we created a kubernetes pod to run usamaa96/multi-client image from docker hub and now we want that pod to run usamaa96/multi-worker image instead of multi-client image.
+In the imperative approach we will have to,
+  - Run a command to list out all current pods running
+  - Get the pod id
+  - Use the pod id to update the pod and replace the image name
+  
+In the declarative approach we just change the config file name that created the pod and provide te updated config file into kubectl command. The kubectl will handover the 
+instructions to Master node and rest will be done by master itself.
+
+Here how the master node will know whic pod to modify? How it will know whether to create a new pod or update existing one?
+- Master node will decide this on the basis of 2 properties which are metadata -> name and kind. If there exists a pod already in the cluster then it will update it otherwise it 
+  will create a new one.
+  
+So after changing our config file with updated image name, we can run kubectl apply command to configure our pods and to verify whether the container is being run with new image 
+or not we can issue another command to get the details of a specific pod.
+  "kubectl describe <object-type> <object-name>" --> kubectl describe pod client-pod
+If we just un kubectl describe pod then it will list all the pods in a cluster.
+
+We have some limitations with our config file which is that we can only update a limited set of things into it. Like we changed the container image name, we cannot change the 
+container expose port. If we do that and run kubectl apply we will see error msg.
+For this limitation, we dont use object type as pod in production environment but instead we use the object type as Deployment.
+
+Deployment object type is similar to Pod object type with slight differences
+ - With object type pod, it runs a set of containers which are tightly coupled with each other. With object type deployment, it runs a set of identical pods.
+ - The pod is good for development purposes and is very rarely used in production. Deployment is good for both development and production environment.
+ - With deployment object type, it will monitor the state of each pod and restart it in cae of crash or failure.
+ 
+ 
+The deployment config file looks very much similar to the pod config file.
+..
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+ name: client-deployment
+spec:
+ replicas: 1
+ selector:
+  matchLabels:
+   component: web
+ template:
+  metadata:
+   labels:
+    component: web
+  spec:
+   containers:
+    - name: client
+	  image: usamaa96/multi-client
+	  ports:
+	   - containerPort: 3000
+..
+Here apiVersion is used as apps/v1 because the kind Deployment comes from this api version.
+Inside spec -> replica value identifies how many replica of pods we want in our cluster. The template part defines the configuration of one pod. So if we define replica value as 5
+then it will create 5 pods with multi-client containers inside of it. Each replica would be a separate instance of the container, so, the port being the same would not cause any 
+kind of issue.
+The template -> metadata -> labels is similar to what we defined in pod config file so that we can link it in service for networking
+The spec -> matchlabels is just giving the handle to template -> metadata -> labels.
+
+Now similarly we can use this file with kubectl with command kubectl apply -f client-deployment.yaml to configure our deployments
+After that we can check the status with kubectl get deployments.
+
+We can now access our app using localhost:31515 because the object type Service with component: web selector already being cofigured into it. We use service so that our access to 
+pods are consistent. When the pods are created, it is assigned a random ip address because pods are like virtual machines and ip assigned to them are only accessible internally.
+So whenever pod is restarted, crashed or is updated there is high chance that ip address change. With service object type we get a middleware that take control of it and we dont need 
+to make ip changes everytime it gets change on front end level.
+
+So now, what if we make some changes to our client module and want our pod to fetch the latest changes and run in the container. For that, we need to push our latest image to 
+docker hub and let the pod take latest pull of our image and reflect the changes. But this does not be done by itself. There are 3 ways in which we can make our pod run latest 
+docker image
+  1) Manually delete the pod and create the pod again with latest image (Very bad idea)
+  2) Attach a specific version with our image like usamaa96/multi-cleint:v1 and push it to docker hub. Change the deployment.yaml file and replace the image with latest image and version.
+     With this approach, we need to keep track of version number and also change our deployment file everytime.
+  3) Take the imperative approache where after pushing latest image to docker hub, run kubctl command to get into specific pod and change the name of the image. This is the best of 
+     all methods
+	 
+	 
+To change the image name imperatively, we need to run command 
+  "kubectl set <object_type>/<object_name> <container_name> = <new_image_name>"
+  kubectl set image deployment/client-deployment client = usamaa96/multi-cleint:v1
+  
+  

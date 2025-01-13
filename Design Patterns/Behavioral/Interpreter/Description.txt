@@ -1,0 +1,25 @@
+Interpreter
+--
+
+Interpreter are all around, even in this very room
+
+Motivation
+--
+-Textual input needs to be processed. Turned into OOP structures.
+-Example of programming language compilers, interpreters and IDEs
+    .Numeric expressions like 3 + 4/5 
+    .Regular expressions
+-Turning strings into OOP based structures is a complicated process.
+
+Interpreter is a component that processes structured text data by: 
+   .Decomposing the data into separate tokens (lexing) 
+   .Take the sequence of tokens and convert it into object oriented structure (parsing).
+
+
+Musicians are examples of Interpreters. The pitch of a sound and its duration can be represented in musical notation on a staff. 
+This notation provides the language of music. Musicians playing the music from the score are able to reproduce the original 
+pitch and duration of each sound represented.
+
+Example where the user input will be of two forms – “<Number> in Binary” or “<Number> in Hexadecimal.” Our interpreter client 
+should return it in format “<Number> in Binary= <Number_Binary_String>” and “<Number> in Hexadecimal= <Number_Binary_String>” 
+respectively.

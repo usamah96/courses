@@ -1,0 +1,680 @@
+Concurrency (aka Multithreading)
+---
+
+-Performing multiple activities at the same time
+   1) Apps updating in background while using
+   2) Display of images while browsing
+   3) Website displaying ads coming from partner side
+   4) Webcrawlers (download webpages concurrently like google)
+   5) Federated Search (Query sent to multiple sources concurrently and the response is merged and shown to the user. Generally reffred to as 
+      metasearch engines like flight searching)
+      
+      
+Why needed?
+1) To utilize CPU in a effeciend manner.
+2) To utilize the resources better way
+3) To increase throughput
+
+.If a read() operation is blocked, perform other tasks
+.If a page downloading takes time, perform other tasks
+
+
+
+
+
+Threads
+..
+-The operating system allows multilpe processes to run concurrently. Each process gets its own memory, file handles just like the JVM gets its
+ own memory from the underlying OS
+-Concurrency is achived through multi tasking which is nothing but switching cpu from one process to another
+-With multi tasking, it does not imply parallelism because the cpu executes the instructions from process only at a time. The switching is so fast
+ that it gives illusion of parallelism
+ 
+-A thread is a part of process and a process can have multiple threads. It is a light weight process which is nothing but a single sequential flow of 
+ control within a process. All the threads communicate with each other, share resources that the process uses like memory. 
+-Each thread has its own PC, stack and local variables
+-Threads can be run on multiple processors thus giving us parallelism
+
+There are 2 types of thread
+1) Daemon thread
+      .Background threads for tasks like garbage collection
+2) Non Daemon thread
+      .Created within the application
+      .JVM also creates a thread at the start of application which is the main() method
+      
+      
+A thread needs a task to be executed. In Java we have a class Thread from java.lang.Thread which performs a task which is a Runnalbe from 
+java.lang.Runnable which is an interface
+
+We Create a class that will implement the runnable interface and override the run method
+We create a thread and assign a task to it
+    .Thread thread = new Thread(task) -> A thread is in a New state
+We then start the thread to bring it in a state of Runnable
+    .The Runnable state does not mean that the run() method of our task is executing. It just means it is ready to be executed
+
+
+Thread Scheduler
+..
+-We have many state that the thread can go into like Runnable, Running and Blocked state and it is handled by the thread scheduler
+-We should not rely on thread scheduler because some time it executes the thread towards the end, sometimg it executes the thread half way then
+ switches to some other thread
+ 
+ 
+We have 2 approaches to create a task and assign it to thread
+
+Approach 1
+class Task implements Runnable{
+   @Override
+   public void run(){...}
+}
+public static void main(){
+   Runnable task = new Task();
+   Thread thread = new THread(task);
+   thread.start();
+   ...
+   ...
+}
+
+Aprroach 2
+class AnotherThread extends Thread {
+   @Override
+   public void run(){...}
+}
+public static void main(){
+  Thread myThread = new AnotherThread();
+  myThread.start();
+}
+-Here we can extend Thread class and override the run() method because the Thread class itself implements the Runnable interface. It does nothing
+  and a pretty much empty method
+
+It is better to go with the first approach as from a designer perspective, we have 2 separate modules so a better design approach is to follow 
+approach one.
+
+Thread has a static method sleep() which takes millis as input and the thread goes to sleep for that time duration.
+Why would you want to make thread sleep?
+   .If you are downloading the web page and the links are reffered to the same server. So you dont want to make all the requests at one time because
+    the server will be slowed down due to multiple requests, so you make the thread sleep after 2 consecutive requests to give some delay
+   .If you want to send an email every hour and give this task to a particular thread then sleep the thread after the sending of email.
+The thread sleeping is not usually done manually and is handled by frameworks like in spring we have Quartz Scheulder that does this for us.
+The sleep method takes millis as input so we have to always convert our time. Another approach is to use the TimeUnit enum class
+   .TimeUnit.SECONDS.sleep(3);
+   
+Once the thread is completed its execution then it cannot be started again as its state is now DEAD or TERMINATED. It will give IllegalThreadState
+Exception
+
+Some functions
+1) Thread.currentThread()
+     .Static method
+     .Will give the reference of the current thread with its name and the priority
+     .All the threads are assigned the default priortiy of 5
+2) setName()
+     .We can set a particular name for that thread
+     .Lets say our system allows 100 threads limit creation and we want to visit thousands of website to download the content of it. So we assign
+      downlaoding of web page per thread. By setting the thread name as website name we can track the execution status of thread and check what
+      website has how much progress and related information at a given instance of time.
+3) setPriority()
+     .Thread gives us 3 static properties as MAX_PRIORITY (10), MIN_PRIORITY (1) and NORM_PRIORITY (5)
+     .Default priority is NORM_PRIORITY
+     .Setting MAX_PRIORITY will enusre high chances of starting the thread before other threads but still it is dependent upon the thread
+      scheduler and no guarentee about it what it does.
+4) yield()
+     .Giving hint to the thread scheduler that the thread is willing to give up the CPU
+     .The thread scheduler can bring in another thread into execution after switching from the current thread which wants to yield the cpu 
+5) join()
+     .It means to wait until the running thread completes its execution. The calling thread will be suspended until the called completed its execution
+     .There is an overloaded version of join which is join(millis) which enusres to wait until millis and the thread did not completed its
+      execution then continue the execution.
+
+
+
+
+
+
+
+
+
+
+Race Condition
+..
+Example One
+2 person has a joint bank account and has 100$ in it and both want to withdraw 75$ from the bank.
+Since the bank account is same then both of them will get the same bank account object
+
+Example withdraw method
+public void withdraw(int amount){
+  if(balance >= amount) balance -= amount
+}
+
+Person one thread kicks in checks the balance and then thread scheduler decides to move this thread into runnable state. Thread scheduler 
+makes person two thread from runnable to running state checks the balance and deduct the balance. New balance is 25$. Now thread scheduler make
+person one thread from runnable to running state and then deduct the balance. New balance is now -50$ which is the Bad State.
+This means that the BankAccont object was not thread safe
+The main problem here is that we have mutable state (object) which is shared among the thread
+If the object does not have any instance variable then it means it does not have any state so it is thread safe by default
+
+The withdraw() method has a Race Condition and the type of Race Condition is "check-then-act" meaning it is first checking the balance and then
+performing the action.
+  .The solution is to make the withdraw method run as a one single atomic unit which means once the thread enters the method then before its
+   completion no other thread is allowed to enter it
+   
+   
+Example Two
+public class IDGenerator{
+  private long id;
+  public class getId(){
+    return id++;
+  }
+}
+-Here we are incrementing the id as a single statmenet. But here the single statement performs 3 operations (read id, increment id, write id). If
+ thread A comes in read the id, increments the id and then thread scheduler switches the thread from A to B and then B comes in reads the id,
+ increments it and write the value. Thread A comes in again and then writes the value which will be the wrong value.
+
+
+Avoid Race Condition using Synchronization
+-Synchronization allows us to protect the mutable data which is shared among the threads
+
+The Locking System
+-Every object has a single lock because it is the object which has mutable state need to be protected
+-Thread entering the synchronized block automatically acquires the lock and release the lock upon leaving the block or when exception is generated
+-At most one thread can acquire the object's lock
+-The thread goes into the BLOCKED state if some other thread has acquired the object's lock
+-One or more threads can be in a waiting state for the release of the lock and once the lock is availabe the thread scheduler will decide which
+ thread will get the chance to execute and get the object's lock
+-The built-in object's lock is referred to as Intrinsic or Monitor Lock
+
+
+Synchronization Block
+   .It has 2 parts
+      1) The lock on the object
+      2) The code that is to be guarded by the lock
+    
+Synchronization Method
+   .It is a shorthand for a synchronized block
+   .The enitre method is guarded by a lock
+   
+Since the object has only one lock, the threads cannot access object's any of the synchronized method until the lock is released
+The thread can access un-synchronized method since it does not handle critical data
+Like object, a class also has a single lock so static synchronzed method use Class's lock
+
+
+
+
+
+
+
+
+
+Java Memory Model
+..
+JMM is a set of rules we need to be aware of when we are dealing with mutable data being shared among the threads.
+With synchronization we could help things operate in a ordered way and JMM helps us doing this in defining such ordering
+
+It basically explains the Happens-before relationship to make our thread updated and see the latest results
+   .If there are 2 actions A and B and A happens-before B then B will surely see the latest results from A whether they are part of the same
+    thread or different thread
+
+Example
+public int getBalanc(){
+  return balance
+}
+
+public synchronized void withdraw(int amount){
+   if(balance >= amount) balance -= amount;
+}
+
+Here withdraw() method is synchronized but the getBalanc() is not then we donot have happens-before here as getBalance() can execute first even
+though withdraw() started the execution first. So whenver the mutable state is shared (balance) keep them synchronized with the same object's lock.
+If we make getBalance() synchronized then we are sure withdraw() happens-before getBalance() and the thread executing getBalanc() will get the
+latest value updated by withdraw()
+
+One of the happens-before rule are the volatile variables.
+
+
+
+
+
+
+
+Volatile Variables
+..
+-The meaning of volatile is something that changes very rapidly and un-predictibily
+-Used with variables that ensures memory visibility
+-Whenever any write operation is done on volatile variables then its value is propagated to all other threads
+-Alternative way on comparison with synchronization
+-They are always stored on main memroy and not on cache or registers
+-They are used with shared mutable variables and not local variables because local variables just get destroyed after the block has completed
+
+Synchronization guarentees memory visibility and mutual exclusion (atomicity) but volatile only guaretnees memory visibility
+If there is one thread that writes the value and other thread that only reads the value then volatile can be used and no race condition can occur.
+If there is a race condition check-then-act then we have to use synchronized as volatile will not work.
+
+
+In multicore environment each CPU maintains its own cache for data for better performance as reading and writing to main memory every time is 
+costly. For example assume there are 2 threads T1 and T2 and they work on same data D. T1 runs on CPU1 and T2 runs on CPU2. 
+Whenever T1 changes data D, its value gets reflect on cache1 not on main memory. Now at this same time when T2 requests data D then it will get 
+old value from main memory as changed value of D is still at cache1 not yet written to main memory.
+When you use volatile then all the writes on cache which are pending to be written to main memory will happen first to guarantee that T2 will get 
+updated value of D always. With this assumption any other non-volatile variable data in cache which was pending to written to main memory also 
+gets reflect in main memory.
+
+
+Example
+public class StopThread{
+
+  private static volatile boolean stop = false;
+  
+  public static void main(){
+     new Thread(new Runnable(){
+       @Override
+       public void run(){
+          while(!stop) log.info("Running");
+       }
+     }).start();
+     TimeUnit.SECONDS.sleep(1);
+     stop = true;
+  }
+
+}
+
+Here as soon as the stop becomes true, the anonymous runnable's run method will complete its execution as while loop will be terminated because
+on the fly it will receive the latest value of stop. If the stop is not volatile we are not guarenteed when the while loop is stopped as the
+thread may see the updated the value and may not. It depends upon luck. But with volatile the memory visibility is guarenteed
+
+
+
+
+
+
+
+
+Atomic Variables
+..
+-Introduces in Java 5
+-Referred to as better volatile variables
+-They support memory visibility and also mutual exclusion (atomicity)
+    .For atomicity they are only supported to single variables and not a whole block of code
+    
+Example
+public class IDGenerator{
+  private long id = 0;
+  public int getID(){
+    return id++;
+  }
+}
+
+Here the id++ operation is not atomic and 3 operations are there and safety failure can occure if concurrent threads are using the same function
+at the same time. To avoid the failure,
+   1) We cannot make use of volatile as we know volatile dont provide us atomicity
+   2) We can make use of synchronized but its a expensive operation for just this small method. The thread scheduler will Block the thread if the
+      lock is acquired by some other thread, then it will make the thread into runnable state and then running. So costly operations are there. It
+      could get worse if there are several thread waiting for the lock.
+   3) Atomic Variables
+
+Atomic variables comes from the java.lang.concurrent.atomic package which contains many classes to be used with variables. Here the long type
+can be used as AtomicLong
+
+Updated
+public class IDGenerator{
+  private AtomicLong id = new AtomicLong();
+  public int getID(){
+    return id.incrementAndGet();
+  }
+}
+
+THe incrementAndGet() method will ensure that always a unique value is returned
+No locks are there so no thread suspension and release cost is there
+So atomic variables are thread safe
+Internally atomic variables also use volatile variables 
+
+There is a concept called Compare and Swap which is used by atomic variables to avoid using locks and thread suspension and their release
+Lets consider the incrementAndGet will contain the following code
+public final long incrementAndSet(){
+  while(true){
+    long current = get();
+    long next = current + 1;
+    if(compareAndSet(current, next)) return next;
+  }
+}
+Here the value is updated and then it is checked whether the new value is generated or not. If some other thread has already updated the value
+then the if check will fail and it will try again to generate a value. This retrying is much more effecient then thread suspension and resemption.
+In synchronization the thread is blocked but here no blocking is done so this kind of algo and approach is known as Non-Blocking Algorithm and the
+technique used here is referred to as Optimistic Locking- as the new value is computed first based on the optimisitic assumption that no other
+thread have updated the same value. If the assumption is false then the work done is lost but still there is no locking involved. If the assumption
+is true then the value is updated to the shared memory.
+
+The approach used in synchronization is reffered to as Pesimistic Locking
+
+There are number of Atomic Variables divided into 4 groups
+1) Scalars
+     .Most commonly used
+     .AtomicLong, AtomicInteger, AtomicBoolean, AtomicReference
+2) Arrays
+     .Based on Arrays
+     .AtomicLongArray, AtomicIntegerArray, AtomicReferenceArray
+3) Field Updaters
+    .Reflection based utility classes that are wraped around the volatile variables
+    .AtomicLongFieldUpdater, AtomicIntegerFieldUpdater, AtomicReferenceFieldUpdater
+4) Compound Variables
+    .If we want to couple together object reference with either boolean flag or integer valye
+    .AtomicMarkableReference (For Boolean), AtomicStampedReference (For Integer)
+    
+AtomicLong and AtomicInteger are child classes of java.lang.Number class while rest are child classes of Object class
+
+
+
+
+
+
+Synchronization Best Practices
+1) Use synchronization where the shared variable is used
+      .BankAccount Example (withdraw and getBalance both synchronized as both using balance variable)
+2) Use the same lock with the mutable variable anywhere it is accessed
+3) If a method modifies a static field, you must synchronize it even if your application is single threaded
+    .The application can be single threaded but by looking it as a underlying framework lets say a web application, there can be multiple users
+     accessing that method so they should see the desired output
+4) Synchronize only what is needed and keep the block small
+5) Avoid excessive synchronization
+      .Costly approach as it involves thread suspension and resumption, lock acquisition and resumption
+      .Need to ensure consistent memory visibility to all the threads
+      .Over Synchrnization limits the JVM ability for code optimization
+6) If you are not sure whether to synchronize or not then Dont synchronize but Document that the method is not thread-safe
+      .StringBuffer class was found to be only used by single thread but it was synchronized and that effected its performance
+      .In Java 5 StringBuilder was introduced and this performance was optimized
+      
+      
+      
+      
+      
+      
+      
+Thread Coperation and Thread Management
+..
+We have seen that with synchronization, the threads dont interfer to each other. If one thread is in the synchronized block that no other thread
+can enter the same or other synchronized block guarded by the same lock
+But in other scenarios we need more than this coperation
+If one thread is in the synchronized region then it will not be able to perform the task until some other task perform the relevant task.
+The first thread need to know that the other thread has completed the relevant task or not and that is done by some shared state
+
+3 approaches are there for thread interaction
+1) Naive -> Rely on volatile variables
+2) wait() and notify()
+3) Java 5 concurrency utilities -> Represent best approach for thread interaction and coperation
+
+
+Thread Management is referred to as running lots and lots of thread in a large scale system. In such scenario we need some good thread
+creation and management facility which is Executer Framework
+
+
+Example for Thread Coperation
+Web Page Indexing (Used by search engines)
+   .Downloading the Web Page -> Done by Web crawlers
+      -The webcrawler downloads the web page and then recursivley downloads the web page that are referenced by downloaded web page
+   .Index
+      -The downloaded web pages are indexed for fast searching (inverted index are being created)
+      
+      
+We will create 3 classes
+1) Weblink
+2) Downloader
+3) Indexer
+
+The Downloader and Indexer will use the shared web link object. Each web link object creates 2 thread. One will download the web page and other
+will index the web page. The indexer thread need to wait until download is done even if it is ready to execute and here comes thread coperation
+
+-Using the Naive approach, the indexer will wait until the page is downloaded so the CPU cycles are wasted here
+ Also if There are N weblinks so 2*N threads will be created for it
+ 
+-Using the wait() and notify() will help us not using the volatile variable and indexer will not run until the go ahead is given by the downloader
+ through notify. We will use wait() inside indexer if the downloaded page is not available and the indexer will go to the Waiting state. The
+ downloader will download the page and as soon as the page is available it will notify() which will make the state of indexer from Waiting to
+ Blocked. Note that both of the code block must be in a synchrinized block because before executing wait(), the indexer thread can run and execute
+ the notify(). If wait() is called after notify() then the indexer will be in a Waiting state forever. Also the after notif() the indexer is back
+ from Waiting to Blocked state and not Runnable state because after notify() some other operations can be performed inside the synchronized block and
+ the lock is not yet released. Once the lock is released at the end of synchronized block, the thread will be back in Runnable state and can be picked
+ by the thread scheduler.
+    .wait() will make thread in Waiting state and release the lock.
+    .wait() and notif() are both methods of Object class so we can call it as weblink.wait() and weblink.notify()
+    .We also have notifyAll() method that will wake up all the threads waiting on this object. Prefer to use notifyAll().
+    .We could have used other methods also like yield() and sleep() instead of wait() but the difference is that yeild() and sleep() does not release
+     the lock like wait()
+    .Use while loop with wait() because sometime the thread can be awakened and still the data is not available so it will run again and go on wait()
+     state. So it is recommended to do this way
+This approach has limitation that the process is not cleaner and we are using some low level feature like wait() notify() and inside a while loop.
+Java 5 concurrency utilities helps reducing those
+
+
+
+
+
+
+
+
+
+
+
+Thread Interruption
+..
+The thread completes when it executes a task. But we also want the thread to stop working before it is completed
+   .If the web page is downloading very slow then we may stop that thread
+   .Cancel operation, the user wants to cancel the task
+   .Application Shutdown like some memory leak occurs
+Java does not allow forcibly to stop the thread.
+   .The stop() is deprecated
+But it allows coperative mechanism to stop what it is doing because coperative measure can allow thread to do some clean up. Forcibly stopping
+the thread can leave the shared state in an inconsistent state
+
+We have methods like wait(), sleep(), join() that sends the thread to waiting state or blocked state but we donot know when they will be back
+from it. So we have interrupts for these scenarios
+    .Every thread has a boolean interrupted status
+    .Thread has a method interrupt() and it sets the boolean to true to singal it stop what it is doing
+    
+All the blocking methods like sleep() wait() join() are to be enclosed in a try catch block that catches InterruptedException. This is because
+when the thread is already interrupted and a blocking method is called, they will set the defautl interrupted value to false and throw the
+exception to show the thread is already interrupted. The catch block can include any clean up code for the thread
+
+Thread class has method interrupted() which will reset the value and returns previous value
+
+Threads that are blocked due to stream io than those threads are uninterruptable.
+   .The workaround is to close the stream which will throw an exception and we can do some clean up
+Threads that are blocked due to synchronized (intrinsic lock) are uninterruptable.
+   .Use explicit locks instead to interrupt the thread
+Thread blocked due to nio instead of stream io than those threads are interruptible
+
+
+
+
+
+
+Explicit Locks
+---
+We cannot interrupt threads that are waiting acquired by intrinsic locks (synchronized keyword)
+We have to us explicit locks to make them interruptible
+We have to unlock and lock manually and forgetting unlocking can cause big failures
+
+We have a interface Lock from java.util.concurrent.lock
+Methods include
+   .lock()
+   .lockInterruptibly() throws Interrupted Exception -> This is used to acquire the locks and throws exception if the lock is interrupted or the
+                                                        lock is not available
+   .tryLock() -> Returns true if lock is acquired otherwise false
+   .tryLock(long time, TimeUnit unit) -> Timed version of trying the lock in a given specific of time, otherwise return false
+   .unlock()
+   .newCondition() -> Returns back Condition obj which we can use to signal and wait the thread 
+   
+Fairness
+We have a class ReentrantLock that implements the Lock interface which has 2 overloaded ctors
+new Reentrant()
+new Reentrant(boolean fair) -> Default value is false
+   .Setting the value to true which means that lock will be given to the threads on first come first serve basis.
+   .Default value false means no specific sequence is there to acquire lock. If a thread requests to accquire lock the lock may be given to it
+    even if there are several threads waiting in the blocked queue to acquire the lock. If the lock is not available then the thread will have to
+    join other threads in the queue
+    
+    
+Reentrant or Intrinsic?
+-Reentrant introduced in Java 6 which is performance wise good in comparison with Intrinsic Locks of Java5
+-With Java 6, the algorithm has improved and Intrinsic locks are as good as Reentrant Locks
+-With Intrinsic locks, the lock is released automatically but you can forget to release the lock in Reentranc Lock which is dangerous
+-Go for Reentranct lock if you want additional feature like thread interruption while waiting for the lock
+
+
+If we have a shared resource and multiple threads want to read that resource and other single thread wants to write that resource, it is not
+possible with intrinsic or reentrant lock. We have special interface and its implementation
+We have ReadWriteLock interface with following abstract method
+    .readLock()
+    .writeLock()
+The class that implements it is ReentrantReadWriteLock
+
+We have to manually check for when releasing the lock. Because when the thread is in waiting state of the lock and we interrupt that lock,
+the interrupted exception is generated which will reset the value of the lock. If we do unlock() in the finally block then it will generate the
+exception since no lock is acquired by the thread. We have to do this Thread.currentThread.interrupt() in the catch block when the thread is
+interrupted so that the interrput status is set to true and then we can check in the finally block whether the thread was interrupted or not like,
+         if(!Thread.currentThread().isInterrupted()) lock,unlock()
+Only release the lock if the thread is not interrupted (means if the control flow did not came through catch block.)
+
+
+
+Regarding condition predicate and condition queue
+
+We know that threads wait for the lock in a queue. In the intrinsic lock we had wait() and notify() method which were enclosed by some condition
+We had condition like if(htmlPage === null) then wait() till some other thread downloads the thread and notify about it. So the thread will wait
+inside the queue known as condition queue and the condition is knows as condition predicate
+
+In Explicit lock we have multiple condition queue and condition predicate. Lets say we have a bounded buffer of 100 elements and threads are there
+which take out and take in elements from it. So in a method where we put elements we can have condition predicate that if the buffer is full then
+invode the await() method to send the thread inside condition queue and wait until the buffer is empty. Similarly in a method where we take out
+element we put condition predicate that if the buffer is empty then we invoke await() on the condition to send the thread in a separate queue
+where threads wait to take out element whenever they are available.
+
+Refer To Link For Code: https://docs.oracle.com/javase/7/docs/api/java/util/concurrent/locks/Condition.html
+
+
+
+
+
+
+
+
+Concurreny Utilities
+-Introduced in Java 5
+-Prefer these utilities over wait() and notif() for thread coperation
+
+They include
+1) Executer Framework (ExecuterService, Callable, Future)
+2) Synchronizers (CountDownLatch)
+3) Concurrent Collections (BlockingQueue)
+
+
+Executer Framework
+..
+
+Executor Framework decouples task execution with task submission. This gives us the flexibility to create multiple thread pools
+
+We use thread-per-task strategy for small applications where managing threads are relaitively easy
+It has limitations when we use it with large applications with lots and lots of threads
+   .If there are large number of threads than creating it will consume significant amount of resources
+   .More memory consumptions
+   .Instability of application as lack of limits of thread creation (some threshold will be there and can give out of memory error)
+With Executer Framework we dont with threads directly
+It consists of
+   1) Work Queue
+        .Contains tasks list to be executed
+   2) Thread pool
+        .Contains threads that executes task from the work queue
+        .A thread picks a task from the queue, executes it and goes back to the queue waiting for the new task to be reused with new tasks
+        .We can create thread pool like how many threads can be there, how much time thread will be alive
+        
+How does Executer Framework overcomes limitations of thread-per-task?
+-It solves the problem of thread creation. We have ready to use threads in a pool. Leads to better responsiveness
+-Solves Resource consumption and Instability as we have fixed pool size so memory overflow could not be done and limited resources will be used
+
+
+We have the executor interface that has execute(Runnable r) method
+
+We can implement the executor interface as the ThreadPerTaskExecuter as
+class ThreadPerTaskExecutor implements Executor{
+  void execute(Runnable r){
+     new Thread(r).start();
+  }
+}
+Executor e = new ThreadPerTaskExecutor();
+e.execute(someRunnable);
+e.execute(anotherRunnable);
+
+
+We can implement the executor interface as the SingleThreadedExecutor as
+class ThreadPerTaskExecutor implements Executor{
+  void execute(Runnable r){
+     r.run();
+  }
+}
+Here each task is executed sequentially and no new thread is created
+
+
+We have the class called Executors from java.util.concurrent that provide us multiple type of executors via static factory methods
+1) newFixedThreadPool
+     .Creates a fixed size pool for threads
+     .Initially no threads are created but as tasks are submitted threads are created
+     .If size is reached then no new thread are created but that task is assigned to any idle thread or wait in the queue till thread becomes idle
+     .New thread is added if any thread dies due to exception
+     .Good for heavy loaded servers
+2) newCachedThreadPool
+     .Tasks are not queued, as tasks are submitted threads are created
+     .If any idle thread is there, use that thread otherwise create new thread
+     .A thread idle for more than 60 seconds will be terminated and removed from the cache
+     .Good for lightly loaded servers
+3) newSingleThreadExecutor
+     .Creates a fixed size pool for threads
+     .We can scheduled a task to run after an hour (delayed task)
+     .We can scheuled a task to run every 1 hour (periodic task)
+4) newScheduledThreadPool
+These methods returns Executors with some certain properties
+The first 3 methods returns the ExecutorService (ThreadPoolExecutor instance) interface which extends Executor interface as well
+The last method return the ScheduledExecutorService (ScheduledThreadPoolExecuter instance) which extends ExecuterService as well
+
+
+When using Executor, at the end of the program the JVM could not be shut down because the executor are still in progress. So they also need to
+be shutdown using the ExecutorService
+
+Executor vs ExecutorService (extends Executor)
+..
+The 3 methods discussed returns back the instance of the ExecutorService which is much more extensive than Exector because it allows us to
+submit the task and manage termination also. With Executor we only submits the task with execute() method
+    .It has submit() for task submisstion which is better than execute() of Executor
+    .With submit(), it submits the task and returns back Future interface
+    .We have overloaded of submit() method in ExecutorService that takes in Runnable or Callable as a task submission
+    .With Callable interface, it is a better task representation as we can perform delayed task like Downloader
+    .With Future Interface being returned on submit(), we have get() method in it which is blocked until the task is completed. Very similar to
+     the wait() method
+     
+Use Callable if any value is returned from the task as Future.get() will return the value returned by the task
+Use Runnable if no value is returned from the task as Future.get() will return null whether the task returns the value or not.
+
+Once the Executor is shutted down, no new task can be accepted
+Executor can be shut down in 2 ways
+  1) shutdown() -> all submitted tasks executed
+  2) shutdownNow() -> active tasks interrupted and queued tasks ignored
+After shut down the Executor is terminated and we can check with isTerminated() method call
+  .Check for monitoring
+  
+  
+  
+The Future interface represents the life cycle of a task
+   .To track the progress of a submitted task
+Methods include
+   .cancel(boolean mayInterruptIfRunning) -> cancels the task if not yet started. Returns false if task already cancelled or completed already
+   .isCancelled() -> returns true if task is cancelled via cancel() method
+   .isDone() -> returns true if task is completed
+   .get() -> Blocks until task is completed. Returns value returned by the task if task is Callable. Returns null if task is Runnable
+   .get(long time, TimeUnit unit) -> Timed version of get(). Throws TimeoutException if time is passed and task is not yet completed
+   
+   
+   
+Either we can use get() to execute the task, but the limitation here is that if we have multiple tasks submitted and we call get() in a loop
+one by one then other iterations will be not executed until and unless the first get() executes and unblocks
+
+Or we can use get() timed version, but the limitation here is that if the time frame has passed, it will generate the timeout exception and we have
+to call .cancel() on future to cancel that task. A person might forget doing this
+
+Or lastly we do invokeAll() which takes list of tasks and time frame in which all tasks are executed and if the time frame has passed then it also
+sets the cancel property to true. We can check with isCancelled attribute. Use invokeAll as it is much more simpler and cleaner.

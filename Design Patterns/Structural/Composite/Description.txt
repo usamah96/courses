@@ -1,0 +1,30 @@
+Composite
+-----
+
+-A mechanism that treats single object or group of objects uniformly
+-Treat a group of objects in similar way as a single object
+
+Motivation
+..
+-Objects use other object's fields and methods through inheritance and composition
+-Composition lets us make compound objects
+-When you want your clients to ignore the difference between compositions of objects and individual objects.
+
+Example 1
+..
+The simplest example can be of a company hierarchy. There are managers, team leads, developers etc. We can built a hierarchy
+and define which of the employees are under which specific employee using composite design pattern.
+
+Example 2
+..
+If we look at the video or photo editing software we have options to select shape or graphic shape and then group them
+together to become a single object to build something new. This is a simple example of a composite design pattern where we
+either treat object in a scaler (singluar) manner or combine multiple objects in a tree like structure to be treated uniformly
+
+Example 3
+..
+In a neural network we have neurons that are connected with other neurons with incoming and outgoing connections. We also have
+a neuron layer which consists of bunch of several neurons. The composite design pattern helps us make a system in which we can
+connect a neuron with other neurons, neurons with neuron layer, neuron layer with neurons and neuron layer with other neuron
+layers.
+

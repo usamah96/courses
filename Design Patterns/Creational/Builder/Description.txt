@@ -1,0 +1,31 @@
+Builder Pattern
+---
+
+-Some objects are simpler and can be created via simple constuctor call
+-Other objects are complex and require a lot of information for its creation
+-So having 10 arguements in a constructor is not a good practice, instead opt for piecewise construction
+-Construct the object piece by piece as you get the information
+-The responsibility of the builder is to construct the object ina step by step way
+
+Example other than Udemy's one
+
+-We know the advantages of immutablitiy. Suppose we have a user class and we know that in a user management module once a
+user is created it will not change
+-Our user has properties like firstName, lastName, age, phone and address in which only the firstName and lastName are
+mandatory and rest are optional
+-For that we would have to create 5 overriden constructors as follows
+
+public User (String firstName, String lastName, int age, String phone){ ... }
+public User (String firstName, String lastName, String phone, String address){ ...  }
+public User (String firstName, String lastName, int age){ ...   }
+public User (String firstName, String lastName){ ...    }
+
+-And in future if some other optional property comes into picture our constructors would increase.
+-To get rid of this problem either we loose the immutablity and create setters for all the properties, or we increase
+the amount of constructors. We have to loose something
+-Here we can have Builder Pattern to retain the immutablity of our User class with limited constructors.
+
+
+-In java we have StringBuilder which is a wrapper around String whos ultimate goal is to create the string object
+whenever we call the append method and the toString() will eventually creates the string just like the .build() will
+create our User in the example

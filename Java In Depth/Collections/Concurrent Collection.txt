@@ -1,0 +1,82 @@
+Concurrenct Collections
+--
+
+Why is it a need for concurrent collection when we have traditional collection classes?
+There are 3 strong reasons for that.
+
+1) Traditional Collection Classes are not Thread safe
+   .There is a chance of data inconsistency as multiple threads can modify the collection object at the same time
+2) There are some thread-safe collections like SynchronizedList, SynchronizedSet, SynchronizedMap, Vector class, HashTable that supports 
+   thread safety but the issue is that there can be atmost 1 thread that can access the object at a given time even for the read operation. 
+   So performance wise it is not a good approach to use these methods. These methods are available in Collections class and the methods are,
+     .Collections.synchronizedList(), .Collections.synchronizedMap(), .Collections.synchronizedSet(), .....
+3) Using traditional collection, if one thread is iterating over the collection using the collection iterator and during that time if some 
+   other thread tries to modify any structural change to the collection (write, update) then thread 1 will get ConcurrentModificationException
+   in the middle of iteration.
+   
+Concurrent Collections never throw ConcurrentModificationException.
+
+ConcurrentHashMap
+--
+It is the implementation of ConcurrentMap interface which is the sub-interface of Map interface
+It is a thread-safe implementation of the HashMap data structure, which allows for multiple threads to read and write to the map 
+concurrently, without requiring external synchronization.
+It uses a technique called "lock striping" to divide the underlying array of buckets into smaller segments. Each segment is protected by a 
+separate lock, which allows multiple threads to access different segments of the map concurrently, without causing contention or blocking.
+
+By default we know that HashMap size is 16 and it is true for ConcurrentHashMap also. Since the size is 16, the concurrency level is also
+16 by default which means that every bucket is assigned a separate lock so that when any thread wants to modify any element, only that
+particular lock will be granted to that thread. Other elements are allowed to be modified.
+
+The concurrency level should be close to the actual size of the HashMap at initial level and if set to a value greater than the initial size,
+then the concurrency level value will be considered equal to the size of hashmap
+
+
+CopyOnWriteArrayList
+--
+It is the implementation of List interface which is the sub-interface of Collection interface
+This implementation is the thread-safe version of ArrayList.
+
+Why the word CopyOnWrite?
+It is because how it is implemented internally. Internally, no matter how many threads wants to read the list they can do it. But on every
+write operation, there will be a separate copy created where the write operation will be done instead of the actual array list. At a later
+point in time, JVM will sync both the original list and cloned list which was used for updating.
+If there are 1000 write operations concurrently then there will be 1000 copies created so that is why it is not recommended to use this
+implementation if there are many number of writes than read. It is recommended if number of writes are much lesser thatn reads.
+
+ArrayList and CopyOnWriteArrayList is very much similar in terms of implementation classes and all other operations but there are 2 main
+differences
+  1) With CopyOnWriteArrayList, multiple threads can access and update the list as it is done on the cloned object
+  2) With CopyOnWriteArrayList, we cannot remove any object using its iterator because at later point in time when the cloned object and
+     original object will be synced by JVM there will be data inconsistency.
+
+In the methods, all methods are same but in CopyOnWriteArrayList there are 2 new methods,
+  1) addIfAbsent, it will add the element only if there is not added previosuly
+  2) addAllIfAbsent, same as addIfAbsent but it will check the whole collection.
+These 2 methods are only accessible if the object is made without List interface type.
+
+We can make use of this in Caching strategy as cache object can be shared between multiple threads where write operations are less in
+comparison with read operation
+
+
+CopyOnWriteArraySet
+--
+
+Similar to CopyOnWriteArrayList as it internally uses CopyOnWriteArrayList
+All features are similar but the only difference is it is a thread-safe version of Set and CopyOnWriteArrayList is a thread-safe version
+of List.
+
+CopyOnWriteArraySet internally makes use of addIfAbsent() method of CopyOnWriteArrayList to avoid adding duplicates
+
+
+BlockingQueue and BlockingDeque
+--
+
+Similar to Queue and Deque but the only difference is if Thread A wants to add an item to queue or deque, it will be blocked if the size
+is full. Similarly if any thread want to get the element from queue or deque, it will be blocked till any element is present inside it.
+
+The use case could be Producer Consumer Problem
+
+One key difference is that blocking queues/deques typically have a capacity limit, whereas regular queues/deques do not. 
+Another difference is that blocking queues/deques typically provide additional methods for timed waiting, which allows threads to wait for a 
+certain amount of time for an operation to complete.

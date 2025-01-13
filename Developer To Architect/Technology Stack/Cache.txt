@@ -1,0 +1,57 @@
+Technology Stack
+--
+
+Memcached
+..
+Caching can be required anywhere in the system whether at the web application layer for session caching or at the service layer to cache
+objects which are generated after high amount of processing or objects fetched from the disk that are used frequently and does not become
+stale after a short period of time.
+
+The less scalable way of using cache is to mantain it in service memory. By using this approach, it will give less cache hits with key-data
+duplication if there are more than 1 instances running . For 1 instance it will work fine
+
+In Memcached, there is a seaprate component which is accessed by every instance of the service as of the cache is their own. We can store
+pretty much anything in memcached as values are stored as blob. The size is also configurable but we generally dont store very large data
+because that will make the size full in a short period of time.
+Memcached allows to use different TTL values for each key value pair and when the size is getting full, it evicts the lest recentry used (LRU)
+key value pair based on TTL value to provide high availability.
+
+It works in a similar way like other caches works. If there is a cache miss then the data is retrieved from the database and then that data
+is cached into memcached. If there are multiple instances running for the cache then consistent hashing is used to choose the candidate node
+for storing the data into the cache which allow us to add and remove cache nodes easily without breaking changes.
+The issue is that the data is lost if the memcached server is restarted or gets crashed.
+
+
+Redis
+..
+Redis has came after Memcached and it filled the gaps which were left by memchached.
+Redis does pretty much everything memcached does and also provide some additonal things
+
+Like Memcached which is a key value pair, Redis is like Key Data Structure pair
+  .We can store value in memcached as a blob i.e: pretty much a string.
+  .If we want to store a list in memcached and then alter modify it, we will have to retrieve a whole list first, add an element and then
+   store back the list again. But in Redis we can add the element to list directly. In the same way we can use Map, SortedSet, Lists, etc
+   
+Redis can be used as a DataStore also beside using it as a Cache only
+  .It stores the data on the disk
+  .Helps in creating backups which will allow restarting the nodes and resuming its old state
+  
+Redis allows Data Replication
+  .We can create master-slave asynchronous configuration for redis also for high availability and load distribution
+  .Read loads can be given to slave and write loads can be handled by master node just like in databases.
+  .We avoid synchronous replication for better performances
+  
+Redis can also be used as a Messaging Queue (Discussed Later)
+
+When starting a new project, it is better to go with Redis as it allows multiple options.
+
+
+
+Cloud Solutions for Cache
+..
+Both Redis and Memcached are provided by Google and AWS as their variants
+
+AWS Elastic Cache has 2 variants (Redis and Memcached)
+Google MemoryStore has 2 variants (Redis and Memcached)
+
+They are fully managed by cloud, we just have to configure them and tell them what hardware we want to use

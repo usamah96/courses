@@ -1,0 +1,24 @@
+Database Replication
+--
+
+It refers to sharing information to ensure consistency between multiple database instances. This is to improve reliability,
+fault tolerant and accessibility.
+
+Master/Standby Replication
+In this type of replication, there is a master node which is the only node that accepts writes and no other instance should
+accept write. The other standby or slave instances accept writes from the master node either by sync or async replication
+mechanism. The standby or slave nodes act as read replicas and accepts reas from different users.
+
+Multi-Master Replication
+In this type of replication, there are more than one master that accept writes. This can create a lot of conflicts and the 
+application should be aware of it. Conflict resolution techniques must be used in order to resole such issues when trying to
+sync data with each other.
+
+Sync vs Async Replication
+In sync replication, the client has to wait until and unless the master and all the standby and salve instances are done with the
+commit of the transaction. If there is one master and 10 slaves, then databases like postgres allows a maximum number of sync
+instances to be provided. If the value provided is 5 then the client will have to wait until atleast 5 instances are committed
+successfuly including the master. This will guarentee full consistency.
+In async replication, only the master has to be updated and the client is done. But there will be other backgound tasks running
+in order to update all the slaves instances periodically. So this will consume some CPU cycles and effort. It will guarentee
+eventual consistency.

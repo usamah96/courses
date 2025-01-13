@@ -1,0 +1,94 @@
+Docker Compose with Multiple Local Containers
+--
+
+Lets say we want to build an application that displays a count which indicates how many times this server is reached by users.
+For this, we can create a node app docker container with in memory redis database to store the count.
+
+One approach to this app is that we create a container with node js app running along with redis server, but what if our app goes popular and receive too much traffic. We will need 
+to eventually scale our node app. To do this it means we need to launch more docker containers but in our current setup, each container will contain its own redis database since 
+we have embedded redis with our nodejs in a single container. So each container will have its own redis server containing different counts which is invalid.
+
+To tackle this, what we can do is separate nodejs app container with redis container so that multiple nodejs app container can access the redis container simultaneously in a 
+centralized fashion
+
+First we can create a docker container that hosts our nodejs app
+We can create package.json file and index.js file and wrtie a Dockerfile as,
+..
+ FROM alpine
+ 
+ WORDIR /app
+ 
+ COPY ./package.json ./
+ npm install
+ COPY ./ ./
+ 
+ CMD ["npm", "start"]
+..
+
+After that we can execute "docker build -t usamaa96/visits-app ."
+After that, we can start a new docker container that hosts redis server using already created image from docker hub with "docker run redis-server"
+Then we can run our nodejs all container usnig "docker run usamaa96/visits-app".
+
+Here we will see error that our nodejs app cannot connect to redis server because redis is launched inside another container so there is no way that a container accesses another 
+container. For this, there are 2 ways
+  1) Using docker networking feature (requires alot of configuration and stuff)
+  2) Using docker compose
+  
+Docker compose is the solution which is a separate cli that gets installed along with docker. It is used to startup multiple docker containers at the same time and also helps us 
+to wrtie long argumented docker commands like docker run, docker exec and then port bindings, etc.
+Lets say we have first built our nodeapp image and then used redis-server built in image to launch 2 containers and also used port mapping for our nodejs app container. All this 
+can be done in docker compose by specifying all the things in a docker-compose.yml file
+..
+  version: '3'
+  services:
+    redis-server:
+	  image: 'redis'
+    node-app:
+	  build: .
+	  ports:
+	   - "4001:8081"
+..
+
+The version is just a version number
+The services refer to how many containers we want
+redis-server is the name of our container and we want to use already built-in image which si 'redis' from docker hub
+node-app is the name of container which we want to create using a Dockerfile we created. The "build: ." means to lookinto current directory and build this image.
+
+But, how will the nodejs app connect to the redis server we have not specified any connection in yml file.
+Whenever we create containers using docker compose, they are by default automatically set up to be interacted with each other. SO we donot have to specify it explicitly 
+When connecting to a redis server in nodejs app, we will have to specify a container name instead of url like,
+  const redis = redis.createClient({
+    url: "redis://redis-server:6379",
+  })
+6379 is the default redis port
+
+To run, we just need to execute "docker-compose up" and it will automatically look for docker-compose.yml file in the current directory. It is same as we run "docker run image-name"
+but here we donot want to specify the image name. 
+Also, to rebuild the image and execute again we have to execute "docker build ." and "docker run image-name", but with docker compose we just need to pass a build flag which is,
+"docker-compose up --build"
+
+Similarly, if we want to run the container in the background, we can use "docker run -d redis" but with docker compose we can do this as "docker-compose run -d"
+To stop the container we use the container id as "docker stop container-id" and if running multiple containers then we need to exeucte "docker ps", grab the container id and then 
+execute "docker stop" everytime. With docker compose, we can directly stop all the containers started using "docker-compose down".
+
+When our docker container stops or exits due to an failure or stopped on purpose, we can define a policy to restart our container. Like if our container crashes after occurring
+some error then we need to restart it. We have 4 restart policies which are,
+  1) "no" (never attempt to restart the container)
+  2) always (always attempt to restart the container)
+  3) on-failure (only restart the container in case of any error)
+  4) unless-stopped (always star the container until it is stopped using docker-compose stop forcibly.
+  
+We can define the restart policy as,
+..
+  version: '3'
+  services:
+    redis-server:
+	  image: 'redis'
+    node-app:
+	  build: .
+	  restart: on-failure
+	  ports:
+	   - "4001:8081"
+..
+We can use on-failure strategy for something like worker threads which launches, does it job and then stops. In case of any failure then restart it
+We can use always strategy in case of any web server because we want it available 100% of the time.

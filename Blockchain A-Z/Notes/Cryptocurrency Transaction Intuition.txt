@@ -1,0 +1,230 @@
+Cryptocurrency Transaction Intuiotion
+--
+
+1) Transaction and UTXOs
+2) Transaction Fees
+3) Wallets
+4) Private Public Keys
+5) Signatures
+6) Segregated Witness
+7) Public Key vs Bitcoin Address
+8) HD Wallets
+
+
+
+Transaction and UTXOs
+
+Lets say I have 5 friends and all on a bitcoin network sent me some bitcoins
+
+Friend 1 -> Me 0.1 BTC
+Friend 2 -> Me 0.5 BTC
+Friend 3 -> Me 0.2 BTC
+Friend 4 -> Me 0.7 BTC
+Friend 5 -> Me 0.6 BTC
+
+All these transactions in a bitcoin world are called UTXOs (Unspent Transaction Outputs)
+
+The thing to know is that there is no account in bitcoin where all my money lies
+This is all about transactions residing inside a blockchain
+
+Now suppose I want to buy a bicycle of 0.5 BTC
+What I need to do is that I will pick transaction number 5 in which i received 0.6 BTC and send it as an input
+
+Input
+  .0.6 BTC from Friend 6
+Output
+  .0.5 BTC to Bicycle shop
+  .0.1 BTC back to myself
+  
+Now the transaction number 5 is no longer a UTXO
+A new UTXO will be added which is 0.1 BTC
+
+New Transaction Would be
+
+Friend 1 -> Me 0.1 BTC
+Friend 2 -> Me 0.5 BTC
+Friend 3 -> Me 0.2 BTC
+Friend 4 -> Me 0.7 BTC
+Myself -> Me 0.1 BTC
+
+
+
+
+
+
+
+Where Do Transaction Fees Comes From?
+
+It is simply the difference of all the amounts and the change UTXO back to yourself is something you set to yourself and transaction fees are 
+originally optional.
+
+Lets say I have the transaction record as,
+
+Friend 1 -> Me 0.1 BTC
+Friend 2 -> Me 0.5 BTC
+Friend 3 -> Me 0.2 BTC
+Friend 4 -> Me 0.7 BTC
+Friend 5 -> Me 0.2 BTC
+
+Now I want to buy a phone worth 1 BTC and an apple worth 0.05 BTC
+I have set the transaction fee as 0.02 BTC so the transaction input and output will look like
+
+Input
+  .Friend 3 -> Me 0.2 BTC
+  .Friend 4 -> Me 0.7 BTC
+  .Friend 5 -> Me 0.2 BTC
+Output
+  .1 BTC to Phone shop
+  .0.02 BTC to Fruit shop
+  .0.05 BTC to miner
+  .0.03 BTC to Myself
+  
+Updated Transaction would be
+
+Friend 1 -> Me 0.1 BTC
+Friend 2 -> Me 0.5 BTC
+Myself -> Me 0.03 BTC
+
+The higher the transaction fees, the greater the change of you transaction be picked by the miner.
+
+
+
+
+
+
+
+Wallets
+
+From where does the balance comes from when you login to you application which says you have that much bitcoins or ethereum or lightcoins.
+
+The concept of wallet is that it just stores all amount of UTXOs available to you. It just goes through all the transactions, identifies which
+transaction came to you and add them all up. The transactions came to you which have already been spent is marked with a flag which are filtered
+out
+
+The total amount which is shown is only for our convenience. It does not exist as a money but instead it exist as a combination of all the UTXOs
+avaialble.
+
+
+
+
+
+
+
+Signatures: Private & Public Keys
+
+Lets assume the transactions
+
+Friend 1 -> Friend 2 0.1 BTC
+Friend 2 -> Friend 4 0.5 BTC
+Friend 3 -> Me 0.2 BTC
+Friend 4 -> Friend 1 0.7 BTC
+
+It clearly sees the name and it is open for all of us to see which is not private. Anyone can add a transaction that X sends Y some BTC even though
+X has no idea who Y is. Or some more realistic example would be to X sends attacket some BTC
+
+The transaction would be inserted into mempool, miner will pick it and add this into the blockchain. Here is no privacy.
+How to add the pricavy to the system
+
+When you join the cryptocurrency network, you are assigned a private key which will be used to send the money to others
+From this private key, you can generate a public key which is for other users who can send money to you
+
+Whenever you send money or send any message, you sign the message with you private key and generate a signature. The verification check is performed
+by giving them 3 inputs i.e: Message, Signature and Public Key. This function will send a boolean value either True or False. These 3 components
+becomes part of the block. This will allow every miner to verify that indeed this message is sent by the correct user
+
+
+
+
+
+
+
+
+Segregated Witness (SegWit)
+
+As we know that, for bitcoint, 1 mb block size if preferred
+
+For a transaction, the thing that includes in it are
+  *Message
+  *Signrature
+  *Public Key
+  
+The data or the message is typically very small but the signature and public key is a huge alphanumeric key which takes up 60% of the space which
+is also known as scriptSig
+
+So the concept is that to extract this scriptSig information and sent throughout the network separately to save more space and add more transaction
+inside a block
+So it gives an illusion to have the block size increased but actually it is not
+
+The name segregated witness is because the name witness comes from the synonym of signature and it is being segregated from the block so hence
+Segregated Witness
+
+SegWit is one step towards the speed of bitcoin because bitcoin is much slow then many visa cards. Bitcoin supports 10 transaction per second
+whereas visa card supports 1000 transaction per second
+
+
+
+
+
+
+
+Bitcoin Address vs Public Key
+
+The bitcoin address is derived from the publick key by simply hashing the public key (SHA-256) and since the deterministic nature of hashing
+algorithm it is very very rare that 2 public keys generate the same bitcoin address. 
+
+This is the address you ask people to send you your money
+People can also send you money to your public key also
+
+Then what is the point having these 2 keys when the work can be done with public key alone?
+The reason is that we need not to expose the public key everytime. It needs to be kept private for same cases also
+When sending money to someone you can expose public key but where it can be kept secret, you must keep it secret. Like when receiving the money which
+can be done using the bitcoin address
+
+The public key is derived from the private key via an eliptical function which is an hashing algorithm but not sha256
+The reason for this additional layer of bitcoin address is that for some reason the public key is reverse engineered to find the private key due
+to any technical issue with the eliptical function or through any fault, not everyone can have your private key. Obviously those people can guess
+it which you have send the money but those won't have who have sent you money. In the meantime the network designer will figure out the way to solve
+this issue.
+
+
+
+
+
+
+Hierarchically Deterministic Wallets (HD Wallets)
+
+We know that we have 3 unique keys
+
+Private key -> Public Key -> Bitcoin Address
+
+By using this we send and receive money. Think of it like a hacker that if a hacker needs to guess and track what you are doing he can track it
+like watching to whose address you are sending the money more often. Who is sending you money more often? How many people are there you more
+often connect to? The tracking is not impossible but it is guessable
+This information can later be used in an inappropriate way to track you eventually
+
+How to avoid this?
+We can generate multple unique keys like
+
+Private key 1 -> Public Key 1 -> Bitcoin Address 1
+Private key 2 -> Public Key 2 -> Bitcoin Address 2
+Private key 3 -> Public Key 3 -> Bitcoin Address 3
+Private key 4 -> Public Key 4 -> Bitcoin Address 4
+
+Everytime we don any transaction, we use a different version of public key and bitcoin address. But here the problem is to safely keep all the
+private keys because if one of them leaks out, you whole account will be hacked
+
+The concept of HD Wallets comes here which tells to have one Master Private Key and generate a whole hierarchy of keys from there. It is just an
+additional layer of security related to generation of keys
+
+Master Private Key
+   +1 -> Hash -> Private Key -> Public Key -> Bitcoin Address
+   +2 -> Hash -> Private Key -> Public Key -> Bitcoin Address
+   +3 -> Hash -> Private Key -> Public Key -> Bitcoin Address
+   
+Add +1 to the master key, and then generate whole pairs of keys
+It can be helpful if working in an organization, every department can have their own layer of keys. So if a key is leaked out only that layer
+will be affected and not the whole organization
+
+
+Also there is a Master Public Key which is basically useful for auditing. The one needs to check from where the funds have received and to where
+the funds have sent. Master Public Key can directly generate all layers of Public Keys skipping the Private Keys step

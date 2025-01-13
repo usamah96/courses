@@ -1,0 +1,111 @@
+Modules and Namesapces
+-------------------
+
+-Using modular pattern
+-Splitting our code into multiple files to make it more readable and managable
+
+
+1) Splittiong our code into multiple files
+
+Using namespaces
+-We can group our code in a single namepsace and then import that namespace in a separate file
+
+Inside fileA
+
+namespace App{
+  export interface strategy{
+    execute(): void
+  }
+
+  export interface state {
+    executeState(): void
+  }
+}
+
+Inside app.ts
+
+/// <reference path="fileA.ts" />
+namespace App{
+  class A implmenets strategy, state {}
+}
+
+-The name should be same for the namespaces
+-During compilation there will be 2 file created and since namespaces is a typescript feature, javascipt
+will ignore it.
+-When we run our code there will be runtime exeption because strategy and state is not defined inside
+fileB for javascript.
+-For that we need to compile our TS code into a single file
+-In the tsconfig.json file specifi outDir as "/dist/bundle.js"
+-This will compile our code into single bundle.js file and then link inside index.html as 
+<script src="bundle.js"></script>
+
+
+
+
+
+Using imports and exports
+-Import and Export are javascript feature supported by modern browsers after the introduction of
+es2015 or es6.
+-So now we can split our TS and JS code into multiple files and then import and export it.
+-For that we need to change "target" to "es6" and "module" to "es2015" and not use "outDir" as we dont
+want to output our code in a single file
+-Now
+..
+Inside models/drag-drop.ts
+export interface Draggable {}
+export interface Droppable
+
+Inside app.ts
+import {Draggable, Droppable} from "./models/drag-drop.js"
+..
+..
+..
+-Notice we have used the extension as .js because in es6 JS supports import and export
+-We can ommit the extension as soon as we integrate our project with webpack. But without it we need
+to specify the .js extension
+
+
+
+
+More Feature
+-We can alias our imports as well. Like if we have the import from 2 files with the same name we can
+give different aliases where we import it to avoid the contradiction
+..
+import {Draggable as Drag1, Droppable} from "./models/drag1.js"
+import {Draggable as Drag2} from "./models/drag2.js"
+
+
+-We can import everything ans give it a alias by using the "*"
+import * as DragDrop from "./models/drag.js"
+-DragDrop will now act as an object where we can access all the exports using the dot notation
+..
+DragDrop.Draggable
+DragDrop.Droppable
+
+
+-If we have only one export per file we can use the "default" keyword to export it and when importing it
+we can import it by any name of our choic
+..
+export default class Component{}
+import Cmp from "./component/component.js"
+
+-We can have mixed export with and without default but only one "default" export is allowed per file
+export default class Component{}
+export const name = "Usama";
+-But try using the named export instead of default. It is more recommended
+
+
+
+-Does the code in the file executes everytime we import the file?
+-What if 10 files import a single file, does the code in that file executes 10 times?
+-We can verify it using
+..
+project-state.ts file
+console.log("Running")
+export const name = "Usama";
+
+If we import 2 times in 2 diferent files
+import {name} from "./project-state.js"
+import {name} from "./project-state.js"
+-Running will be printed only 1 time
+-So if one file imported it, another will not run the code again

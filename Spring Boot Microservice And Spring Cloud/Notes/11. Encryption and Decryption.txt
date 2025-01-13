@@ -1,0 +1,27 @@
+Encryption and Decryption
+--
+
+-Encrypt some of the properties in the configuration properties like password, jwt secret key, exipration time etc...
+-2 types are supported
+   *Symmetric Eccryption (Shared key)
+      .Unique alphanumeric key that will be used to encrypt and decrypt
+   *Asymmetric Encryption (RSA Keypair)
+      .We have to use keytool command to genrate password protected keystore file
+      .This will contain private and public key for encryption and decryption
+
+
+If Using Java 9 or older Then,
+..
+-Download and add new libraries to jdk related to cryptography
+-Download java jce
+-Copy 2 jar files local_policy and US-expert-policy
+-Paste them under Java/jdk/jre/lib/security
+-Make a backup of these 2 files if already present in the secutiy folder
+-Kill all java processes and re run spring boot application to reload the jvm
+
+
+Add the following property for the encryption key using symmetric encryption
+  .encrypt.key=123abc
+  .Now hit the following url POST: /encrypt and give string as argument. It will return encrypted result
+  .Hit the following url POST: /decrypt and give the encrypted string as argument. It will return decrypted result.
+  .Store the value as {cipher}<encrypted-result> and spring will automatically decrypt it.

@@ -1,0 +1,108 @@
+Scalability
+--
+
+The most aspect of any architecture is how it impacts its end-user in terms of performance, scalability or cost.
+There are some primary aspects for designing the microservice architecture
+  .The External Goals include
+    a) High Scalability in terms of Decentralization and Independence
+	b) Frequent Deployments as user get incremental changes very frequently
+  .The Internal Goals include
+    a) Independent Services which is important for scalability
+	b) Independent Development as independent services can be developed separately
+	c) Independent Deployments as services can be partially released. If I have a very large scale system I cannot wait for all the changes
+	   to be done and deploy the whole system at once.
+	   
+Before Microservice Architecture, we have an architecture called as Service Oriented Architecture which was the ususal and normal way
+of developing services. 
+So there are some benefits for SOA architecture. Microservice Architecture made some improvements in SOA architecture and make some trade-offs
+while doing that improvements.
+
+If we want to scale any system, it should be decentralized and its decentralized component should be able to work independently
+In SOA architecture, we get some dependency and some independency
+  1) Independency
+     .There can be separate service for each module like inventory-service, order-service, shipping-service
+	 .Each service can have its own technology stack, libraries and frameworks
+	 .Each service can be scaled independently and differently
+  2) Dependency
+     .All service should share a common interface schema which is in the XML format and SOAP helps in doing that. SOAP itself is not the
+	  reason for dependency but the common schema makes the service tighlty coupled with each other. Like when creating order, first we will
+	  need to go to order-service and then go to shipping-service so both these service need to share a common schema and all properties
+	  should be same in both services which makes it tightly coupled.
+	 .Common Database Schema
+	 
+With dependency issues, each individual services can be developed separately but cannot be deployed separately
+Also with database as schema is shared then it has scalability limitation. The database can only be scaled vertically and cannot be scaled
+horizontally. 
+For services, they can be scaled horizontally and vertically both as we can run multiple instances of order-service with high capacities of 
+disk and ram.
+
+So in SOA, there are some limitations in terms of scalability which microservice architecture style adresses
+The main primary 2 objectives of micro-services architecture is High Scalability and Frequent Deploymnets as discussed before and to achieve 
+this objective, micro-services adopt few things
+  1) Shared Nothing Architecture
+     .It specifies that nothing is shared between services. In SOA, the front-end XML schema is shared between services and backend database
+	  schema is shared
+	 .It is achived through Domain or vertical Partitioning
+  2) Vertical/Domain Partitioning
+     .All the domains are separated into each service with its separate database schema which makes all the services looseyl coupled with
+	  each other
+	 .The schemas are independent like if some data is needed by shipping-service from order schema then it will communicate with order-service
+	  to provide the data instead of directly communicating with order-database.
+	 .There is no common interface schema as 2 services can have a completely different style of storing the object and properties and there
+      will be an Aggregator Service which will be responsible to convert the formats into compatible formats for communication between 
+      services.
+
+Microservice architecture is for very high scalable applications and not for small applications as there is a high cost involved with it
+which is related to managing the transactions.
+Transactions in micro-services involves multiple machines as each machine runs the transaction in its own ACID manner. All the services
+has their own database so local transaction run in ACID nature but managing distributed transaction across multiple machine is a challenge.
+Lets say a user want to create an order and communicates with order-service. The order-service communicates with inventory-service to check
+available inventory which updates the inventory. Then it communicates with shipping-service to check if the order can be delivered, what
+is the address, etc and update the shipping details. Finally the order will be created inside the order-database and will be confirmed.
+In order to make all these local transaction completely ACID there is one option 
+  .2 Phase Commit Or 3 Phase Commit 
+   With 2PC, it means that it will have 2 phases. In first phase, the user will communicate with the cordinator (order-service in this 
+   scenario) which will first check if the inventory-service and shipping-service are ready for the transaction. If they are ready they will 
+   hold the lock on the database. In the second phase the actual commit will be done to insert the data.
+This is not the scalable solution because the lock is taken for a longer period of time and all the other transactions will be blocked so this
+is something not used in microservice architecture. 3PC is an enhancement to 2PC which addresses the problem that what to do when the actual
+cordinator goes down but it does not solve the scalability issue.
+
+Other solution is to use Compensating Tranasction in the form of,
+  .SAGA Pattern
+   .It does not provide completely ACID transaction but provide eventually consistent model
+   .We do not have to implement any library but have to write a bit more code for compensating transaction
+   .If at any point the transaction gets failed, all the previous transactions needs to be rolled back by communicating with all the 
+    services used for committing the transaction
+   .The flow of reversal may not be exactly opposite, they can be executed in parallel
+   .The compensating transaction itself can also fail so the system should be able to restart and try
+   .When committing the transaction and if any service is down there are 2 options. Either to roll back all previous transaction and give
+    an error to the client or wait for that service to be up again and continue the transaction. Generally the second option is preferred.
+   .Similarly when in a rollback state, if any service goes down the system should wait for that service to be up again and continue the 
+    rollback operation
+   .We can see a global transaction in SAGA pattern to be Atomic, Eventually Consistent, Not Isolated and in Durable fashion as when 
+    committing, either we commit whole or roll back all transaction ensuring atomicity. The system is not consistent because after saving
+	the inventory, the shipping details are not saved yet, so consistency is not there but eventually it will be consistent after global
+	transaction is completed. The tranasction is not isolated because after saving order1 in order-database and during saving order1's
+	inventory there can be multiple orders like order2, order3 currently in the system that can see mid-way changes for order1 which means
+	that transaction is not isolated. Finally durability is ensured as after committing it is make sured that data is preserved
+	
+	
+All these microservice communication are done in an asynchronouse fashion via an Orchestrator or Aggregator.
+Consider an example for Order Creation using Event Driven Transactions.
+There is an Order Aggregator Component that Publishes and Listens to some event to Message Queue
+  .Once the order requests comes to Aggregator, the aggregator will publish create_order_event to the queue
+  .The order-service will listen to the event, create an order and acknowledges back to order_created_event
+  .Aggregator will listen to order_created_event and publishes new event to reserve the inventory in reserve_inventory_event
+  .The inventory-service will listen to the event, reserve the inventory and acknowledges back to inventory_reserved_event
+  .Aggregator will listen to inventory_reserved_event and publishes new event for shipping process in create_shipping_event
+  .The shipping-service will listen to that event, create necessary shipping details and acknowledges back to shipping_created_event
+  .Finally Aggregator will listen to shipping_created_event and respond back to client via an email or any other async medium.
+Now consider the path where inventory reserve operation is failed
+  .Once the order requests comes to Aggregator, the aggregator will publish create_order_event to the queue
+  .The order-service will listen to the event, create an order and acknowledges back to order_created_event
+  .Aggregator will listen to order_created_event and publishes new event to reserve the inventory in reserve_inventory_event
+  .The inventory-service will listen to the event, while reserving the inventory it fails and it responds to inventory_reservation_failed_event
+  .The aggregator will listen to inventory_reservation_failed_event and will publish new event to undo_order_event to Undo The Created Order
+  .The order-service will listen to that event, delete the created order and acknowledges back to order_deleted_event
+  

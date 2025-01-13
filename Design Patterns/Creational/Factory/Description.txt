@@ -1,0 +1,99 @@
+Factory
+---
+
+A factory is a component that is responsible solely for the creation of whole object and not piecewise object like in 
+Builder Pattern
+
+Motivation
+-Sometimes the logic of the creation of object becomes to complex
+-The constructors limit us in terms of their capabilites to construct an object
+   .The name of ctor is the name of the class and we cannot make multiple ctors with same num of arguements
+
+
+The Problem:
+..
+-Lets say we have to create a point with 2 cordinates and that 2 cordinates can be simple x and y known aas Cartesion
+cordinates and the 2 points can be Polar cordinates (rho and theta) that needs some calculation in order to generate x and y
+
+class Point{
+  private x,y;
+  public Point(double x, double y){
+    this.x = x; this.y = y;
+  }
+  public Point(double rho, double theta){
+    this.x = rho * Math.cos(theta);
+    this.y = rho * Math.sin(theta);
+  }
+}
+
+-We cannot do this as we cannot overload the ctor with same arguement of same type.
+
+One Solution could be to use the enum as
+
+enum CordinateSystem{
+  CARTESIAN, POLAR
+}
+
+public Point(double a, double b, CordinateSystem cs){
+  switch(cs){
+    case CARTESIAN:
+    case POLAR
+  }
+}
+
+-But this solution will make our ctor very ugly and in future if there are more condition we have to change our code and
+our ctor will grow bigger.
+
+-A recommended solution is to use Factory Method and make the ctor as private
+so that no one can initialize the object directly.
+---------------------------------------
+
+Factory Method
+-A separate function that creates the object
+
+private Point(double x, double y){
+  this.x = x; this.y = y;
+}
+
+public static Point createCartesianPoint(double a, double b){
+  return new Point(a, b);
+}
+public static Point createPolarPoint(double a, double b){
+  return new Point(rho * Math.cos(b), rho * Math.sin(b));
+}
+---------------------------------------
+
+Factory
+-A separate class that groups number of function or a single function to return the object
+-A class could be inner class if the creation of object is of the same class else we can create a separate class
+
+public class Point{
+  private x,y;
+  private Point(double x, double y){
+    this.x = x; this.y = y;
+  }
+  static class Factory{
+    public static Point createCartesianPoint(double a, double b){
+      return new Point(a, b);
+    }
+    public static Point createPolarPoint(double a, double b){
+      return new Point(rho * Math.cos(b), rho * Math.sin(b));
+    }
+  }
+}
+---------------------------------------
+
+Abstract Factory
+-Factories of Factories when there are hierarchies of relation like we have a abstract factory that return either simple shape
+factory or rounded shape factory which in turns returns simple shape or rounded shape
+
+interface Shape{}
+class Rectange implements Shape{}
+class RoundedRectangle implements Shape{}
+class Square implements Shape{}
+class RoundedSquare implements Shape{}
+inteface ShapeFactory{}
+class SimpleShapeFactory implements ShapeFactory { if(rectangle) return new rectangle  if(square) return new square  }
+class RoundedShapeFactory implements ShapeFactory { if(rectangle) return new rounded rectangle if(square) return new rounded square }
+class AbstractFacory{ if(isRounded) return rounded shape factory  if(!isRounded) return shape factory }
+

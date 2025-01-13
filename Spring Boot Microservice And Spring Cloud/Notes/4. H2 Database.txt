@@ -1,0 +1,15 @@
+H2 Database
+---
+
+-A very lightweight Java Sql In-Memory Database
+-Data storage available when the application is running
+-Once the application restarts, all data gets cleared.
+
+Connection
+--
+-Add the h2 pom dependnecy
+-Add the following properties
+   *spring.h2.console.enabled=true
+   *spring.h2.console.settings.web-allow-others=true
+-Navigate to Url/h2-console and Test the connection
+-If the connection fails try to change the database path which will be generated randomly (can be found in the logs)

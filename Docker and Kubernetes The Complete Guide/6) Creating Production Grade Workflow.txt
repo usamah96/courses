@@ -1,0 +1,111 @@
+Creating Production Grade Workflow
+---
+
+How to create a flow that can e pushed in a production environment like aws or digital ocean servers? In prod environment we continuously develop projects, test it and then 
+deploy it to release new feature. So how to do this in a prod environment using docker.
+
+Creating sample react project to get run via docker
+Creating a Dockerfile.dev inside root project folder
+..
+  FROM node:Its-apline
+
+  COPY ./package.json
+  RUN npm install
+
+  COPY . .
+
+  CMD ["npm", "start"]
+..
+docker build .
+docker run -p 3000:3000 <image-id>
+
+What if we want to change something inside our react files. How to make docker keep track of the changes and reflect those automatically
+
+So whenever we copy the files from local system to docker container using COPY command, we actually take a snapshot of our directory and put it inside docker container. So if we 
+change any code in our local system that will not be reflected. To do this, we need to chang our strategy of copying files.
+Here we can make use of Docker Volumes from which we set up a placeholder or a reference to our original local directory into docker container. So the files in docker container 
+points to our local system. We need to adjust our docker run command in order to make use of volumes
+  "docker run -p 3000:3000 -v /app/node_modules" -v ${pwd}:/app <image-id>"
+  
+Here the -v flag indicate that it is the volume and second tag is with colon ":" while other it without it
+The colon means that everything in the app folder in container, map and reference it to the present working directory (pwd) on local system.
+The option without colon means not to reference this folder. Running without the first volume option will throw error because we know that w use to remove node_modules folder 
+before any deployment so whe there is no node_modules folder in local systm, the reference on container will be null. So when the container will be build, it will create its own 
+node_module folder and skip adding the reference using the first volume option
+
+Now with volumes, we know that our docker run command is getting bigger and we know that we have docker-compose to simplify the stuff
+We can define all these things in a docker-componse.yml files
+..
+version '3'
+services:
+  web:
+    build:
+	  context: .
+	  dockerfile: Dockerfile.dev
+	ports:
+	 - "3000:3000"
+	volumes:
+	 - /app/node_modules
+	 - ./:app
+..
+Here inside the build, we define a context which tells in which directory to look for project files
+The dockerfile indicate to specify the filename if the filename is other than Dockerfile to override it
+The volumes are defined in the same way to skip referencing node_modules and reference all other files and folders.
+
+Now we can simply run "docker-compose run"
+
+What if we want to run the tests also with npm run test. There are 2 options
+ 1) Run the web container and thne open a new terminal and using docker exec run the npm run test command inside the web container.
+ 2) Create a separate container with all the project files as web container and replace the default command from npm run start to npm run test.
+ 
+Both the options have their pros and cons,
+
+With option 1, what we need to do is run "docker exec <container-id> npm run test" and this will execute npm run test inside the web container launched via docker-compose. The 
+advantage is that we can do whatever we want with the test command to filter things, etc. The disadvantage is that wee have to first fetch container-id using docker ps and then we 
+are able to run docker exec command.
+
+With options 2, we need to set up another continaer like,
+..
+version '3'
+services:
+  web:
+    build:
+	  context: .
+	  dockerfile: Dockerfile.dev
+	ports:
+	 - "3000:3000"
+	volumes:
+	 - /app/node_modules
+	 - ./:app
+  tests:
+    build:
+	  context: .
+	  dockerfile: Dockerfile.dev
+	volumes:
+	 - /app/node_modules
+	 - ./:app
+	command: ["npm", "run", "test"]
+..
+The issue here is that we cannot perform anything much with the npm run test command.
+
+
+To deploy our project on production, we need to create a production build and serve our files using nginx web server.
+For this we need to create a docker file that take care of creating production build and serving it via nginx.
+We will use Multi-Step Docker technique
+..
+FROM node-16:alpine as builder
+WORKDIR /app
+COPY ./package.json .
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx
+COPY --from=builder /app/build /usr/share/nginx/html
+..
+
+The second FROM command indicates that first container is being created and now use the second base image to create a second container.
+The prod build will be created at /app/build folder and we will copy it from first containr into second container using the --from flag
+The /usr/share/nginx/html is the default directory where nginx serves the files so we can directly copy the project folder to get served.
+
+We can run docker build . and then docker run <image-id> to serve our application using nginx.

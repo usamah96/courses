@@ -1,0 +1,42 @@
+VPC
+--
+
+Virtual Private Cloud is a private network within an AWS region where we can deploy our resources.
+Inside our VPC, we create multiple subnets and subnets are at the availability zone level. It allows us to partition our network. We 
+can have multiple subnets at the AZ level.
+
+We can create public subnets which is accessible from the internet and private subnet which is private and secured and not accessible
+from the internet. To define access to the internet and between subnets,  we use Route Tables.
+
+So at a higher level, we have AWS region, within a region we have a VPC and a VPC contains a range of IPs called CIDR range. If this
+region has 2 availability zones then AWS provides us with a public subnet per availability zone by default. So we dont have private 
+subnets by default and each AWS region contains a default VPC.
+
+Now when we have EC2 instance deployed in our public subnet, it is accessible to the internet via Internet Gateway. So our public subnet
+has a direct route to IGW to talk to the internet. But what if our instance deployed in private subnet wants to talk to the internet 
+lets say for software updates or consuming a 3rd party api. For this we make use of NAT Gateways or NAT Instances. NAT Gateways are 
+AWS managed and NAT Instances are self managed and both allow us to communicate to the internet, but the internet still cannot reach 
+our EC2 instance inside private subnet.
+To enable our private subnet talk to the internet, we deploy NAT Gateway or NAT Instance into our public subnet which has access to 
+Internet Gateway. So after deploying, our private subnet communicates with NAT and NAT communicates with IGW all the way to the world 
+wide web (www).
+
+For defense mechanisms, we have NACL (Network ACL) and Security Groups.
+NACL is a firewall which control traffic to and from the subnet. It has ALLOW and DENY rules which are only ip based. So we can 
+define the ranges which IPs are allowed and which are denied into our public subnet. NACL are only attached at the subnet level which
+is the first level of defense.
+The second level of defense is the security group which is at the resourse level (EC2 instance) and it has only ALLOW rules where 
+we can define IP addresses and other security groups as well.
+
+We can monitor all the traffic going in and our of our VPC, Subnets and Instances by the use of VPC Flow logs, Subnet Flow Logs and 
+Elastic Network Interface (ENI) Flow logs. It helps monitor and trouble shoot connectvity issues like Subnet to Internet connection,
+Subnet to Subnet connection, Internet to subnet connection, etc... We can also send these flow logs to S3, CloudWatch or Kinesis Data
+Firehose.
+
+If we have multiple VPCs either in 2 different AWS regions or 2 different AWS accounts and we need to connect those VPCs as if they
+are in the same network, then we need to peer them using VPC Peering. ANy 2 VPC need to connect to each other must have a separate 
+peering connection. Also we need to make sure that the CIDR Ip ranges must not overlap between the 2 VPCs
+
+With VPC Endpoints, we can connect to any AWS service privately instead of public www network. This gives us enhanced security and 
+low latency to access AWS service. So if we have a private VPC and an EC2 instance deployed on it and that instance need to connect to 
+S3 or DynamoDB, then we can create VPC Endpoint to connect to those services

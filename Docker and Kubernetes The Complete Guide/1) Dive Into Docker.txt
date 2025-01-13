@@ -1,0 +1,68 @@
+Dive Into Docker
+--
+
+Why Use Docker?
+- We all have gone through a process of installation of software in our computer. A typical flow is,
+  Download Installer -> Run Installer -> Get an error msg -> Troubleshoot issue -> Rerun installer -> Get another error :-(
+  
+  We then follow the same process everytime until the issue gets fixed
+  Here docker comes to the rescue, it allows us to install any software on our computer, cloud without any such issues. It makes our 
+  lif eeasy to install and run softwares without worrying about setup and related dependencies
+  
+  
+What is Docker?
+- It is a collection of different projects and tools which builds an Ecosystem. The different projects or tools include
+    .Docker Client
+	.Docker Server
+	.Docker Machine
+	.Docker Images
+	.Docker Hub
+	.Docker Compose
+  It is a platform or ecosystem around creating and running containers
+  
+  
+A very typical flow for installing a software using docker is that,
+ .First docker goes to docker hub, and downloads an image of that software
+ .This image is a file that contains all the dependencies and configuration required to run a program
+ .With the help of image, a docker container is executed. It is basically an instance of a software that is running isolately in our 
+  system with its own memory and hardware storage. We can launch multiple different instances of an image (container) of that software.
+  
+
+When we install a docker package in our system, it contain several tools which are,
+ - Docker Client, which is docker cli which helps us to issue docker commands. This does nothing but only helps us to interact with 
+   another software which is Docker Server
+ - Docker Server, which is also called docker daemon is a tool that is responsible for creating images, running and maintaining
+   containers and pretty much everything with docker
+   
+   
+After installing WSL and all the setup, we can execute the following first commands
+  "docker run hello-world"
+  - Behnind the scene, the docker client will take this input, do some processing and forward it to docker server
+  - Docker server is the one which does heavy weight tasks. It will first check in Image Cache (onto local computer) if hello-world 
+    image is already present
+  - If image is not present, it will go to Docker Hub which is free repository for docker images and download the hello-world image
+  - Docker server will store this image locally in image cache and then create a container to run an instance of that image
+  - The container will execute the hello-world program which just prints some text.
+  
+  
+Before understanding what a container is, we need to see the flow in our operating system
+- In our OS, we have a running software called kernal which governs access between all the program running on our computer (Chrome, Terminal,
+  Spotify, NodeJS) and all the physical hardware connected to our computer (CPU, Memory, Disk). So if NodeJS application wants to write 
+  a file to the disk, then NodeJs will execute a system call which provide set of command to the kernal to write the file on the disk. 
+  The kernal act as a middle layer between storage and programs and it exposes few system calls that can be executed like saving file to 
+  disk.
+  Consider a scenario, where we have 2 programs running i.e: Chrome which needs python v2 to run and NodeJS which needs python v3 to 
+  run. In our system, we have python v2 installed and at a given time we can not install 2 versions of python. So in this case, chrome 
+  will work fine but NodeJs will not. What should we do now?
+  We can do namespacing which means to isolate resources per process and allocate a specific area in the hard drive. We can segment our 
+  harddrive into two, one with python v1 installed and other with python v3. When a reqest comes from process to kernal, the kernal 
+  will need to check from which process the system call is executed and according to it, gives access to that particular segment of the 
+  harddrive. Namespacing is also used to limit the resources. Also there is another concept called Control Groups which allow us to 
+  define how much resources a process can utilize
+  
+- So the container is referred to this part where a process run in isolation where the resources a fixed defined for it just like 
+  NodeJs is running and we have assigned pythonv3 to it which cannot be accessed by any other process.
+  
+The namespacing and control groups are linux specific feature and cannot be done in windows and macos, that is why to run docker we 
+need a linux environment. For that we use Windows Subsystem for Linux (WSL) or Docker Client which internally runs a Linux VM.
+

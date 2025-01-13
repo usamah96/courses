@@ -1,0 +1,46 @@
+class Person
+{
+  private int age;
+
+  public Person(int age)
+  {
+    this.age = age;
+  }
+
+  public int getAge()
+  {
+    return age;
+  }
+
+  public void setAge(int age)
+  {
+    this.age = age;
+  }
+
+  public String drink() { return "drinking"; }
+  public String drive() { return "driving"; }
+  public String drinkAndDrive() { return "driving while drunk"; }
+}
+
+class ResponsiblePerson
+{
+  private Person person;
+  
+    public int getAge()
+  {
+    return this.person.getAge();
+  }
+
+  public void setAge(int age)
+  {
+    this.person.setAge(age);
+  }
+
+  public ResponsiblePerson(Person person)
+  {
+    this.person = person;
+  }
+  public String drink() { return this.getAge() > 18 ? "drinking" : "too young"; }
+  public String drive() { return this.getAge() > 16 ?  "driving" : "too young"; }
+  public String drinkAndDrive() { return "dead"; }
+}

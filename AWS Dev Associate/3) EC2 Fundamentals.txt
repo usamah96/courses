@@ -1,0 +1,151 @@
+EC2 Fundamentals
+---
+
+It is infrastrucutre as a service knows as Elastic Compute Cloud
+
+EC2 is not just one service, it is composed of many things like,
+  -Renting virtual machines using EC2 instances
+  -Storing data on virtual device using EBS storage
+  -Distributing load across machines using Elastice Load Balancer (ELB)
+  -Scaling the service using Auto Scaling Group (ASG)
+  
+What can we choose for our EC2 instances
+  1) One of the 2 Operating Systems i.e: Windows, Linux or Mac
+  2) Compute Power i.e Number of CPUs or Cores
+  3) Random Access Memory (RAM)
+  4) Storage Space either Network Attacked (EBS) or Hardware Based (EC2 Instance Store)
+  5) Network Card and the type of public IP
+  6) Firewall rules for security
+  7) Bootstrap Script for EC2 User Data
+  
+There are many other configure options too but these are the main core.
+
+EC2 User Data is a script that is run when the machine starts (bootstrapping) and is run only once. This script can contain
+anything which we like to perform at the start of our instance like installing updates, softwares, downloading files or 
+automating any task, etc. This script runs with root user only.
+
+There are multiple EC2 instance types. Some of them are,
+  1) t2.micro
+  2) t2.xlarge
+  3) c5d.4xlarge
+  4) r5.16xlarge
+  5) m5.8xlarge
+  
+Different types comes with different configuration. t2.micro comes with 1 cpu, 1 gigabit of memory, ebs storage and low to moderate
+network performance. t2.xlarge comes with 4 cpus, 16 gigabit of memory, ebs storage and moderate network performance. Similarly
+for others.
+t2.micro is part of free tier with 750 hours per month of running instance.
+
+
+Hands On
+****
+Go to EC2 service and from left click on instances tab
+Click on Launch Instance
+We can choose multiple options here
+  -Selecting OS (AWS Linux 2023 for now)
+  -Selecting instance type (t3.micro for now)
+  -Generating a Key Pair so that we can access it via SSH
+  -Allowing Traffic from HTTP under security Group
+  -Adding the User Data Script for initialization. This script will install httpd web server and place the index.html files
+   inside the www location of instance.
+   
+This is the basic configuration to launch an instance. There are several many other things to be done
+AWS will by default give us 30 GB of local SSD EBS storage with this instance.
+
+After launching the instance, aws will assign a public and a private ip to it. We can access our instance using the public
+ip (http://<ip-address>). This will display the index.html file which was created using the user data script and the request will
+be completed by our web server.
+
+When we Stop and Start our instance back, aws may change its public ip address but our private ip will remain the same.
+****
+
+
+Instance Types
+--
+
+There are many Instance classes for Aws EC2. Some of them are,
+General Purpose
+  .These are greate for diversity of workloads such as web server, code repositories
+  .They have a greate balance between memory, compute and networking 
+  .All the general purpose instances are with class 't' or 'm'
+
+Compute Optimized
+  .Greate for compute intensive tasks that require high performance like,
+    a) Batch processing workloads
+	b) Media transcoding
+	c) Dedicated Gaming Servers
+	d) High Performance Web Servers
+	e) Machine Learning
+  .All the compute optimized instances are with class 'c'
+
+Memory Optimized
+  .Great for workloads that processes large data sets in memory like,
+    a) High Performance Relational and Non Relational Databases
+	b) Distributed Cache Store (Elastic Cache)
+	c) In Memory database optimized for BI (Business Intelligence)
+	d) Real Time Proccessing of Big Unstructured Data
+  .All the compute optimized instances are with class 'r' (stands for RAM) or 'x'
+
+Storage Optimized
+  .Greate for storage intensive task that require high sequential read and write operations on large data sets
+  .Some of the use cases include,
+    a) High Frequency Online Transaction Processing Systems (OLTP)
+	b) Relational and NoSQL Databases.
+	c) In Memory Cache (Redis)
+	d) Datawarehousing Applications
+	e) Distributed File System
+  .All the compute optimized instances are with class 'i' or 'd'
+
+Accelerated Optimized
+HPC Optimized
+
+AWS uses a unique naming conventions for instances like,
+m5.2xlarge
+Here m means the instance class which is General Purpose in this case
+5 is the generation which is the number increased by AWS everytime when there is any improvement
+2xLarge is the size which includes CPUs, Memory, etc. The greater the size the more CPU and Memory. Sizes can be 4xLarge, 8xlarge, 
+16xLarge, etc.
+
+
+
+Security Group and Classic Ports
+--
+Security Groups are the fundamentals of network security inside AWS cloud. They control how the traffic will come in and go out
+from our EC2 instances.
+The Security Group contain 'allow' rules and they can be referenced by either the IP address or other security groups.
+
+-We can create inbound and outbound rules. Each security group can be assigned to multiple EC2 instances
+-If we switched regions, we will have to create new security groups
+-Security Group lives outside of EC2 so any traffic blocked, the EC2 will not see it
+-It is a good approach to mainatin a separate security group for SSH access
+-Any IP blocked by security group, the system will get a timeout issue, but if the system gets Connection Refused issue then it means
+ that the security group is passed but there is something wrong with the application either it is not running or something else.
+ -By default, all inbound traffic is blocked and outbound traffic is authorized
+ 
+Also, if we have created Security Group #1 and assigned it to EC2 Instance #1 then we can create another security group with 
+inbound rule to authorize Security Group #1 and assigning it to EC2 Instance #2. Now whenever any trafiic comes from EC2 Instance #1
+to EC2 Instance #2 then it will allow it since it is attached with authorized security group. This comes in handy when we design
+Load Balancers. 
+
+
+Class Ports to Know,
+  1) 22 is for SSH (Secure Shell). It is used to log on into EC2 linux instance
+  2) 21 is for FTP (File Transfer Protocol). It is used to upload files to a file share
+  3) 22 is for SFTP (Secure FTP). It is used to securely upload files to file share using SSH
+  4) 80 is for HTTP. It is used to access unsecured websites
+  5) 443 is for HTTPS. It is used to access secured websites.
+  6) 3389 is for RDP (Remote Desktop Protocol). It is used to log on into EC2 Windows instance
+  
+  
+  
+To SSH into our EC2 instance, we will use the downloaded private key (.pem) file to login into our instance
+The command is,
+ssh -i <.pem file> ec2-user@<public-ip-of-instance>
+
+The ec2-user is the default user created by AWS for us.
+We know that we can create IAM roles for services also and EC2 is one such service where the service can perform actions on our
+behalf. For instance if we have to list all users in EC2 instance then we will have to run "aws iam list-users". This will
+initially throw error and ask to use "aws configure" command to provide the user related information (to see if a particular user 
+has role to fetch users list or not), but this is a very bad idea because these info will be stored on ec2 and anyone with the
+ec2 instance access can view those. So the recommended approach is to give an IAM Role to the specific EC2 instance by going
+into EC2 Security settings. To list all users we can give IAMReadOnlyAccess IAM Role to the instance.

@@ -1,0 +1,68 @@
+Iterable Interface
+--
+
+public interface Iterable<E>{
+  Iterator<E> iterator();
+  default void forEach(Consumer<? super E> action);
+  default Spliterator<E> spliterator();
+}
+
+If your class implements Iterable interface that means your collection can now be iterated.
+
+*iterator() that is used for iterating the elements of collection. The other 2 are default methods defined in the
+Collection class.
+*forEach() can be used if we want to perform some action for each element of the collection.
+*spliterator() can be used to split our collection element into partitions and then those partitions can be processed by
+separate threads. So if our collection size is in thousands and millions then we can split them and process them using parallel computing
+that can be more effecient.
+
+
+Iterator Interface
+--
+
+public interface Iterator<E>{
+  boolean hasNext();
+  E next();
+  void remove();
+  default void forEachRemaining(Consumer<? super E> action);
+}
+
+-ArrayList defines an inner class that implements Iterator interface and provides all implementation of these methods
+*hasNext() that returns a boolean if there are elements present to be traversed
+*next() that returns the next element in the collection
+*remove() that removes the current element
+*forEachRemaining that has the default implementation to iterate over all elements not iterated at this point.
+
+-When we are traversing the list, we cannot do any structural modifications i.e: adding or removing the elements
+Example
+..
+List<Integer> list1 = new ArrayList<>();
+list1.add(1);
+list1.add(2);
+list1.add(3);
+
+for(int i : list1){
+  if(i == 1) list1.remove(Integer.valueOf(i));
+}
+
+Will throw ConcurrentModificationException. This exception is generated because the for each loop internally uses the iterator to iterate
+through element and calls the next() method to get the next element, and we are externally modifying the list so the iterator dont allow us 
+to do that. FOr instance you may be able to remove the element but for the next iteration when .next() is called internally by for each loop
+then it will throw the exception.
+
+Using the iterator of ArrayList, we can do this removal at the time of traversing the list because it provide us with additional
+feature of removal during traversing.
+
+Example
+..
+List<Integer> list1 = new ArrayList<>();
+list1.add(1);
+list1.add(2);
+list1.add(3);
+
+Iterator<Integer> listIterator = list1.iterator();
+while(listIterator.hasNext()){
+  int element = listIterator.next();
+  if(element == 1) listIterator.remove();
+}
+System.out.print(list1); [2,3]

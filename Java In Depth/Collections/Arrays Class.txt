@@ -1,0 +1,138 @@
+Arrays Class
+--
+
+Arrays is the utility class provided which helps in manipulating the arrays like converting array into ArrayList, Sorting of arrays or 
+Searching Arrays, Compare 2 Arrays, etc
+
+Some of the Operations include
+  1) asList(T values...)
+     Where we can convert the array into ArrayList
+     Example 1
+	 ..
+	   String[] a = {"Value 1", "Value 2"};
+	   List<String> values = Arrays.asList(a);
+	   Or since asList() takes varargs we can give values as multiple parameters like,
+	   List<String> values = Arrays.asList("Value 1", "Value 2")
+	..
+	Notice that the returned list is backed by original list which means any change in the returned list will also be reflected on the original
+	list. The returned list is of fixed size so if we add or remove any element, then it will throw UnsupportedException, however we can change
+	any element at particular index
+	
+	Example 2
+	..
+	  To create a fixed size list with all the elements to be null we can do,
+	  List<String> fixedSizedList = Arrays.asList(new String[3]);
+	..
+	
+  2) sort()
+     Where the sorting is done for provided array
+     Example
+	 ..
+	   .For sorting, natural ordering is used which means custom user defined objects used as arrays needs to implement Comparable interface.
+	   .There are multiple overloads for this function. The overloads are there for all the primitives like sort(int[]), sort(float[]), sort(dobule[]), 
+	    but for non-primtives we have the overload for sort(Object[] a).
+	   .The thing to notice here is that for primitives, Arrays sort function applies quicksort algorithm for sorting and for non-primtives like
+	    String[], Double[], or any custom user defined class, the sort function applies mergesort algorithm for sorting. The reason for that is
+	    in quicksort there are lot of comparisons with the pivot element so if user defined java class has very large number of attributes then the
+	    comparison operation will take lot more time and also quicksort algorithm worst case time complexity is O(n^2) if pivot is chosen poorly.
+	    Primitives comparison is much faster. Where as in mergesort algorithm, the comparisons are much lesser so it is best fit for 
+		custom objects. Also mergesort's worst case time complexity is O(nlogn).
+	   .There is also an overload for sort() that takes Comparator interface implementation as 2nd argument to define the sorting technique
+	   
+	   More Info on why 2 different algos are used
+	     1) http://cafe.elharo.com/programming/java-programming/why-java-util-arrays-uses-two-sorting-algorithms/
+		 2) https://stackoverflow.com/questions/3707190/why-does-javas-arrays-sort-method-use-two-different-sorting-algorithms-for-diff
+	 ..
+	 
+  3) binarySearch(int[], int)
+     Search method that searches for a particular element in an array
+     If the element is found then it returns the index and if not found it will return -(expected index of element) - 1
+	 Example
+	 ..
+	   Searching for element 4 in array {4,50, 63} will return 0
+	   Searching for element 5 in the same array will return -2 as 5 can be fit in index 1 and -1-1 = -2
+	 ..
+	 
+  4) copyOf(int[], int length)
+     Copies all the element with the specified length and returns a new array.
+	 If the length is greater than the size of the provided array then all remaining indexes will be filled with default value of the data type.
+	 There is also a array copy function in java.lang.System class named as
+	   .arraycopy()
+	    It takes the source array, where to start copying, target array, from where to start filling, and number of elements to copy
+		All remaining indexes will be filled with default value of data type if number of elements to copy is less than target array size
+		Example
+		..
+		  int[] targetArray = new int[6]; 
+		  int[] sourceArray = {1,2,3,4,5}
+		  System.arraycopy(sourceArray, 0, targetArray, 0, sourceArray.length);
+		..
+	 The copyOf() method actually internally uses System.arraycopy to reduce the complexity.
+	 
+  5) fill(int[], int)
+     It fills the whole array with the provided element.
+	 A good way to initialize the array
+	 
+  6) equals(int[], int[])
+     Compares the 2 array and check for size, data type and content if they are equal or not.
+	 
+  7) deepEquals(Object[], Object[])
+     Notice that it takes Object[] array instead of primitive array. This is used to compare nested arrays (2D, 3D arrays or more)
+	 It will not work for 1D array as 1D array can be used as an Object and not Object[]
+	 Example
+	 ..
+	   int[][] can be used as an Object[] with int[] indicating Object type.
+	   int[][][] can be used as an Object[] with int[][] indicating Object type.
+	   int[] cannot be used as an Object[] as int[] itself is used as an Object.
+	 ..
+	 
+	 
+Also there are parallelized operations introduced in java 8 which makes use of multiple cores to do the job
+
+1) parallelSort()
+   It is the same as sort() but is done in parallel.
+   It is recommended to use parallelSort() when the elements are atleast '1 << 13' which is 8192.
+   If there are elements less than 8192 then the old sort() method will be used internally.
+   
+2) parallelPrefix()
+   It takes the array and IntBinaryOperator functional interface to tell what operation need to be performed at every index
+   IntBinaryOperator takes 2 int parameter and returns an int.
+   Example
+   ..
+     Suppose we want to accumulate the sum of integer 
+     int[] array = {4,12,30,6}
+	 Arrays.parallelPrefix(array ,(a,b) => a+b);
+	 The array will be updated to => [4,16,46,52]
+   ..
+	 
+3) parallelSetAll()
+   Similar to parallelPrefix(), it also takes array and IntUnaryOperator which takes int as parameter and returns an int
+   Example
+   ..
+     Suppose we want to apply some operation to every element index like interest rate of bank accounts
+	 In parallelSetAll method, the array index is passed to the funtional interface so we will first have to set the array to that interface
+	 implementation
+	 
+	 class UnaryOperatorImpl implements IntUnaryOperator {
+	   
+	   int[] array;
+	   public UnaryOperatorImpl(int[] array){
+	     this.array = array;
+	   }
+	   
+	   @Override
+	   public int applyAsInt(int i){
+	     if(this.array != null){
+		   return array[i] + 5;
+		 } else {
+		   return i;
+		 }
+	   }
+	 }
+	 
+	 int[] array = {4,12,30,6}
+	 Arrays.parallelSetAll(array ,UnaryOperatorImpl(array));
+	 The array will be updated to => [9,17,35,11]
+	 
+	 Here we have added 5 to each element
+    ..
+	

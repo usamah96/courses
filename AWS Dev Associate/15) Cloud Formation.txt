@@ -1,0 +1,326 @@
+Cloud Formation
+--
+
+It is a declarative way of outling how we want our AWS infrastructure. Most of the resources are supported.
+For example, in a CloudFormation templte I can define that,
+  .I want a Security Group with 2 EC2 instances using that security group
+  .I want 2 Elastic IPs assigned to those EC2 instances
+  .I want S3 bucket
+  .I want ALB that balances the load between those EC2 instances.
+  
+The order we define, CloudFormation executes it in that way
+
+The template is piece of code that defines what we want and we can view this in the composer as a visualization
+Using cloud formation contains a lot of benefits, like it provides us infrastructure as a code so everythig we write is a code to 
+define our infra. This code can be version controlled using GIT and all the changes can be reviewed. We can automate everything like
+in a dev environment, to save cost, we can write a script to terminate instances at 8PM and re-create it early in the morning at 8AM.
+
+To make it work, we create a template and upload it on S3. Then CloudFormation service will reference the template from S3 to create a 
+stack. This stack is nothing but a collection of AWS resources that it needs to create. We cannot update the existing template. For 
+updates, we need to create a new template and upload it. Also when we delete the stack, all artifacts created using that stack will 
+also be deleted.
+
+Hands On
+***
+
+In CloudFormation service we can go to stack and select from multiple options like upload our own stack, upload from sample stacks 
+or build the stack from composer visualization.
+We can create our own stack by launching just our t2.micro EC2 instance. The sample file can be viewed from "0-just-ec2". It is 
+a YAML file that just specifies we need a t2.micro EC2 isntance to be launched.
+
+Now to update anything, we need to upload a new file. The sample file is "1-ec2-with-sg-eip" and in this the script has been 
+modified to include 2 security groups (ServerSecurityGroup and SSHSecurityGroup) and these are attached to the EC2 instance using 
+the REF keyword. Also an Elastic IP is created and attached to the instance using the REF keyword. When we upload this file we will 
+see in the preview section what has been added and what has been modified. We can see that Elastic IP, Security Group has been added 
+and EC2 instance has been modified with Replacement property set to True. It means that previous instance will be terminated and new 
+instance will be launched. To avoid terminating and launching new instance we need to tweek our script a bit.
+***
+
+
+Resources
+..
+Resources are the core of our CloudFormation template which is mandatory and it represents different AWS components that are created 
+and updated. These resources can reference each other like EC2 instance, Elastic IP, Security Group.
+The resources type identifer are in the form -> service-provider::service-name::data-type-name
+
+There are over 700 resources and we can view them from the documentation. The documentation contains everything how write a script 
+for a particular resource and what properties it can include. So we can directly go to documentation and find the relevant resource 
+to write our script.
+
+Almost every resources is supported by CloudFormation. Only a few is not supported but they can be handled using CloudFormation Custom
+Resource feature.
+
+
+Parameters
+..
+With parameters we can take input from users in our templates. This comes in very handy if we want to build a template that should be 
+used anywhere based on user inputs, like reusing the template across different companies.
+
+The parameter should be used if we define any resource where the configuation is likely to be changed in the future. So if we make 
+this configuration as a parameter, we will not have to re-upload the template by changing the file.
+
+The parameter can have multiple types like String, Number, List, etc. We can have regex pattern, min max length/value and all sort 
+of validations
+
+Example of parameter of type AllowedVlaues
+..
+Parameters:
+ InstanceType:
+   Type: String
+   Description: Choose EC2 Instance Type
+   AllowedValues:
+    - t2.micro
+	- t2.small
+	- t2.medium
+  Default: t2.micro
+  
+So a dropdown will be displayed while choosing EC2 instance type and the default value will be t2.micro
+To reference this parameter we use the keyword !REF <parameter-name>
+
+Example 
+..
+Creating a parameter to take a description of security group
+Parameters:
+ SecurityGroupDescription:
+  Type: String
+  Description: Enter Security Group Description
+  
+Now referencing it in a security group resource like,
+Resources:
+ ServerSecurityGroup:
+  Type: AWS::EC2::SecurityGroup
+  Properties:
+   GroupDescription: !REF SecurityGroupDescription
+   
+  
+Also there are some pre-defined paramters knows as pseudo parameters and they are enabled by default. Some of them are,
+AWS::AccountId, which returns the account id.
+AWS::Region, which returns the region 
+AWS::StackId, which returns stack id 
+AWS::StackName, which returns stack name 
+AWS::NotificationARNs, which return sns topic arn,
+AWS::NoValue, which does not return anything.
+
+
+
+Mappings
+..
+These are fixed variables with hardcoded values inside a template and can be used based on some properties. They came in very useful
+when need to differentiate between envrionments (dev vs prod), regions, AMI types, etc..
+
+Lets say we have multiple architecture AMI Image name for EC2 instances and we have separated it by region name like,
+RegionMap:
+ us-east-1:
+  HVM64: ami-1234
+  HVMG2: ami-2345
+ us-west-1:
+  HVM64: ami-3456
+  HVGM2: ami-4567
+  
+No in resources we can map the image name based on user's region like,
+Resources:
+ MyEC2Instance:
+  Type: AWS::EC2::Instance
+  Properties:
+   ImageId: !FindMap [RegionMap, !REF "AWS::Region", HVM64]
+   InstanceType: t2.micro
+   
+So here we find in the map the value of HVM64 in the region user is in (this will be taken from pseudo parameter AWS::Region).
+The find in map works is,
+!FindInMap [MapName, TopLevelKey, SecondLevelKey]
+
+So we can use mappings when we know the values ahead of time and we can use parameters when we want the values to be inserted from user
+and be more dynamic.
+
+
+Outputs
+..
+This helps us to export values from one template and import it into other template, like if we have defined a security group in one of 
+our template then we can export that from our template and when creating a new template we can import it using the name for which is 
+used while exporting.
+In this way, we can handle communication between 2 templates and link between them
+
+Example
+..
+Outputs:
+ Export:
+  Name: SSHSecurityGroup
+  
+In another template we can assign this security group to our EC2 isntance in such a way,
+Resources:
+ MyEC2Instance:
+  Type: AWS::EC2::Instance
+  Properties:
+   SecurityGroups:
+    - !ImportValue SSHSecurityGroup
+	
+So we use !ImportValue naming convention to import any value. The names we have used for exporting should be unique across a single 
+aws region. Also we cannot delete any template if there are values exported and referenced by other templates. All the references must 
+first be unlinked before deleting the anything.
+
+
+Conditions
+..
+They are used to control the creation of resources, like in dev environment we want only EC2 isntance but on prod environment we want 
+the EC2 instance to be attached with EBS volume also.
+The common condition factors are based on environments, region, parameter value
+
+Defining a condition
+Conditions:
+ CreateProdResources: !Equals [!REF EnvType, prod]
+ 
+So the condition is created that the environment type is equal to prod.
+
+Now we can reference it while creating the resource like,
+Resources:
+ MountPoint:
+  Type: AWS::EC2::VolumeAttachmemt
+  Condition: CreateProdResources
+  
+So the EC2 instances will be attached a volume when the condition CreateProdResources will be true.
+
+The operations we can use are,
+And, Equals, If, Not and Or.
+
+
+
+Instrinsic Functions
+..
+Some of the most important functions that we must know are,
+
+REF, GetAtt, FindInMap, Equals, ImportValue, Base64 and Condition Functions (If, Not, ANd, Or, Equals). 
+There are many other also like, Join, Sub, ForEach and all of them can be viewed on documentation
+
+1) REF
+    .It is used for referencing purposes and the things we can reference is either a parameter value or the resource
+	.If we reference parameter then it will return its value
+	.If we reference a resource then it will return the resource id, like "VpcId: !REF MyVPC"
+	
+2) GetAtt
+    .It is sued to fetch the attributes attached to any resource liek we launched an EC2 instance and when attaching an EBS volume to 
+	 it, we need to know the availability zone of that EC2 instance to attach the property to the volume.
+	.We can see in the documentation that what kind of attributes we can used for a specific resource.
+	.Example to find the availability zone of ec2 instance
+	   ***
+	   Resources:
+	    MyEC2Instance:
+		 Type: AWS::EC2::Instance
+		 Properties:
+		  ImageId: ami-1234
+		  InstanceType: t2.micro
+		  
+		EBSVolume:
+		 MyEBSVolume:
+		  Type: AWS::EC2::Volume
+		  Properties:
+		   Size: 100
+		   AvailabilityZone: !GetAtt MyEC2Instance.AvailabilityZone
+	   ***
+	   
+3) Base64
+    .It is used to convert a string value to base64 representation
+	.It is useful when launching a EC2 isntance and we want to define a User Data Script to be encrypted in base64.
+	.Example is,
+	  ***
+	  Resources:
+	   MyEC2Instance:
+	    Type: AWS::EC2::Instance
+		Properties:
+		 ImageId: ami-1234
+		 InstanceType: t2.micro
+		 UserData:
+		  Fn::Base64: |
+		   #!/bin/bash
+		   dnf update -y
+		   ...
+		   ...
+		   ... |
+	  ***
+	  
+Other than that InputValue, Conditions, Equals and FindInMap has already been defined before.
+
+
+
+Rollbacks
+..
+This is the feature which is needed when something goes wrong at the time of stack creation of updation.
+
+When Stack creation gets failes, we either rollback everything which means nothing gets created and we can see the logs what went wrong.
+But here we cannot see any of the resources because it is not created. Other option is to disable rollback and we can troubleshoot by 
+checking our resources what went wrong.
+Also, we cannot update the template and upload it again in case of failure. We have to delete it and then create it again.
+
+When stack update gets failed, the stack is automatically rolls back to the last working position and from there we can see the logs 
+what went wrong.
+
+If the rollback gets failed then we need to manually check what went wrong and fix it. After fixing it we can execute an AWS api which 
+is with the name "ContinueUpdateRollback" from CLI or Console to try rollback again.
+
+
+
+Service Role, Deletion Policy, Stack Policy & Termination Protection
+..
+We can create an IAM role for AWS service and the service we should select is CloudFormation. The permission we should give is what 
+we want CloudFormation to access. If we want CloudFormation template to work with S3 then we can give S3FullAccess permission to this
+role and while creating the stack using the template, we must assign this role under the Permissions section
+
+If we dont specify any role while creating the template then CLoudFormation will use the default permission assigned to the logged in user.
+
+For Deletion Policy we have 3 option,
+  -Delete, which means when the template is deleted, the resource will get deleted.
+  -Retain, which means when the template is deleted, the resources will be kept.
+  -Snapshot, which means when the template is deleted, the resource will get deleted too but a snapshot will be taken and preserved for 
+   future use.
+   
+   
+For Stack policy, it allow us to create a policy where we define to allow or deny any update to our resources. When we create a resource
+while creating the stack, we know that we can update any of the resource or its properties when we upload a new version of the 
+template which will update the resource, but we can create a policy to deny updates to specific resource or its properties unintentionally.
+The policy will something look like this,
+{
+ Statements: [
+  {
+   Effect: Allow,
+   Action: Update:*
+   Principal: *
+   Resource: *
+  },
+  {
+   Effect: Deny,
+   Action: Update:*
+   Principal: *
+   Resource: LogicalResourceId/ProductionDatabase
+  }
+ ]
+}
+
+First statement means that allow update on all resources.
+Second statement means that deny update to ProductionDatabase resource
+
+
+For Termination Protection, we can enable it from the console. It will disallow deletion of the stack when done intentionally or 
+unintentionally. We will have to disable termination protection for it to be deleted.
+
+
+Custom Resources
+..
+We know that most of the resources are supported by CloudFormation but some of them are not supported and for that we can use the 
+CustomResources feature.
+
+We can define the resources not yet supported by CloudFormation
+We can define custom logic for resources that are out of CloudFormation (on-permises 3rd party resource)
+We can define custom scripts during create / update / delete to be executed via Lambda Function like running a Lambda Function to 
+empty s3 bucket before its deletion.
+
+We need to define in the templte about the custom resource in such a way,
+AWS::CloudFormation::CustomResource
+This is backed by Lambda Function and SNS Topic
+
+Custom Resource definition in the template will be like,
+Resources:
+ MyCustomResourceUsingLambda:
+  Type: AWS::CloudFormation::CustomResource
+  Properties:
+   ServiceToken: <arn-of-lambda-or-sns-topic>
+   
+Our Lambda Function will make us of that custom resource and we will give the ARN of Lambda Function in our template.

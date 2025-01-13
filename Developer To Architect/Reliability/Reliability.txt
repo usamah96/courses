@@ -1,0 +1,67 @@
+Reliability
+--
+
+As we know that in order to achieve extreme scalability, we should make our system as horizontal scalable as possible. With horizontal
+scalability it means that we have to make our system distributed
+With horizontaly scalability we get multiple failures and partial failures in our system
+
+In Large scale systems, there are large number of components with multiple instances, so failures in this kind of system is partial 
+which either can affect an independenct component of a system or the whole system.
+
+Consider a system where a web application communicates with load balancer which routes the request to backend server which is broken down
+into multiple smaller services connected with single database. Here, if we have a failure at a service level, then only that service will be
+unavailable for the user which means we have a partial failure that affects independent component. But if we have a failure at a database 
+level, then this failure can affect the whole system as data cannot be retrieved until and unless it is not static or cached data requested
+by the client. If the failure is at the load balancer level, the this failure will completely affect the system as the client cannot reach
+the backend server.
+
+With increased horizontal scalability, we will also increases the chances of partial failures as well which can also lead to whole system
+failure as well.
+
+The system can fail due to several of the reasons. The failures that can occur are,
+  1) Network Failure like LAN, WAN or the Load Balancer can fail
+  2) Machine Failure like CPU, Disk or Memory can fail
+  3) Software Failure as there will be bugs in the system
+  4) Disaster like the whole Datacenter goes down due to earthquack or any incident. A partial failure can also turn down the whole data center.
+  5) Operations Failure like 
+       .Deployment Failure
+	   .Faulty Configuration
+	   .Load Induced Failure as the load exceeds the system capacity
+	   .External Service Failure as 3rd party libraries are down.
+	   
+These failure cannot be prevented all together but instead we should design our system in such a way that these failures are recovered
+in no time. No matter how much money we spend, how much costly hardware we install there will always be,
+  .Network Failures
+  .Software Failures
+  .Disasters.
+  
+
+In Reliability Engineering there are mainly 3 terms to understand which are,
+
+1) Reliability
+   .A system is said to be reliable if it continues to function correctly and available for operations even with some partial failures
+   .It is measured as a probablity of a system working correctly at a given interval of time.
+   .The interval of time is the time duration when the system is in operation in a 24 hour day (Like 10:00 am till 6:00 pm)
+   .An aeroplane example
+   
+2) Availability
+   .It extends the Reliability property it is the probablity of a system working correctly at any given time and bein available for 
+    operations
+   .The time based availability can be calculated as (uptime) / (uptime + downtime)
+   .The request based availability can be calculated as (successful_requests) / (total_requests) which we want to be 100%
+   .There will be downtimes but the system should have the capabilities to recover that from downtime in very lessa mount of time to 
+    prevent the loss in business.
+   .Availability comes with a cost and if we want high availability for our system there is a cost involved with it
+   .99.999% availability means that a system will go down for 5 minutes within a year
+   .99.9% availability means that system will go down for 8hours 45mins within a year
+   .We have to see what are the tradeoffs, if our system is a customer facing system then we will want 99.999% availability. If our system
+    is internal then 99% or 99.9% is tolerable.
+	
+	
+3) Fault Tolerance / Ressiliance
+   .Reliability and Availability affects the user experience of a system
+   .Fault Tolerance is about engineering reliability and availability for our system
+   .With Fault Tolerance, our system should detect, handle and recover from the faults automatically
+   .It is a technique to improve reliability and availability
+   
+	  

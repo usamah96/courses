@@ -1,0 +1,51 @@
+Pipes
+---
+
+Building Custom Pipe
+
+-Building a filter pipe that filters courses by category
+
+@Pipe({
+  name: 'filterByCategory'
+})
+export class FilterPipe implements PipeTransform{
+  
+  transform(courses: Courses[], category: string){
+    return courses.filter(course => course.category === category)
+  }
+}
+
+Usage
+
+<course-card *ngFor="let course of courses | filterByCategory : 'BEGINNER'"></course-card>
+
+-The first arguement is the left hand side on which the pipe is applied and the second arguement
+is what on the right hand side.
+
+
+
+
+
+
+
+Pure vs Impure Pipe
+
+-Pure pipe will only get triggered once the input gets changed
+-It will not get triggered if the object is being mutated or the change detection is triggered
+-As opertaion in pipe is expensive that is why angular wont trigger pipe on every change
+detection.
+
+In the above example if we modify one of the Beginner course category to Advanced, we will
+see that since the pipe is being filtered to show Beginner courses but one course will be
+shown of Advanced category that is just changed which is not what we want because the pipe
+wont trigger if we click on a button and change the object property from Beginner to Advanced
+as it is a pure pipe by default. We will have to reassign the whole course array only then
+the pipe will get triggered.
+
+-In impure pipe, the functionality is triggered on every change detection 
+-All we have to do is
+
+@Pipe({
+  ...
+  pure: false
+})

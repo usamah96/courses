@@ -1,0 +1,314 @@
+Redux - Alternative To Context Api
+--
+
+A very popular 3rd party library
+
+What and Why?
+
+Redux is a state management system for cross component or app wide state
+
+State is divided into 3 parts
+
+1) Local
+    .State that belongs to a single component
+    .Example of listening to user input and listening value on every key stroke
+    .Managed using useState or useReducer
+
+2) Cross Component
+    .State that effects not a single component but multiple components
+    .Example of opening and closing of a modal overlay. Model opening and closing button not in a same place
+    .Can be managed using useState but will require props chaining
+
+3) App Wide
+    .State that affects all the components in the application (entire app)
+    .Example could be user authentication that after login multiple things changes on the app related to user roles
+    .Can be managed using useState but will require props chaining
+    
+Passing data with props chaining will make code cumbursome and that is why we have the Context Api which makes cross component and app wide state
+management easier. Redux solves the same problem.
+Redux with Context Api can also be used in the same application
+
+Then why need redux if we already has context api
+React Context Api has a potential disadvantages but that might not occur in every app. If these disadvantages not occur in any app than that app
+dont require Redux
+
+Disadvantages could be
+  *Complex Setup and Management. If we are building a large enterprise level appliaction then we might have to build lots and lots of porviders
+   and we will end up in a nested providers in JSX code. If we build one provider for overall the app then the code of that provider will be much
+   more cumbursome and difficult to read and manage
+  *Performance. Managing high frequency states can lead to performance issues. Small changes can be okay like changing the theme color. React
+   context is not optimized for high frequency state changes
+
+
+
+How Does Reduc Works
+
+Redux is all about having one central data store in application. We cannot have more than one store
+We dont need to direclty manage these all the data at one place
+
+Components setup subscription to our central store
+Components never directly manipulates the store data, instead they are the reducer function which does the changes. These reducer function are not
+same as the useReducer concept. Reducer function is just a concept which takes some input and reduce it to some output. Like taking integer values
+and reduce it to output their sum.
+Components dispatch actions. The action is just a JS object that defines the kind of operations the reducer should perform. Reduc forwards these
+actions to the reducer function which performs the action
+
+Reducer function takes input 2 argument which is the old state and the dispatched action and it returns a new state object. Reducer function should
+be pure functions (no side effects and with same input there should be same output)
+
+
+Redux is not restricted to React ony. It is a 3rd party library used simply with javascript
+Example
+
+//Install Redux
+npm i redux
+
+const redux = require('redux');
+
+const reducerFn = (state = {counter: 0}, action) => {
+  if(action.type === 'incremenet') return {counter: state.counter + 1}
+  if(action.type === 'decrement') return {counter: state.counter - 1}
+  return state;
+}
+
+const store = redux.createStore(reducerFn); // Will execute the reducerFn initially
+
+
+//Subscriber Function will be called after every reducer function execution
+const subscriberFn = () => {
+  const latestState = store.getState();
+  console.log(latestState)
+}
+
+
+// Reducer Function will be called everytime we call dispatch
+store.dispatch({type: 'increment'})
+store.dispatch({type: 'decrement'})
+
+
+
+
+Integrating it with React
+
+Besides redux we also install react-redux package which makes integration of redux with react much simpler
+npm i react react-redux
+
+We create the store
+
+import {createStore} from 'redux';
+
+const reducerFn = (state = {counter: 0}, action) => {
+  if(action.type === 'incremenet') return {counter: state.counter + 1}
+  if(action.type === 'decrement') return {counter: state.counter - 1}
+  return state;
+}
+const store = createStore(reducerFn);
+
+export default store;
+
+Now we will wrap our application with the Provider component from react-redux to be used with redux. Remember that when using Context Api we used
+to wrap the <App /> component with <AuthProvider />
+Similarly we will wrap the <App /> component with <Provider /> from react-redux. This helps us to be use our application with redux. 
+It is not necessary to wrap only <App /> component with provider. The component which wrapped with Provider can be only used with redux and all of
+its child components.
+
+We provide the store as props to the Provider
+<Provider store={store}> <App /> </Provider>
+
+There is a custom hook created by the redux team called useSelector which is used for 2 purposes
+1) To get the data out of the store
+2) Automatically subscribes to that component in which useSelector is used
+
+const counter = useSelector(state => state.counter)
+We pass the callback to extract specific piece of information from the store
+
+Whenever the component gets unmounted, the subscription is removed automatically
+
+We also have another hook called useDispatch() which returns back our reducer function which we can dispatch
+const dispatch = useDispatch()
+
+dipatch({type: 'increment'})
+dipatch({type: 'decrement'})
+
+
+Order of Execution when the application is started
+  1) First the reducer function of the store will get executed
+  2) Then the component will be rendered
+  3) Component's JSX will be rendered
+  
+Whenever any state is changed or whenenver a function is called which calls dispatch({...})
+  1) The component function will be called
+  2) When the dispatch() is called, then reducer function of store gets called
+  3) The remaining part of the component function will be executed
+  4) Component will be re-renderd 
+  5) Component's JSX will be rendered
+
+
+There are few changes when dealing with redux in a class based component.
+We use connect() function to attach a class to redux state management.
+
+In function component we use useSelector to fetch the store items and useDispatch to dispatch the action
+Similarly we use mapStateToProps function to fetch the store and mapDispatchToProps function to dispatch the action and pass these 2 arguments to
+the connect function while exporting.
+
+const mapStateToProps = state => {
+  return {
+    counter: state.counter
+  }
+}
+
+const mapDispatchToProps = dispatch => {
+  return {
+    increment: () => dispatch({type: "increment"})
+    decrement: () => dispatch({type: "decrement"})
+  }
+}
+
+export default connect(mapStateToProps, mapDispatchToProps)(Counter);
+
+And then we use all these values in a class through props like
+  *this.props.counter 
+  *this.props.increment() 
+  *this.props.decrement()
+
+
+
+Working with Redux State Correctly
+
+Always return the brand new state when dealing with the redux store
+Example
+
+const initialState = {counter:0, showCounter: true}
+const counterReducer = (state = initialState, action) => {
+  if(action.type === "increment"){
+    return {
+      counter: state.counter + 1,
+      showCounter: state.counter
+    }
+  }
+}
+
+As we can see that we are returning a brand new state. Redux does not overrides the state but it replaces the old state with the new state. If something
+is unchanged and we only returns the changed values, redux will mark the unchanged value to undefined because it is not present in the new state.
+
+Also do not mutate the state. Always make your state immutable
+Example
+const counterReducer = (state = initialState, action) => {
+  if(action.type === "increment"){
+    state.counter++;
+    return state;
+  }
+}
+Here we are returning the old state by updating the counter value. It will lead to unexpected behavior and bugs as objects are reference types.
+Avoid doing these type of changes.
+
+
+Some of the Redux challenges
+  1) We can face typos when dealing with action types.
+  2) The reducer function can becomes very large and unmaintanable
+  3) Somebody mutating the state instead of returning new state everytime
+  
+We use Redux Toolkit which simplifies couple of aspects of redux
+Install it using
+  npm i @reduxjs/toolkit
+After installing it, we can remove the core redux library from package.json because the toolkit includes redux itself
+
+
+
+Using Redux Toolkit
+..
+*Handling the long reducer function
+The toolkit provides us with the function called "createSlice" which allow us to prepare slices of our global function and connect different pieces
+of state which are not directly related like authentication status, counter status, etc
+We create different slices and every slice requires
+   *name
+   *initial state
+   *reducers map which takes up all the functions related to this state
+Using toolkit, now we are allowed to mutate the state and ignore those values of state which are unchanged because redux toolkit internally uses
+another package which does all these things for us i.e: detecs the code where state is changed, keeps all values which are unchanged, clones the old
+state with new state and returns the new state.
+
+Example
+const counterSlice = createSlice({
+  name: 'counter',
+  initialState,
+  reducer: {
+    incremenet(state){ state.counter++; }
+    decrement(state){ state.counter--; }
+    increase(state, action){ state.counter+= action.payload; }
+    toggle(state){ state.counter = !state.counter; }
+  }
+})
+
+We also have another function beside createSlice which is "createReducer" but createSlice is more powerful
+
+The createStore() from redux allow to connect the reducer function to redux store but the problem is it can only attach 1 reducer
+We have a configureStore() function from redux toolkit where we can attach one or more reducer slices.
+
+To attach single slice as reducer
+const store = configureStore({
+  reducer: slice.reducer
+})
+
+To attach multiple slices as reducer
+const store = configureStore({
+  reducer: {
+    key1: slice1.reducer,
+    key2: slice2.reducer
+  }
+})
+
+Now how to dispatch actions? We donot have if checks, we only have method names
+When we create a slice, we get all the actions we defined in the reducers map in a separate variable. We will export it and use it in another
+file where it is needed.
+
+Example
+
+export const counterActions = counterSlice.actions;
+export default store;
+
+We can use these actions like
+*counterActions.increment()
+*counterActions.decrement()
+*counterActions.increase(10)
+    .This value will automatically be stored in object with property "payload". If we want to store more values then we can pass an object 
+     like { value: 10, title: 'amount' } and can access like payload.value, payload.title
+     
+Similarly we cann create multiple slices for different type of state management and store every slice in a separate file of our stores
+
+
+
+
+A Deep Dive Into Redux
+  *Async Redux
+  *Code Structure
+  *Redux DevTools
+  
+The reducer functions must always be pure, free from side effects and synchronous in nature. It should take old state, some actions and return
+the new state
+
+What if some dispatch actions needs an http call? Where to put that side effective code other than reducer?
+There are 2 possible places where we can put this side effective code
+  1) Directly into the component with useEffect
+  2) We write our own action creators
+  
+Lets say we want to send our items cart data to backend server whenever any changes appear inside the cart so that when the user refreshes the page,
+the cart items are preserved and not cleared. We will not use fetch() api inside the reducer after updating the cart, instead we can add a useEffect
+hook inside the component that whenever any changes are made to the cart, the effect hook will be triggered and fetch() api will be called
+
+Example
+
+const cart = useSelector(state => state.cart)
+useEffect(() => {
+  ...
+  ...
+  api call
+}, [cart])
+
+Another approach is to to use an Action Creator. It is nothing but a function that creates an action.
+We already use action creators provided to us by redux toolkit in the form of cartSlice.actions. All the reducer functions we defined in our
+slice are basically types of action creators. These are automatically created action creators
+
+We can create our own action creators which are called "Thunks". A thunk is just a function that delays an action until later
+Thunk is a function that does not returns an action, but returns another function that returns an action
+

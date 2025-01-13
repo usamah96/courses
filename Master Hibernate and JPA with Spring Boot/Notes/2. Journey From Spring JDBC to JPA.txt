@@ -1,0 +1,281 @@
+Journey From Spring JDBC to JPA
+---
+
+  
+Step One
+--
+Creating a simple JDBC prject with dependencies
+-JDBC, JPA, H2, Web
+-H2 is a in memory database. We can migrate to Mysql later on
+-The H2 DB is alive when the app is running. It gets killed once the app stops
+-------------------------------------
+
+Step Two
+--
+Connecting the in memory database H2
+
+-Inside app.properties,
+spring.h2.console.enabled=true
+
+-Rerun and navigate to localhost:8080/h2-console to see the db
+-Connect with the connect button
+
+TroubleShooting H2 database for any problems
+URL: https://github.com/in28minutes/in28minutes-initiatives/blob/master/The-in28Minutes-TroubleshootingGuide-And-FAQ/jpa-and-hibernate.md
+-------------------------------------
+
+Step Three
+--
+Creating the Table in H2
+
+-Creating a data.sql file in resources folder
+-With spring boot auto configuration, spring boot auto detects this sql file and run the query
+-Writing the query as,
+** Create Table Person (
+   id integer not null, name varchar(255) not null, location varchar(255), birth_date timestamp,
+   primary key(id)
+); **
+-Rerun the application and in H2 console you will see Person table
+-------------------------------------
+
+
+Step Four
+--
+Populating the Data in Database
+
+-Inside data.sql write the query so that every time the app is started some data gets inserted,
+** Insert Into Person (id, name, location, birth_date) Values (10001, 'Usama Abubakar', 'Karachi', sysdate()); **
+** Insert Into Person (id, name, location, birth_date) Values (10001, 'Ali Gul', 'Islamabad', sysdate()); **
+** Insert Into Person (id, name, location, birth_date) Values (10001, 'Peer Saien', 'Hyderabad', sysdate()); **
+-------------------------------------
+
+
+Step Five
+--
+Implementing JDBC Query Methods (findAll)
+
+-Create a person entity with all getters and setters
+-Creating a class and annotating it with @Repository (PersonDao.class)
+-Creating a method that retrieves all persons
+-We will ask spring to give connection to the database. We have to manually connect if we were not using spring jdbc
+-Using JdbcTemplate for this purpose and @Autowiring it.
+-When we execute the query we get back ResultSet. 
+-We will use default Row mapper (BeanPropertyRowMapper) provided by spring to map the values from Db to our entity.
+
+Example
+..
+@Autowired
+JdbcTemplate template
+
+public List<Person> findAll(){
+  return template.query("Select * From Person", new BeanPropertyRowMapper<Person>(Person.class));
+}
+-------------------------------------
+
+
+Step Six
+--
+Executing Queries using Command Line Runner
+
+-Whenever the sprng context gets ready, spring fires the code written inside command line runner method
+-Implement the CommandLineRunner interface with the Startup application class
+
+Example
+..
+@Autowired
+private PersonDao personDao;
+
+@Override
+public void run(String... args){
+  sout(personDao.findAll());  
+}
+-------------------------------------
+
+
+Step Seven
+--
+JDBC vs Spring JDBC
+
+-With JDBC we have to get the connection, creating a prepared statement, executing the query and getting the result set and looping
+the result set to fetch all the values and store it in our entity.
+-With JDBC we have to take care of our result set and the connection to be closed at the end whenever any exception is occurred
+-Spring JDBC handles all these headaches for us and closes the connection itself whenever anything gets wrong.
+-------------------------------------
+
+
+Step Eight
+--
+Whats goes in background
+
+-Add this in app.properties to see the report of spring boot auto configuration
+logging.level.root=debug
+-The magic is done by spring boot autoconfiguration
+-The report tells us how many things are matched and not matched for confuring the dependencies,
+-------------------------------------
+
+
+Step Nine
+--
+Implementing JDBC Query Methods (findById)
+
+-When we query for single object, we use queryForObject
+-QueryForObject accepts list of parameters to be inserted in the where clause
+
+Example
+..
+public Person findById(int id){
+  return template.queryFor Object("Select * From Person Where id=?", new Object[]{id}, new BeanPropertyRowMapper<Person>(Person.class));
+}
+-------------------------------------
+
+
+Step Ten
+--
+Implementing JDBC Query Methods (deleteById)
+
+-We will use update method for deleting the entity.
+-It returns an int that tells how many rows are effected
+
+Example
+..
+public int deleteById(int id){
+  return template.update("Delete From Person Where id=?", new Object[]{id});
+}
+-------------------------------------
+
+
+Step Eleven
+--
+Implementing JDBC Query Methods (insert and update)
+
+Example
+..
+public int insert(Person person){
+  return template.update("Insert Into Person (id, name, location, birth_date) Values (?, ?, ?, ?)", 
+                          new Object[]{person.getId(), person.getName(), person.getLocation(), new TimeStamp(person.getBirthDate())});
+}
+
+public int update(Person person){
+  return template.update("Update Person Set name = ? Where id = ?", new Object[]{person.getName(), person.getId()});
+}
+-------------------------------------
+
+
+Step Twelve
+--
+Creating a Custom Row Mapper
+
+-If a data coming from the db is of a different format and does not match with the entity or you want to modify the response
+-Create a class that implements a RowMapper
+
+Example
+..
+class PersonRowMapper implements RowMapper<Person>{
+  @Override
+  public Person mapRow(ResultSet rs, int rowNum){
+    Person p = new Person();
+    // Map The Data
+    return p;
+  }
+}
+
+Usage
+template.query("Select * From Person", new PersonRowMapper());
+-------------------------------------
+
+
+Step Thirteen
+--
+Intro To JPA
+
+-Java Persistence API
+-The way JDBC works either with simple or spring, you have write the query and map the result to specific entity.
+-Complexity with JDBC is that to write lots of queries no matter its a simple select all.
+-Here JPA comes into picture.
+-Writing queries shifts from developer to a framework that is JPA implementation
+-JPA is a interface that defines set of annotations to work with.
+-Hibernate is a most popular implementation of JPA. 
+-Hibernate is a most popular ORM framework.
+-Hibernate exists before the invention of JPA. JPA comes into existence after seeing the success of Hibernate
+-Java EE thought to make a standard for doing ORM so they invented JPA that standardizes the use of ORM
+-------------------------------------
+
+
+Step Fourteen
+--
+Defining JPA entity
+
+-We have added starter-jpa in pom which provides JPA API that includes a lot of annotation like @Table, @Entity etc..
+-The hibernate-core implements this JPA API. It provides the functionality present in this API
+
+Example
+..
+
+@Table(name = "person")
+@Entity
+public class Person{
+  //Column Mapping
+}
+
+-When we run our application, the spring boot auto configuration fires the schema auto update functionality that will create the
+required tables according to our entities. This is the default functionality provided by hibernate.
+-------------------------------------
+
+
+Step Fifteen
+--
+Creating a Repository (findById)
+
+-Creating a class PersonRepository
+-Annotating it with @Repository to tell that it interacts with database
+-Annotatin it with @Transactional so that if we interacts with database multiple times, either all of them gets success or all gets failed
+-@Transactional usually used with service methods and not repository
+-To connect to the database, we use EntityManager that manages all our entites. 
+-All the operations performed in a session all are stored inside the entity manager
+-We annotate our Entity Manager with @PersistenceContext. Entity Manager is the interface to the persistence context
+-A persistence context is like a cache which contains a set of persistent entities , So once the transaction is finished, all persistent 
+objects are detached from the EntityManager's persistence context and are no longer managed.
+
+Example 
+..
+
+@Repository
+@Transactional
+class PersonRepository {
+
+  @PersistenceContext
+  EntityManager em;
+ 
+  public Person findById(int id){
+    return em.find(Person.class, id)
+  }
+}
+-------------------------------------
+
+
+Step Sixteen
+--
+Creating a Repository (update and insert)
+
+-We use merge method for updating our entity.
+-The merge method checks for the id in our entity
+-If id is present then it will update else it will create a new one.
+
+Example
+..
+public Person update(Person p){
+  return em.merge(p);
+}
+-------------------------------------
+
+
+Step Seventeen
+--
+Creating a Repository (deleteById)
+
+Example
+..
+public void delete(int id){
+  Person p = findById(id);
+  em.remove(p);
+}

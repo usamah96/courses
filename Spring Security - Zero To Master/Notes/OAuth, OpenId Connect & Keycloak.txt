@@ -1,0 +1,393 @@
+OAuth2
+--
+
+Stands for Open Authorization and it gives some security standards to follow to implement authorization
+It is not a server. It is just the standard/protocol/specification for defining our security
+
+OAuth2 helps us to maintain a separate server which manages authorization which separates all this logic in a centralized
+approach and not in a single application. Very useful when developing microservice architecture.
+
+Problems that OAuth solves
+
+Scenario 1
+--
+
+Lets say that you are a regular twitter user and tweets frequently and you get huge amount of likes and re-tweets and you have a certain amount of
+followers. You want to check analyse your twitter metrics that how many tweets are being done on daily basis, weekly and how many likes and 
+re-tweets you are getting. So to do this, there is a third party application that makes use of twitter and show this metrics.
+
+Consider the scenario where OAuth2 is not in the picture.
+This 3rd party app will show the login page and says to logn with you twitter credentials. You will login and then you can see all your metrics
+related to your account. But the problem is you are sharing your credential with some 3rd party app which they can misuse. They can tweek on your
+behalf without your permission, they can change your password and many more.
+
+With OAuth2, this all can be avoided
+What OAuth will provide is that twitter will give the temporary limited access to this 3rd party application which it can make use of to show the
+metrics. It will generate the temporart access token which only have the authoirities to read the data and not modofying the data. Also since the
+temporary acces is given by twitter you dont have to manually login onto this 3rd party app and in this way your credentials are also safe.
+--
+
+
+Senario 2
+--
+
+It is a basic scenario where we know that if we login into gmail, we are automatically logged in into all the application provided by google like
+google drive, google photos, youtube, google maps etc.
+This is possible with OAuth2 as the centralized authroization server is used which gives the same user token to all of its
+internal application.
+--
+
+Example flow of OAuth2 with Tweet Analyzer 
+..
+At first, any client application will have to register it to the authorization server. In this case the tweet analyser app will register to the
+Twitter OAuth 2 server which will generate a client id and client secret which the client app will store on their end.
+
+After that when the end user goes to tweet analyzer website, he will not have to share its credentials rather there will be a button to sign up
+or sign in with twitter which will redirect it to twitter page where he will insert his credentials confidently. This will generate 'access_token'
+and 'refresh_token' which will be send back to client app. Also after login, the twitter will ask the user about his consent of sharing the
+read operation of his tweets to the client app for which the user can agree on that.
+
+Then client app will send the reuqest to twitter for reading the tweets with access token and twitter after validating it with oauth server will
+return back the tweets of the user
+..
+
+In OAuth, there are many grant types from which the access token is issued
+The grant types include
+  1) Authorization Code, when the end user is involved
+  2) PKCE, when client app or single page app is involved
+  3) Client Credentials, when multiple microservices trying to communicate with each other are involved
+  4) Device Code, where device without the keyboard is involved.
+  5) Refresh Token
+  6) Implicit Flow (Deprecated)
+  7) Password Grant (Deprecated)
+  
+The client app can chose one of the grant type for accessing the server
+
+The flow for grant type 'Authorization Code'
+..
+First when we access any client application, it will redirect the user to the auth server like when we press sign up as twitter then it will 
+redirect it to twitter sign in page. In this we will send some information to the auth server as a GET request
+  .client_id, which will indicate what client it is
+  .redirect_uri, where to redirect after successful authentication
+  .scope, what are the authorities 
+  .state, csrf token to prevent the attack
+  .response_type, value 'code' which will indicate to follow authorization code type.
+  
+After that the auth server will respond with the authorization code. The client application will again request the auth server with these
+parameters to get the actual access token as a POST request
+  .code, the authorization code reveived in previous step
+  .client_id and client_secret
+  .grant_type, which will be authorization code to indicate the grant type
+  .redicret_uri
+  
+Aftr that access token and refresh token will be granted and then the requests can follow with respect to user's operation
+
+
+The flow for grant type 'Implicit'
+..
+The flow is same as with that of Authorization Code but with one less request
+The first GET request will be same and the only change will be that the response_type value will be 'token' instead of code
+
+The auth server will respond back with the redirect_uri and in this redirect_uri there will be a fragment component which will include all the
+details like access_token, token type, expiry etc
+Example => http://url.com#access_token=abc&token_type=Bearer&expires_in=1000
+
+You will notice that we are not sending another POST request which includes the client_secret. If we send the client_secret in the first GET
+request, it will be easily exposed in the url which we dont want.
+Also all the details of token are exposed in the URL so any hacker can make use of that
+
+These are some of the issues with implicit that it is being deprecated and not recommended anymore for production application and hence it is
+deprecated by OAuth in version 2.1
+
+
+
+The flow for grant type 'Password'
+..
+In this flow, the user will send its username and password directly to the client with its login page.
+The client on behalf of user, will send the POST request to the auth server with following properties
+  .client_id and client_secret
+  .username and password, which will be received from user
+  .scope, for the authorities
+  .grant type, which will be password
+  
+The auth server will respond back with access token and all the related information
+
+The issue with this apprach is that the user is directly sending its credentials with the client. We will see this implemented approach where
+the client and auth server belongs to the same organization but still this approach is deprecated by OAuth in version 2.1
+
+
+
+The flow for grant type 'Client Credentials'
+..
+This is a simple flow in which directly the client is communicating like communication between 2 microservices
+If we have a client microservice which wants to communicate with the resource server (twitter) then client needs to get the access token from
+auth server (twitter oauth)
+
+The client will issue a POST request to Auth server with following attributes
+  .client_id and client_secret
+  .scope, for the authorities
+  .grant_type, which will be client_credentials
+  
+There will be no state attribute for csrf protection as no browser is involved.
+The auth server will respond back with acess token information and then the client can communicate with the resource server.
+
+
+The flow for grant type 'Refresh Token'
+..
+We know that after authenticating it with auth server, it responds back with token information which includes refresh_token as well.
+This token comes into picture when the acess_token gets expired. When the acess_token gets expired, we cannot access the resource from the resource
+server and we will get 403 Forbidden error.
+To get the new token, the client needs to send another POST request to auth server with this refresh token to get the new acess_token along with
+new refresh_token. This is done because we cannot ask the user again and again about entering the credentials. This is all done behind the scenes
+without user being known to it.
+
+The request attributes involves,
+  .client_id and client_secret
+  .refresh_token
+  .scope, for the authorities
+  .grant_type, which will be refresh_token
+  
+The auth server will validate the refresh_token and issue new access_token and refresh_token
+
+
+How the resource server validates that the access token received is a valid token generated by the auth server?
+There are 3 ways
+  1) The auth server can expose an api for the validation. Whenever resource server receives a request, it will first validate it by calling the 
+     validate api of auth server and if valid then proceed with the request.
+  2) The auth server can make an entry in the database of the access token and when the resource server receives the request, it validates it from
+     the common shared database.
+  3) The auth server can digitally sign the token and the resource server validates the signature for its authenticity.
+  
+In the 1st approach, unneccessary calls will be made which will impact the performance.
+In the second apprach, unneccessary database call will be made which will also impace performance.
+The 3rd approach is the industry standard and recommended
+
+
+
+
+OpenId Connect (OIC)
+--
+
+With OAuth2, we can do the authorization with the access token.
+If we are siging up as twitter using any grant type, the auth server sends back the access_token which contains all the priviliges to access
+the twitter related resource. But here there is no information related to the user like its username, email, photo, contact etc which the client
+can display.
+
+Here OpenId Connect comes in which is a protocol that sits on top of OAuth2. While OAuth2 provides authorization by the use of access_token, OIC
+provides authentication by the use of new id_token which uses the standatd followed by jwt token.
+
+To use the OIC, the request format will be same as discussed in authorization code but in the scope attribute we will use the 'openid' also.
+The auth server will respond back with the code and in the next POST request we will send that code and auth server will respond back with
+both the access token and the id token.
+
+With this 2 tokens a new concept comes into picture which is the Identity Access Management (IAM)
+Authorization servers like okta, keycloack they all implement IAM concept with OIC and OAuth2
+
+The OpenId connect supports different scopes that is realted to the user like profile, email, address etc
+It also expose api /userinfo which gives the information about the logged in user
+
+
+Implementing the OAuth
+..
+
+Implementing the built in OAuth2 servers is easy like integrating it with Github, Google or Facebook and all these social logins have there
+own limitations as they are owned by different organizations.
+Refer to Section 12 of the course.
+
+We can built the custom OAuth server within our own organization that we can do whatever we want
+Lets say there is a bank organization and resource server that holds all customer information like loans, cards, accounts, transactions etc.
+And we have multiple applications like mobile app, web app and backend microservice architecture so it is a best solution to separate our
+authorization server and make it centralized for all applications.
+
+KeyCloak Auth Server.
+..
+There are many big organizations that have built the authorization servers and selling to small organizations like,
+  KeyCloak
+  Okta
+  ForgeRock
+  Amazon Cognito
+These all are authorization servers which we can leverage to built our own custom logic.
+
+Download keycloak from the official website
+Go to the bin folder and run this command to start the keycloak server
+  .kc.bat start-dev --http-port 8180
+  
+The keycloak server will be started at port 8180 and there we will login after setting up credentials for the first time.
+After login we will see the master realm. Realm is a separate space to support different environments just like we have envs for dev, qa and prod
+Realm has its own space for users, roles, clients and other things
+
+Creating a new Realms with the name 'spring-security-course-dev'
+Now if we want 3rd party apps to be able to interact with our auth server to get the access token to reach our resource server, we need to
+create clients
+
+1) Client Credentials
+
+Suppose we want to create a client where no end user is involved and it is api to api communication. The flow will be that we will get the
+access token from auth server using postman and then using this access token will will talk to resource server using postman. Fof this we will
+need Client Credentials grant type.
+
+Inside our realm, we will create new client.
+   .Give client a name and a id
+   .In next tab, turn authentication switch on because we want client to authenticate using client id and client secret.
+   .Disable Standard Flow check box as it indicates Authorization Code grant type
+   .Disable Direct access grant checkbox as it indicates Password grant type.
+   .Check the Service account roles checkbox as it indicates Client Credentials grant type.
+
+
+Now to setup the resource server, create a new spring boot app and add the following dependency
+  .spring-boot-starter-oauth2-resource-server
+  
+Now we have to write a converter which will convert roles sent from oauth to spring security roles. Keycloak auth server will send the access token
+which will be jwt format. We will extract roles from it and convert it into granter authorities
+Example
+..
+public class KeycloakRoleConverter implements Converter<Jwt, Collection<GrantedAuthority>> {
+
+  @Override
+  public Collection<GrantedAuthority> convert(Jwt jwt) {
+    Map<String, Object> realmAccess = (Map<String, Object>) jwt.getClaims().get("realm_access");
+    if(realmAccess == null || realmAccess.isEmpty()) return Collections.emptyList();
+
+    return ((List<String>) realmAccess.get("roles"))
+        .stream()
+        .map(r -> new SimpleGrantedAuthority("ROLE_" + r)).collect(Collectors.toList());
+  }
+}
+..
+
+Then we will inject this converted into our security configuration
+Example
+..
+    JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+    converter.setJwtGrantedAuthoritiesConverter(new KeycloakRoleConverter());
+	http.oauth2ResourceServer().jwt().jwtAuthenticationConverter(converter);
+..
+
+Also to for communication from resource server to auth server for validation of access token, we will add the following property
+  .spring.security.oauth2.resourceserver.jwt.jwk-set-uri=http:localhost:8180/realms/spring-security-course-dev/protocol/openid-connect/certs
+  
+By adding this property it means that when the access token is granted, the auth server will digitally sign it with its private certificate
+and our resource server validates it with auth server's public certificate.
+
+Now how will the client know from what url we need to hit to get the access token
+There is a URL specific to realms environment where we get the whole json response which contains all the important urls
+   URL => http://localhost:8180/realms/spring-security-course-dev/.well-known/openid-configuration
+In this url there is a json key like,
+  .token_endpoint which is the actual url to get the access token
+  .jwks_uri which is the same uri to get the public certificate addedd in the application properties
+  .grant_types_supported
+  
+Currently the client will not have any roles. So we can create the roles under Realm roles section
+Go to clients, select the client and under service account roles tab we can assign roles to this client. We will assign roles under service account
+roles tab because we are using client credentials grant type for this client.
+  
+The sample token endpoint is => http://localhost:8180/realms/spring-security-course-dev/protocol/openid-connect/token
+We will test this using POST request and body as x-www-form-urlencoded
+Add the following in body
+  .client_id
+  .client_secret
+  .scope as openid
+  .grant_type as client credentials
+We will receive the response containing access_token and id_token. The access token will contain the roles we have assigned to this client which
+will be later converted by our Converter written in resource server.
+
+Now to access the endpoint we will send this access_token inside Authorization Header with bearer token and depending on the roles assigned
+with the api endpoint it will either executes successfuly or send back forbidden 403 error if roles are different.
+
+2) Authorization Code
+
+Now creating a client where the end user is involved.
+So creating a new client in keycloak server with Authorization Code grant type and create a samle user manually
+In real world, our server will expose an api to register users.
+
+Createing new client with checkbox checked for standard flow only and switch on for client authentication
+Setting the valid redirect uri to redirect our users after successful authentication
+Now creating a user and setting its credentials under the Users section
+
+Currently testing this from postman because in UI application storing client id and secret securely requires another step until and unless
+our client UI is any templating engine like thymeleaf where these values can be easily stored on server.
+
+First we will need to issue GET request to fetch the authorization code from the endpoint authorization_endpoint from configuration json
+    URL => http://localhost:8180/realms/spring-security-course-dev/protocol/openid-connect/auth
+	Query Params will be
+	  .client_id
+	  .response_type, code
+	  .scope, openid
+	  .state, abc-csrf
+	  .redirect_uri, same as mentioned when creating client (error will be thrown if it is different)
+
+To test this we will need to paste this url in browser which will redirect us to keycloak default login page (we can customize it also)
+After authenticatin, it will redirect back to the url we have mentioned with the following information in query params,
+  .code
+  .session_state
+  .state
+We will match the state for csrf token and copy the code value (code expires within few seconds)
+
+Now with this code we need to issue POST request to get the access token
+  URL => http://localhost:8180/realms/spring-security-course-dev/protocol/openid-connect/token
+  x-www-form-urlencoded Body will be
+  .client_id
+  .client_secret
+  .grant_type, authorization code
+  .scope, openid
+  .redicret_uri, same as mentioned when creating client
+  .code, value received from auth endpoint
+This will send back all the token information including access_token, refresh_token, id_token and their expiration
+
+Now we can use this token to access resource server in Authorization Header.
+
+
+
+3) Authorization Code + PKCE
+..
+PKCE stands for Proof Key for Code Exchange
+
+This is the latest flow which will be released in OAuth 2.1 and previous grant types are deprecated. The only grant type acceptable is now,
+  .Authorization Code + PKCE
+  .Client Credentials
+  .Device Grant
+  
+AC+PKCE is the flow for public facing applications built on javascript or any other technology where any developer or hacker can easily get
+the client secret if stored on front end level. So this is to secure it.
+
+The flow is similar to the authorization code with little tweeks.
+In the first GET request to fetch the code value, the front end will provide 2 new query parameters.
+  .code_challenge
+  .code_challenge_method
+The code_challenge is generated on front end via code_verifier field.
+The code_verifier is any random string which is hashed using any hashing function like SHA-256 and then encoded with base64 algorithm
+The encoded string is termed as code_challenge.
+
+In the first GET request, this code_challenge is sent with code_challenge_method as S256 to let auth server know what is the mechanism
+The auth server will respond back with the code value similar to Authorization Code flow but on the server level, it will map the code with the
+code_challenge received for future verification
+
+In the second POST request, the front end will not send client_secret but instead will send the code_verifier field
+The auth server will do the exact same process do hash it with SHA-256 and encode it with base64 and match both the string.
+If it matches, the access token is granted otherwise rejected.
+In this way we did not make use of client_secret value.
+If in case our code value is stolen from the first request, the hacker will not know the code_verifier random string and cannot hack the flow.
+
+Inside Keycloak server, we will create new client and then in this client we will not switch on Client AUthentication because since it is PKCE
+flow we will not send client secret. Beside this we will only check standard flow checkbox which represents Authorization Code grant type.
+After creation of client, we will configre redirect url and logout url
+In the advanced tab, beside the PKCE option we will choose the Hashing Algo which is S256. The plain option is insecure
+
+Now we can make use of kecloak library for any front end application and set up our authentication and authorization process.
+Initially we will see CORS error when Keycloak server will redirect back to client app after authentication. FOr that we will need to configure 
+cors on the server. Under settings there is Web Origins options and we can set it to '*' to allow all origins.
+..
+
+Additional feature of Keycloak includes
+  .Customizing the themes
+  .REST endpoints to invoke many operations that are available from the portal
+  .Defining scopes and defining the mapping on what to return back when certain scopes are selected
+  .Defining the groups
+  .Checking active sessions and invalidating them manually
+  .Defining authentication policies like password policy, otp and other
+  .Identity providers that helps for social logins
+  
+One drawback with social login is that they dont have the roles matching with out application. If certain endpoint in our resource server
+requires USER role to access and the end user logins with github, then that endpoint will not be accessible because github oauth server does not
+contain role USER so its access token will not parse it.
+Social logins works for smaller and static applications.

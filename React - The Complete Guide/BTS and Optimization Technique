@@ -1,0 +1,202 @@
+BTS and Optimization Technique
+--
+
+How React Works?
+
+React is a javascript library for building user interfaces. It is all about components
+ReactDom is the interface to the Web
+
+React does not know about the Dom and Web. It has only concerns with the component, their states, how to manage them all. That does not matter to 
+react, but it is the ReactDom which it matters the most. It is the ReactDom's responsibility to work with Real Dom and being something onto the screen
+to which the user can see
+
+How does this Component to RealDom communcation takes place?
+React is all about components and it uses the concept of Virtual Dom which determines how the component tree looks like and how it should look like
+after a particular state update. This information is handed over to ReactDom which now knows the difference and know how to manipulate the Real Dom
+to be in sync with the Virtual Dom
+
+We should know that re-evaluating the component is not the same as re-rendering the DOM
+
+The re-evaluation of the component happens whenever props, state or context gets changed. The react executes the component function again
+The re-rendering of the dom takes places when there are differences between evaluation of current dom snapshot and previous dom snapshot
+
+The Virtual Dom compares the snapshots and provide this information to the ReactDom which is known as Virtual Dom Diffing
+
+We should know that whenever the component is re-evaluated, all its child components get re-evalauated even if nothing gets changed in it because
+when the parent's JSX is loaded again, all the child components are executed like a function call.
+
+Example
+..
+
+Inside Parent.js
+
+const [showParagraph, setParagraph] = useState(false)
+const paragraphHandler = () => { setParagraph((prevState) => !prevState;) }
+
+console.log("Parent")
+
+return (
+  <div>
+    <h1> Heading </h1>
+    <Child showPara={showParagraph} />
+    <button onClick={paragraphHandler} />
+  </div>
+)
+
+Inside Child.js
+
+console.log("Child")
+return (
+  <div>
+    <p> {props.showPara ? 'This is Paragraph' : ''} </p>
+  </div>
+)
+
+Whenever we press the button to toggle the paragraph in parent, we will see Parent and Child on console everytime because in the parent the state
+is changed and in the child props are changed
+But when we do this change in Parent's JSX
+
+return (
+  <div>
+    <h1> Heading </h1>
+    <Child showPara={false} />
+    <button onClick={paragraphHandler} />
+  </div>
+)
+
+We still will see both console logs even if we have hard coded the props. This is just because child components are executed as function calls and they
+will get re-evaluated everytime parent gets changed. Now this is not an optimized behavior and we can prevent unnecessary re-evaluation
+
+Using React.memo we can tell react that to match the incoming props with the previous props and note the difference and only if there is a difference
+the component whould be re-evaluated
+We can simply wrap the child component with this react function
+
+const Child = (props) => {
+  console.log("Child")
+  return (
+    <div>
+      <p> {props.showPara ? 'This is Paragraph' : ''} </p>
+    </div>
+  )
+}
+
+export default React.memo(Child);
+
+From this, one question arrives is that why are we not using React.memo on all our components if it optimizes re-evaluation. With React.memo, 
+react will now have to store the previous props values so that whenever new props comes in it can check for the difference which obviously comes
+at a different cost of optimization. It completelty depends on the component we are applying to whether it is worth using it or not
+
+One thing additionally to note here is that when the component is re-evaluated, all the functions of that components are re-created, and if those
+function pointers are passed down the child components they are treated to be new props values and the child components will be re-evaluated even
+if React.memo is being used.
+
+Button.js
+const Button = (props) => {
+  console.log("Child Button")
+  return (
+    <button onClick={props.handler} />
+  )
+}
+export default React.memo(Button)
+
+Inside Parent.js
+const Parent = () => {
+  console.log("Parent")
+  const [myState, setMyState] = useState(false);
+  
+  const handler = () => {
+    console.log("Button Clicked")
+    setMyState((prevState) => !prevState);
+  };
+  
+  return (
+     <Button handler={handler} />
+  )
+}
+
+Now whenever we click the button, the state will change, the parent component will be re-evaluated, the handler function will be re-created and
+passed to the child button and finally child will be re-evaluated
+
+To avoid this, we need to prevent function re-creation using another hook called useCallback to save the function creation
+We just wrap our functions using useCallback with its dependencies array just like useEffect
+
+const handler = useCallback(() => {
+  console.log("Button Clicked")
+  setMyState((prevState) => !prevState);
+}, [])
+
+Now React.memo will note the difference of the functions alongside props
+
+
+
+
+
+
+Looking closer at states and components
+
+Everything comes down to states when we talk about re-rendering components and displaying something on screen
+When we use useState then react manages a state variable for us and a connection to the component for us
+
+When the component is re-rendered we dont see state getting re-initialized
+React manages state in such a way that the value passed as a default in that is only considered once
+A new state will be attached to the component if the component is totally removed from the DOM conditionally and then re-attached
+
+How react handles state updates and scheduling
+
+In our code we have some components with states. Lets say we have a <Product /> component with current state variable as DVD. When we want to change
+the state with setNewProduct('Book') then react does not immidiately updates the variable but schedules and postpones the update for later. This is
+done because there might be some other intensive task going on which react gives higher priority then just showing updated text on screen
+For state changes, react maintains the order in which state updating functions are being called
+
+Whenever use state updating functions, always use the function form because react gurentees to get the latest state value. When we dont use this
+function form, react sees when was the last time component was re-rendered and get that state value which can cause problem as react schedules
+state changes. When we use function form, react sees what was the last state value and does not see when the component was re-rendered last
+
+When we update state once after another without any promises, callbacks in between, react does not re-render component every time but it batch all
+the state updates and renders the component only once to update all the states
+
+
+Optimizing with useMemo
+
+Consider the example
+
+Inside Parent.js
+
+const [title, setTitle] = useState('Title');
+const listItems = [5,4,7,1,2]
+return (
+  <Child items={listItems} />
+  <button onClick={setTitle('New Title')}></button>
+)
+
+Inside Child.js
+
+const sortedList = props.items.sort( (a,b) => a-b );
+return (
+  <div>
+    <h1> {props.title} </h1>
+    <ul>
+      {sortedList.map(s => (
+        <li key={s}> {s} </li> 
+      ))}
+    </ul>
+  </div>
+)
+
+Here we can see that our list item is constant in Parent.js. Whenever we press the button and change the title the props will change and Child.js
+will be rendered due to Parent state change and Child props change.
+In Child.js we are sorting the list and everytime we are getting the same list and same sorting is happened again in again which can be optimized.
+We can tell react to store the functionality of sorting everytime when the same array appears and change only when the array items of props change
+
+In Child.js we can do
+const {items} = props
+const sortedList = useMemo(() => 
+  return props.items.sort( (a,b) => a-b )
+, [items]);
+
+useMemo (Memoization) is used to return the implementation we want to store and used props.items as our dependency so that the memo function runs
+again and sorting is happened again when the array is changed
+
+Using this wont do much as in Parent.js, array is re-created everytime the component is re-rendered because arrays are objects and their reference
+changes again and again. So we need to use useMemo there as well
+const listItems = useMemo( () => [5,4,7,1,2], [])

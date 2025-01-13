@@ -1,0 +1,213 @@
+Building Multi Container Application 
+Continuous Integration Workflow for Multiple Images
+Dockerizing Multiple Services
+A CI workflow for Multiple Images
+Multi Container Deployments
+--
+
+We know that with single container application, we can build the image with Trvis CI, run the tests and deploy it over Elastic Beanstalk.
+This single container application has some issues
+
+1) The app was simple and no outside dependencies like database or caching like redis server. How to do that?
+2) The image was build multiple times everytime Travis CI executed, first the image was created for running the test and then again with production Dockerfile to run the container 
+   on Elastic Beanstalk. The prod dockerfile contain to create the nginx image which was repetetive as we donot want to create the web server image each and every time.
+   
+So our goal is that our application should utilize multiple different containers to achieve the target.
+
+The application architecture
+ - Creating a complex fibonacci calculator that serves the result from postgres database and redis cace
+ - Creating a worker application thats job is to continuously monitor redis and whenever any new value is pushed, calculate its fibonacci and store it in redis cache
+ - Whenever a new value comes in a request, it is first stored in postgres database and then insert this value into redis from where it will be fetched and calculated by worker app.
+ - Exposing few endpoints to retrieve values and save value from express api
+ - Creating a react application that will show all the results.
+ 
+The project folder looks like
+  .worker
+  .server
+  .client
+  
+Now after creating our project we will create 3 separate Dockerfile.dev for our development environments
+Our server contains some code to connect to postgres sever but since we dont have postgres as a service running, we will get error once we build the image and try to run this 
+image as a container.
+
+In the root project folder, we will create a docker compose file for all the required services like postgres, redis, etc. Also we will define or server configuration here and tell
+to build the image using Dockerfile.dev inside the server folder using context path and also set volumes so that whenever anything gets changed in server code, it automatically 
+gets reflected in the container also except the node_modules folder.
+
+For the environment variables we defined in our server and worker applications, we can pass those values from our docker compose file when defining the service using the environment
+tag
+..
+environment:
+ - REDIS_HOST=redis (This is the container name we defined before. As we are not using any external service so we cannot put any url here. We can directly define our other redis container name)
+ - REDIS_PORT = 6379 (Default from documentation)
+ - PGUSER=postgres
+ ...
+ ...
+ ...
+ ...
+..
+
+Similarly, we can define the container configuration for client and worker too and in this way we will be ready with docker-compose.yml file.
+Now the only thing left is that we need to serve our application. Our client is running at port 5000 and server is running at port 3000.
+Here we can setup nginx container to reference client and server container using upstream and then we can define location proxy_pass to route the reqeust. In or nginx container we 
+also will define a port mapping so that we can access the container from our local system
+Checkout the default.conf file for the configuration.
+
+Now how to deploy this multi container onto aws elastic beanstalk?
+In a single container setup, what we have done is that,
+ - First we push our code o github
+ - Travis pulls the code
+ - Travis builds an image and run npm run test to check if all tests are passed
+ - Travis then pushes the code to AWS elastic beanstalk
+ - Elastic beanstalk then builds the image again using the prod Dockerfile and run the container.
+ 
+Elastic beanstalk building the image everytime in the deployment is not the ideal and recommended way of deploying our application.
+In multi container deployment, a we will follow a slight change in the strategy which is,
+ - Push the code to githb
+ - Travis pulls the code
+ - Tavis will build a test image and run the tests
+ - Travis will then build a production image
+ - Travis will push the prod image to Docker Hub (This will be our private docker hub account and will not be public)
+ - Travis will then send a flag or some indication to elastic beanstalk that a new image is being pushed to docker hub private account
+ - Elastic beanstalk will pull the new image and then deploys it.
+ 
+Here elastic beanstalk has no responsibility to create the production image, it just pulls out a new image from hub and deploys it. Also, there is no need to push and send whole 
+project code to elastic beanstalk now.
+
+New changes to our project will be that we now have to create a separate production Dockerfile for every module i.e: worker, server, client and nginx. All of the commands will be 
+same apart from the default run command which is npm run dev (nodemon) in the case of Dockerfile.dev. For prod Dockerfile it will be npm run start (node index.js).
+For nginx, there will be no change. Here we can remove the sockejs-node location in default.conf file which is used for dev purpose only but if we dont remove it for production 
+then it will have no effect.
+For client there will be some changes.
+
+For serving our front end application, in a single container applicaton, we created a dockerfile that contains configuration for the image which creates a production build and 
+copies that folder into nginx /usr/share/html folder with port 80 as exposed.
+In multi-container application we will need 2 separate nginx instances, one for routing (port 3000 to our web server and port 5000 to our backend express api) and one for serviing 
+our front end application just like in the case of single container application. We can also do this with single nginx instance too but what if we want to serve our front end app 
+with some different web server so for this case we will see separate nginx instance for understanding purposes.
+So in our client modules, we will create a nginx configuration file to0 listen on port 3000 and define the location parameter to serve our production build on root path (/). In 
+client prodcution Dockerfile, our image configuration will be same as for single container configuration but the only difference will be we need to expose port 3000 and before 
+copying the prodcution folder into nginx /usr/share/html path, we will also need to override the default.conf file too for our updated nginx configuration.
+
+After creating production Dockerfile for all our modules, we will now create our travis configuration workflow which will be very much similar to that of single container deployment.
+The workflow will be,
+ - Specify docker as a dependency
+ - Build a test version of front end app using Dockerfile.dev since we need to run all our tests
+ - Run the tests
+ - Build the production version of all modules using production Dockerfile
+ - Push the image to docker hub
+ - Tell Elastic beanstalk to update the image.
+ 
+In our .travis.yml file we will follow the configuration as,
+..
+sudo: required
+
+before_install
+ - docker build -t usamaa96/front-end-tests -f ./client/Dockerfile.dev ./client
+ 
+scripts
+ - docker run usamaa96/front-end-tests -e CI=true npm run test  (Here we are only running test for our front end application. We can add scripts to run test for server and worker too after creating its image from before_intall section)
+ 
+after_success                                       (This section will run after successful tests has been executed. Here we will now create production images for all our modules to be pushed to docker hub)
+ - docker build -t usamaa96/front-end ./client
+ - docker build -t usamaa96/server ./server
+ - docker build -t usamaa96/worker ./worker
+ - docker build -t usamaa96/nginx ./nginx
+ 
+ - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+   // This command will log in to docker with username and password stored in Travis CI environment variables. This is a special command because if we login into docker using cli,
+   // the cli will prompt to enter username and password and with travis we will not be able to do this so here is the special command to enter username and password in a single command.
+   
+ - docker push usamaa96/front-end
+ - docker push usamaa96/server
+ - docker push usamaa96/worker
+ - docker push usamaa96/nginx
+   // These 4 commands will push our images into our account as public images.
+..
+
+Now we have all the images pushed into our docker hub account, we now want elastic beanstalk to pull those images and deploy
+
+With single container, what we were doing is that pushed the whole project folder into elastic beanstalk which contained Dockerfile in root folder. So elastic beanstalk on its own,
+looked on the file and automatically without any instructions give, build the image from that file and executed a container.
+With multi-container application, we now want to want elastic beanstalk which image to use and how to use. Behind the scene, elastic beanstalk uses Amazon Elastic Container Service 
+(ECS) to create task definitions. THe task definition is similar to a single separate container like worker container or server api container. We will have to wrtie a configuration 
+file with name "Dockerrun.aws.json" which will be understood by elastic beanstalk about the information about the containers.
+
+Just like the docker-compose.yml file where we define our containers and how to build those containers. Similarly we can define a Dockerrun.aws.json file where images have already 
+been build and we just need to specify the name, define ports and attach some links if any
+..
+{
+  "AWSEBDockerrunVersion": 2,
+  "containerDefinitions": [
+    {
+	  "name": "client",
+	  "image": "usamaa96/front-end",
+	  "hostname": "client",
+	  "essential": false
+	},
+	{
+	  "name": "worker",
+	  "image": "usamaa96/worker",
+	  "hostname": "worker",
+	  "essential": false
+	},
+	{
+	  "name": "server",
+	  "image": "usamaa96/server",
+	  "hostname": "api",
+	  "essential": false
+	},
+	{
+	  "name": "nginx",
+	  "image": "usamaa96/nginx",
+	  "hostname": "nginx",
+	  "essential": true,
+	  "portMappings": [
+	    {
+		  "hostPort": 80,
+		  "continerPort": 80
+		}
+	  ],
+	  "links": ["client", "server"]
+	}
+  ]
+}
+..
+The name is any name we want to give for container. This is not neccessary to be same as our module name.
+The image is the image we want to pull from docker hub
+The hostname is the name where we want other containers to use when referencing it like nginx configuration upstream and location or on code level too like redis in node.js app.
+The essential means that if set to true and if container fails to start or stops /crashes in between, then stop all other containers too.
+The portMappings is the same as we map container port to local machine port
+The links specifies what other container is used by this specific container.
+
+Apart from all these, in our docker-compose.yml file we had container services for postgres and redis too but we did not define any configuration for this. In production environment,
+it is better to use managed and auto-scalable services like elasti cache (redis) and aws rds for relational database.
+
+For environment variables, we need to add all the env variables to our Elastic Beanstalk configuration like for Redis Port we need to specify the url to our ELastic Cache redis 
+instance created. Similarly for Postgres we need to specify the RDS url.
+
+After that, we need to write a deploy script in travis that will take our project folder, zip it and deploy it to aws. It will push the folder to aws s3 bucket and from there 
+Elastic beanstalk will use the Dockerrun.aws.json file and configure the docker container using images.
+Travis deploys the entire repo to an S3 bucket as a zip folder. If EBS sees a Dockerrun.aws.json file in your source code, it will use it to configure the environment. 
+Otherwise, there needs to be a Dockerfile in the root of the project directory.
+
+The deploy script is same as before when using single container
+..
+deploy:
+ provider: elasticbeanstalk
+ region: us-east-1
+ app: multi-docker
+ env: Multidocker-env
+ bucket_name: elasticbeanstalk-us-east-1-123abc
+ bucket_path: docker-multi
+ on:
+  branch: master
+ access_key_id: $AWS_ACCESS_KEY
+ secret_access_key:
+  secure: $AWS_SECRET_KEY
+..
+
+When we push it to master, our travis deployment will get succeeded but we will see warning and error on elastic beanstalk. The error will indicate that no memory allocation 
+is given to each container.
+For that we need to specify how much memory a specific container can take. There is no right or wrong value, we need to see how much we can give according to the requirement
+We can add a "memory" key to containerDefinitions and assign the value like 128MB or 256MB, etc.

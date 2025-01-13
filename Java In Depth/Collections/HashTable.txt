@@ -1,0 +1,54 @@
+HashTable
+---
+
+-It implements array in an associative way which is key value pair. It is also refer to as a dictionary
+
+Key Operations are
+*Insert <key,value>
+*Search by Key
+*Remove By Key
+
+Key Characteristics
+..
+-Keys cannot be duplicated
+-Values can be duplicated
+-Some implementation of HashTables dont allow nulls at all and some allow 1 null key.
+
+Implementation
+--
+-It maintaines an array and every slot of an array (bucket) stores a reference to a linked list which stores the key value mapping
+-For any operation like insert, search or delete we need to quickly look for a bucket and then search in a linked list with the key provided.
+ To quickly look for a bucket hash function is applied to a key which returns bucket number (index number of array). 
+
+In java 2 step hashing is used to locate the bucket
+..
+1: hash = hash(key.hashCode())
+2: bucket = hash & (length - 1)
+
+key.hashCode() returns an int value that is the integer converted value of the memory address of that key which is then get hashed to get
+the hash value. That hash value is used with array size using bitwise and to get the bucket number.
+
+Hash Function Properties
+..
+*It should quickly locate the bucket. If the hash function does several operation like multiplication and division then it will take much time.
+So hash function must be quick and operations must be used with bitshift, bitwise operator which are much faster.
+*Elements should be uniformly dispersed to minimize hash collision as much as possible. If we only used key.hashCode as our hash then it is
+possible that multiple keys map to same hash which resulted in same bucket number which in turn increases our linked list at that bucket number.
+
+
+Other performance factors besides hash function
+..
+The capacity of hash table is the number of buckets in an array
+The load factor of hash table is how much the array should be filled before resizing of the array.
+With ArrayList resizing was not a problem, just a new array is created and all content is copied into it. But with HashTable, resizing is a bit
+costly operation because hashing is done on all the keys again since array size is changed now so tha bucket number of every key will be
+changed.
+If we set high load factor, then less frequent rehashing will be done but collision chances will be increased more. So go with the default
+capacity and load factor and if dealing with large number of elements, then adjust the load factor accordingly.
+
+What will happen if we dont override hashcode and equals?
+If we don't override hashCode and equals in a class you want to use as a key in a java.util.Hashtable, the default implementations 
+from Object's class will be used. This can lead to incorrect behavior when you use the class as a key, because two keys that are equal 
+according to the equals method might not have the same hash code, and thus might be stored in different buckets in the hashtable. As a 
+result, you might not be able to retrieve the value you expect when you look up the key. To avoid this, you should always override hashCode
+and equals in any class you use as a key in a hashtable.

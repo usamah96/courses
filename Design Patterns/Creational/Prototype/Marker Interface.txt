@@ -1,0 +1,83 @@
+Marker Interface
+----
+
+A marker interface is an interface that has no methods or constants inside it. It provides run-time type information about 
+objects, so the compiler and JVM have additional information about the object.
+
+Java has many built-in marker interfaces, such as Serializable, Cloneable, and Remote.
+
+Custom Marker Interface
+..
+For example, we could create a marker that indicates whether an object can be removed from the database
+
+public interface Deletable {}
+public class Entity implements Deletable {}
+
+We can write our delete() method so that only objects implementing our marker interface can be deleted
+
+public class ShapeDao {
+    public boolean delete(Object object) {
+        if (!(object instanceof Deletable)) {
+            return false;
+        }
+        // delete implementation details        
+        return true;
+    }
+}
+
+Marker Interfaces vs. Annotations
+..
+
+By introducing annotations, Java has provided us with an alternative to achieve the same results as the marker interfaces. 
+Moreover, like marker interfaces, we can apply annotations to any class, and we can use them as indicators to perform 
+certain actions.
+So what is the key difference?
+Unlike annotations, interfaces allow us to take advantage of polymorphism. As a result, we can add additional restrictions to 
+the marker interface.
+For instance, let's add a restriction that only a Shape type can be removed from the database:
+
+public interface Shape {
+    double getArea();
+    double getCircumference();
+}
+public interface DeletableShape extends Shape {}
+public class Rectangle implements DeletableShape {}
+
+Therefore, all DeletableShape implementations are also Shape implementations. Obviously, we can't do that using annotations.
+
+
+Marker Interfaces vs. Typical Interfaces
+..
+In the previous example, we could get the same results by modifying our DAO's delete() method to test whether our 
+object is a Shape or not, instead of testing whether it's a Deletable
+
+public class ShapeDao { 
+    public boolean delete(Object object) {
+        if (!(object instanceof Shape)) {
+            return false;
+        }
+        // delete implementation details        
+        return true;
+    }
+}
+
+So why create a marker interface when we can achieve the same results using a typical interface?
+Let's imagine that, in addition to the Shape type, we want to remove the Person type from the database as well. In this case, 
+there are two options to achieve that:
+
+1) The first option is to add an additional check to our previous delete() method to verify whether the object to delete is an 
+instance of Person or not.
+
+public boolean delete(Object object) {
+    if (!(object instanceof Shape || object instanceof Person)) {
+        return false;
+    }
+    // delete implementation details        
+    return true;
+}
+
+But what if we have more types that we want to remove from the database as well? Obviously, this won't be a good 
+option because we have to change our method for every new type. 
+
+2) The second option is to make the Person type implement the Shape interface, which acts as a marker interface. But is a Person 
+object really a Shape? The answer is clearly no, and that makes the second option worse than the first one.

@@ -1,0 +1,246 @@
+ACID
+..
+
+Before understanding ACID we first need to understand what a database transaction is at its core?
+Transaction is nothing but a collection of sql queries that are treated as one unit of work.
+We begin a transaction and do 6 queries and then end the transaction. That is logically treated as one unit of work.
+
+Example
+..
+An example of money deposit. First we read the balance of the user to check if amount is enough to withdraw. Then we update the balance to 
+deduct the amount and finally we update the balance of another user where the money is deposited. So here there are 3 queries in a single
+transaction.
+
+Transaction are used to change or modify the data however it is normal to have a read only transactions. More on read only transactions in Isolation
+topic.
+
+A transaction lifespan consists of,
+  BEGIN => Where the transaction is started
+  COMMIT => Where we persist the queries into the database. Either we go to the database and persist each query OR wait for all 1000 queries 
+            to be written and commit all of them once. We keep all queries in memory before committing if we want to commit all of them at once.
+  ROLLBACK => Undo all the operations done. So if we follow the second approach then it will be much faster as just the memory is flushed. But
+              in first approach we have to undo all the commits.
+  UNEXPECTED ROLLBACK => When a crash happened
+			  
+Every database engine optimizes all these features at their end like Postgres commits are very faster. Postgres does lot of I/O but their commits
+are very fast
+The dangerous thing is that when the crash is happened during the commit and creates a confusion whether the commit is made or not. It ususally
+happens when the commits are slow (most probably SqlServer) because if the commits are fast the chances for crash gets low
+
+
+
+1) Atomicity
+
+Atomicity says that, all queries in a single transaction should either succeed or fail. There cannot be the scenario that some write operations in
+a transactions are committed to the database and other fails due to some issue.
+
+All operations should be rolled back if,
+  1) Any one of the query fails due to any error i.e: Constraint Violation, Syntax Error etc.
+  2) Database gets crashed 
+  
+Now this is where you can make a choice on how a certain database operates.
+There can be 2 scenarios,
+  1) Once a manipulation operation is done in a transaction, the database actually goes to the disk and saves the data. When the commit operation is
+     issued, it just changes one bit which identifies that a particular transaction is committed. But when a rollback is to be done the database will
+	 need to undo all changes made to the disk. So here, the commit operation is very fast since no need to go to the disk and make changes but the
+	 rollback is very slow if tranasction consists of 100 and 1000 queries.
+  2) Once a manipulation operation si done in a transaction, database dont go to the disk but it keeps all data in memory. When the commit operation
+     is issued, it then goes to the database and dump all changes to the disk. Here the commit operation takes time but the rollback is done very fast
+	 since no undo operation is needed as it just flushes its memory/cache.
+	 
+	 
+How does database know that a crash is occurred and it needs to rollback a transaction?
+The database should have designed in a way that when a crash is occurred it should know that there was a running transaction that is not being
+committed. When the database is restarted after crash, it first needs to undo the transaction queries which were successfully executed before the
+crash. Some databases takes time to rollback and dont allow users to use different tables until rollback is done but some allows you to do operations
+on different tables while in parallel it can do rollback on different tables.
+
+
+
+2) Isolation
+
+When we support multiple connections for our database, it means we allow to use the database by multiple users concurrently, so one question arises
+here
+
+Can my transaction see changes made by other transactions? If my transaction keeps on reading and reading and some other transaction make a change
+then should I see that change?
+For this question, there is no right or wrong answer, because the answer is that it depends whether you want to see that change or not. 
+We run into different Read Pehnomenas and to solve these undesirable read phenomenas we have different isolation levels
+
+Read Phenomenas
+  a) Dirty Reads
+     Here, what your query is reading is not commiited to the database. That result might get rolled back due to some failure, crashing or might
+	 get committed, but at the time of reading that result is not yet flushed to the database.
+	 Example
+	 .Suppose we have Sales database with id, qty and price columns to insert how many products have been sold.
+     .First transaction fires a query "select id, qty * price from products"
+     .Second transaction in the meantime updates the quantity value of any of the product "update products set qty = qty + 5 where id = 1;"	
+     .Now first tranasction wants to get the sum of sales by firing the query "select sum(qty * price) from products"
+     .Here the first transaction has read the value which is not yet committed to the database by transaction 2. Now if transaction 2 fails and 
+	  rolls back, there occurss a dirty read for transaction 1 for product id = 1.	 
+	  
+  b) Non-repeatable Reads
+     Here, in a transaction if you read a certain value twice, you dont get the same result. Non-repeatable by word means your values are not
+	 repeating. There are scenarios where you read values twice. This does not mean that if I query "select id from account" in transaction 1
+	 and again after some 10 queries I do "select id from account". This is duplicated and nobody does that, but there are scenarios where you
+	 write aggregate queries and you read the same column value again for calculation purposes
+	 This is similar to dirt reads but here the transaction does not read an uncommitted value but reads a value that is committed to the disk.
+	 Example
+	 .Taking the same example as in Dirty Reads.
+	 .First transaction fires a query "select id, qty * price from products"
+	 .Second transaction in the meantime updates the quantity value of any of the product "update products set qty = qty + 5 where id = 1;"	
+	 .Here the second transaction actually commits the value 
+	 .Now first tranasction wants to get the sum of sales by firing the query "select sum(qty * price) from products" but the result will be 
+	  inconsistent.
+	  
+  c) Phantom Reads
+     Here, the problems occurrs when the return results of a query is multiple, probably when you have a where clause (or not). You define a where
+	 clause which gives you a range of results, but if you apply that range again for some different results you get different values because some
+	 other transaction added PHANTOM records which matches your where clause
+	 Example
+	 .Taking the same example as in Dirty Reads.
+	 .First transaction fires a query "select id, qty * price from products"
+	 .Second transaction in the meantime, added one more record to the database "insert into products (id, qty, price) values (3, 10, 120)"
+	  and committed the value.
+     .Now first tranasction wants to get the sum of sales by firing the query "select sum(qty * price) from products" but will get inconsistent
+	  result.
+	  
+  d) Lost Update
+     Here, the problem occurrs is that when a transaction updates a certain rows(s) and when it reads the same row(s) again, it gets different
+	 result because some other transaction updates those rows again. So the updates made by transaction 1 is lost.
+	 Example
+	 .Taking the same example as in Dirty Reads.
+	 .First transaction fires a query to update the quantity "update products set qty = qty + 10 where id = 1"
+	 .In the meantime, second transaction comes in and updates the same product id and committs the changes. Thing to notice here is that 
+	  transaction 1 will see the actual quantity value and not the quantity value just updated by transaction 1
+	 .Now first tranasction wants to get the sum of sales by firing the query "select sum(qty * price) from products" but will get inconsistent
+	  result because the quantity is changed by transaction 2.
+	  
+Now there are Isolation Levels to fix these Read Phenomenas
+  a) Read Uncommitted
+     This is the fastest isolation level because database does not needs to maintain anything as anything that comes in between the transaction,
+	 it will read it because its Read Uncommitted. It will read values whether other transactions have committed it or not. Every read phenomena
+	 will occur in this isolation level. No database now supports this excepts SqlServer.
+	 
+  b) Read Committed
+     Each query in a transaction will only see the values that are committed by other transactions. No uncommitted changes will be seen which means
+	 that dirty reads will no longer take place however other read phenomenas including non-repeatable, phantom and lost updates may occur. Most
+	 database has this isolation level by default.
+	 
+  c) Repeatable Read
+     The transaction will make sure that when a query is done on certain record(s) then no other transaction allowed to change the actual record
+	 so it gets the same values when reading the same record(s) again, which means that Non-repeatable and Lost Updates will no longer occur but
+	 phantom can occur as new rows can be inserted which can match the same where clause.
+	 
+  d) Snapshot
+     Each query in a transaction will only see the committed changes that are done when the transaction is just started. It is like database
+	 maintaining a different version in terms of snapshot and all reading and updating is there. No Read Phenomenas will occur in this level.
+	 
+  e) Serializable
+     It is the slowest of them all and in this approach, all transaction executes serially one after the other so there is no way conflict happen.
+	 The database just have to answer the question of which transaction goes in the critical region first to execute the query. No read
+	 phenomenas will occur in this level.
+	 
+The only difference between snapshot and serializable is that in serializable, the transaction executed serially where in snapshot the database
+keeps a whole different version as a snapshot of it
+
+Different databases apply different implementation for isolations
+There are different approaches how things can work
+  1) Pessimistic
+      .We obtain locks in this case. If we work on certain amount of rows we can obtain row level lock so that no other query change
+       that work.
+	  .We can obtain whole table locks or Page locks to avoid Lost updates (Discussed Later in Locking section)
+	  .In this approach, the transactions wait for each other because when lock is released then other transaction can do their work.
+	  
+  2) Optimistic
+      .This is the faster approach as no lock is there but database just keeps track of changes and if any conflict occur then it throws the
+	   Serializable Error telling the user that some values are changed by other transaction please retry the transaction.
+	  .The MongoDb database prefers this approach
+	  
+In Postgres, repeatable reads are implemented as snapshots. It takes snapshots of rows in which you are working so there can no longer occur
+Phantom reads. In other database, phantom reads occur if you are using isolation level of repeatable reads because they dont use snapshot approach
+They use repeatable-read locks and it becomes expensive because locks are expensive
+
+
+
+3) Consistency
+
+Some databases compromises consistency for speed and scalability
+For consistency there is,
+
+a) Consistency in Data
+    .Refers to the data you have persisted on disk. What you have on disk is consistent with your data model
+	.It belongs to specific cluster or specific instance of the database
+	
+What ensures Consistency in Data?
+  .User Defined Model, because it should be defined by  the user itself who is the DBA or user who builds the data model
+  .Referencial Integrity as there must be referencial integrity between the 2 records if there are forieng keys to relate with each other
+  .Atomicity, because if there is a crash after we have debitted the amount from one account, there should be a rollback when database is restarted
+   as discussed in atomicity. If it is not catered then our data is not consistent and is corrupted.
+  .Isolation because the data is changing continuoulsy by different transactions and might get inconsistent results as discussed in Isolation Read
+   Phenomenas.
+   
+
+Example Of Referncial Integrity
+..
+Suppose we have 2 tables
+Table 1 -> Pictures with columns (id, blob, number_of_likes) and this table refers what picture got how many likes.
+Table 2 -> Picture_Likes with columns (user_id, picture_id) and this table refers which user has liked which picture.
+
+Here the picture id is the foreign key in picture_likes table and that must match with the id column of pictures table. What that means is that,
+if we have record sample like this.
+Pictures -> (1, "xx", 2), (2, "yy", 1)
+Picture_Likes -> (1, 1), (2, 1), (1, 2)
+
+If we take the sum of picture_ids in picture_likes table we should get the count equal to the number of likes in pictures table.
+Similarly there should not be any record in picture_likes table that should reference invalid picture_id which makes data inconsistent
+
+	
+b) Consistency in Reads
+    .It belongs to the whole system where you have partitioning and multiple instances running as a whole.
+	.Is the data is in sync with each other. So the data might be consistent but since multiple instance is running the data can be slighlty out
+	 of sync. As a user i dont care how many instances are running, the read should be consistent
+	 
+
+How Data can be inconsistent in Reads?
+  .If a transaction commiitted a change so if a new transaction does not see that change that it leads to inconsistent reads. It will affect the 
+   whole system.
+   Example
+   If we have multiple instances like we have a primary database and a read-replica database where we just read the values, so whenever we update
+   a value it means that that value should be in sync with read-replica and value must get updated there as well. So before that read-replica update
+   some transaction tries to fetch the value then it will be inconsistent read as it will fetch the old value.
+  .This will lead to a new term which is Eventual Consistency which tells that data is inconsistent right now but it will eventually get consistent.
+   So if you read value 1 time 2 time you might get old value but 3rd time you will eventually get the right value.
+  .Eventual Consistency obviously will not work if there is invalid referencial integrity because data will not get inconsistent anyway
+  
+The moment our data is at 2 places whether we have separated instances for primary db and read-replicas or we introduce a cache, our data becomes
+inconsistent and it leads to eventual consistency because our primary will get updated but it will take some time to update the read-replicas and
+cache so at that moment our data is inconsistent but it will eventually get consistent after a while.
+  
+  
+4) Durability
+
+The data should be durable if after a commit, the system loses power or gets crashed.
+If the data is entered into database and the system crashes, then after a restart the data should be there and not lost.
+The data should be stored in a non-volatile storage (Hard Drive Or SSD) after a commit.
+
+There are many durability techniques
+  1) WAL (Write Ahead Logs)
+      .All these tables and indexes which we see are representation of the data and they are very large. If we go and save that to disk it can becomes
+	   very slow because of large data, data strucutre storage, B Trees etc
+	  .What database implements is the WAL where all the changes are tracked in a version like mechanism and is immediately flushed to the disk
+	   when changed so that if a crash appears, the database can read these logs and re-built the whole tables, indexes and structure.
+	   
+  2) Asyncronous Snapshot
+      .Another approach is writing all the changes in the memory and in the background, flushing all the changes to the disk asynchronously.
+	  
+	  
+The problem with Operating System Cache
+What OS normally do is when it is asked to persist something on the disk, it does not go direclty onto the disk but it saves the data into its
+cache known as OS Cache. It is done by OS to make a batch of all requests and go to disk only once to use minimal I/O.
+But what if our application commits the data, the database tracks changes on WAL and requests OS to flush it on the disk but the OS saves it
+in its cache and responds back to database that the flush was successful. In the meantime if machine loses power or shuts down then the data will
+be lost because it was on OS's cache or RAM and not into actual disk.
+So in order to avoid this OS Cache issue, we use the 'fsync' command to bypass OS Cache because we dont trust OS where it will save and we want
+full guarentee that if I do commit, I want to see my data onto the disk no matter how!
+

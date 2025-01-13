@@ -1,0 +1,172 @@
+JPA and Hibernate in Depth
+--
+
+-Creating a Course entity
+-Creating a course repository by creating a class called CourseRepository and annotating it with @Repository otherwise it wont compile.
+
+-Implementing findById using EntityManager.
+em.find(Course.class, id);
+
+Enabling H2 console by
+spring.h2.console.enabled = true
+
+Turning Hibernate stats on by
+spring.jpa.properties.hibernate.generate_statistics = true
+logging.level.org.hibernate.stat=debug
+-Helps logging all hibernate statistics in the background
+
+Printing all queries
+spring.jpa.show-sql = true
+logging.level.org.hibernate.type = trace
+-Using 'trace' will allow us to see the values passed to the query parameters
+
+-Implementing deleteById using EntityManager.
+Course c = findById(id);
+em.remove(c);
+
+-Implementing save method to update and insert using EntityManager.
+em.persist(course); // To save
+em.merge(course); // To update
+-----
+
+Playing with Entity Manager
+
+-Entity Manager keeps track of all the changes to the entity until the method is in transaction mode.
+-If we persist an entity to the database and modify it afterwards, it will fire an update query to reflect changes to the database because
+of the @Transactional annotation at Course Repository class level.
+Example
+..
+Course c = new Course("Course 1");
+em.persist(c);
+c.setName = "Course 1 - Updated";
+
+
+-Entity Manager has methods called clear, detach and flush
+-We know that entity manager keeps track of all the transactions and when everything goes successfully it persists and merge to the
+database level
+-At some point in our method we can forcefully tell entity manager to update or insert our data to the database by using the flush()
+method.
+-If we want to detach an entity and dont want entity manager to keep track of the changes of that entity, we can use the detach()
+method.
+-If we want entity manager to dont look at any entity changes then we can use the clear() method.
+Example
+..
+
+Course c1 = new Course("Course 1");
+Course c2 = new Course("Course 2");
+
+em.persist(c1);
+em.flush(); // Saves to Database
+
+em.persist(c2);
+em.flush(); // Saves to Database;
+
+c1.setName = "Course 1 - Updated";
+c2.setName = "Course 2 - Updated";
+em.detach(c1);
+em.flush(); // Only updated c2 as c1 gets detached;
+
+c2.setName = "Course 2 - New Updated";
+em.clear(); // c2 also gets detached
+em.flush() // Nothing happens
+
+
+
+-Entity Manager has the method called refresh() which queries to the database and gets the last updated value.
+Example
+..
+
+Course c1 = new Course("Course 1");
+Course c2 = new Course("Course 2");
+em.persist(c1);
+em.persist(c2);
+em.flush(); // Saves to Database;
+
+c1.setName("Course 1 - Updated");
+c2.setName("Course 2 - Updated");
+em.refresh(c1); // Reverted changes and gets the last value
+
+em.flush(); // Nothing happens with c1. c2 gets updated;
+
+
+-Entity Manager Persist vs Merge
+-Persist takes an entity instance, adds it to the context and makes that instance managed (ie future updates to the entity will be 
+tracked).
+-Merge returns the managed instance that the state was merged to.
+Example
+..
+MyEntity e = new MyEntity();
+em.persist(e); 
+e.setSomeField(someValue); 
+// tran ends, and the row for someField is updated in the database
+
+e = new MyEntity();
+em.merge(e);
+e.setSomeField(anotherValue); 
+// tran ends but the row for someField is not updated in the database
+// (you made the changes *after* merging)
+      
+e = new MyEntity();
+MyEntity e2 = em.merge(e);
+e2.setSomeField(anotherValue); 
+// tran ends and the row for someField is updated
+// (the changes were made to e2, not e)
+---
+
+JPA and Hibernate Annotations
+..
+
+1) @Table(name = "")
+-Use to define the name of the table
+
+2) @Column(name = "")
+-Use to define the name of the column
+-It has a "nullable" property which is true by default. Setting it to false will not allow null values and throw exception
+-Another properties include,
+   .unique: by default is false. Setting it to true will not allow duplicates.
+   .insertable: by default is true. Setting to false will not include this column in insert statements
+   .updatabbe: by default is true. Setting to false will not include this column in update statements
+   .length: we can specify the maximum length of field
+   .scale and precision: we can specify these values if our field is integer value
+
+3) @CreationTimeStamp and UpdateTimeStamp
+-Use to track the creation of the row and when the row was updated last time
+-Is is a hibernate annotation and not a Jpa annotation
+Example
+..
+
+@CreationTimestamp
+private LocalDateTime createdAt;
+
+@UpdateTimestamp
+private LocalDateTime updateAt;
+
+
+4) @NamedQuery and @NamedQueries
+-Used to define the queries once at entity level and setting the key. Using it multiple times to avoid repeation of queries
+Example
+..
+
+@Entity
+@Table(name = "course")
+@NamedQuery(name = "get_all", query = "Select c From Course c")
+Course{}
+
+-We cannot repeat @NamedQuery annotation, so if we have multiple named queries then we have to use another annotation
+
+@Entity
+@Table(name = "course")
+@NamedQueries(value = {
+   @NamedQuery(name = "get_all", query = "Select c From Course c")
+   @NamedQuery(name = "get_all_like", query = "Select c From Course c Where name like '%test%'")
+})
+Course{}
+
+Using it like,
+TypedQuery<Course> query = em.createNamedQuery("get_all", Course.class);
+---
+
+Native Queries
+..
+-Sending direct Sql out to the database instead of entities
+-It does not make use of the Persistence Context, so make sure to refresh to get the last updated records.

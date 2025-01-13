@@ -1,0 +1,72 @@
+Performance
+--
+
+There are 2 different ways for locking shared resources
+  1) Pesimistic Locking
+     .The lock is acquired for the resouce which is shared. Lets say there is an inventory and a thread is responsible to decrement an item
+	  from the inventory when an item is purchased. So what is done is first the inventory is checked and selected, then other operations are
+	  done like check whether they can be delivered or not, apply the discounts and then finally update the inventory and commit the 
+	  transaction. All the threads will wait to acuire the lock when it is released after the transaction is committed.
+	 .This whole operation is done after acuiring the lock
+	 .This type of lock is useful when the contention is very high and conflicts between multiple users are expected
+  2) Optimistic Locking
+     .The lock is acquired when the actual update to the resource is made and if the conflict occurrs, the transaction is rolled back and
+	  it is retried. It is a technique in which a transaction or process does not acquire a lock on the data before accessing it. Instead, 
+	  it assumes that no other transactions will modify the data while it is being accessed. Considering the same example, the lock will not
+	  be acquired when the inventory is fetched and other processing is done like applying discounts, checking delivery data and check whether
+	  the product can be delivered or not, but the lock will be acquired when the update to the inventory will be made to reduce the quantity
+	  by 1. Also when decrement the quantity, the verification check needs to be done if the decrement is done correctly or not because there
+	  may be 2 different threads with same number of inventory count and both updating to same quantity number which will result in Lost Update.
+	  So if that verification check fails, the transaction will be rolled back. TO avoid lost update, we make use of versioning for verification
+	  check.
+	  
+Real-world example of pessimistic locking: In a library system, a user may borrow a book, and the system would lock the book record to 
+prevent other users from borrowing the same book simultaneously.
+
+Real-world example of optimistic locking: In a web-based collaboration tool, multiple users may work on the same document at the same time, 
+and the system would detect conflicts and prompt the users to resolve them before saving the changes.
+
+In optimistic locking, there is a mechanism called Compare and Swap and all modern hadrware supports it. It is done at the hardware level
+which is why it is faster. In Java we have AtomicVariables that supports this mechanism
+In database, we can achieve this by checking if our updated value is correct or not
+Example
+..
+  1) select quantity from products where product_id = 1;
+  2) update products set quantity = 200 where product_id = 1 and quantity = 100;
+  In this example, if any thread runs the 1st query and getting the quantity lets say 100 and when the same thread will run the 2nd query 
+  it will be successfull as fetched quantity is 100 and it will be updated to 200. But before running the 2nd query if some other thread 
+  has ran the update query and modified the quantity to 0 then the first thread will fail as the where clause does not match quanitty = 100
+..
+So optimistic locking is a good approach where contention is low as locks are acquired for short period of time.
+
+
+
+
+When using locks they may also occur Deadlock
+..
+There are mainly 2 reasons for deadlock to occurred
+
+1) Lock Ordering 
+   .Lets say there are 2 accounts X and Y and 2 threads ran simultaneously on X and Y respectively to transfer the amount. Thread 1 needs
+    to transfer from X -> Y and thread needs to transfer from Y -> X. What will happen is thread 1 will take lock on account X and thread 2
+	will take lock on account 2. Now thread 1 needs lock on account Y to transfer amount but it is taken by thread 2, and on the other hand
+	thread 2 needs lock on account X but it is taken by thread 1. So there will be deadlock scenario and this transaction will never be 
+	completed and both threads will get blocked.
+	The solution to this is to make a way to globally sort the account based on some identification like account it. When it will be sorted there
+	will be an order based on id like first item will be account X and second item will be account Y. So now both thread needs to follow this
+	order in order to take lock. Both threads will first take lock on account X and then on account Y and in this way the deadlock will be
+	removed.
+	
+2) Request Load
+   .Assume a microservice architecture where there is a reverse proxiy api gateway that routes the request to internal services and has a
+    thread pool size of 10. There is an api which comes to api gateway which routes that request to service 1 and now service 1 calls service
+	2 to fetch some data via api-gateway. Service 2 responds to the data to service 1 which responds back to api-gateway which responds back to
+	the client. This will work when the incoming parallel requests are limited but lets assume all 10 incoming requests comes and all 10
+	threads will be assigned. All parallel 10 reuqests will go from api-gateway to service 1 and when service 1 wants to call service 2 via
+	api-gateway , all will be blocked due to deadlock because there will not be enough threads in thread pool to assign new requests that will
+	go to service 2.
+	The solution is to separate the number of threads that communicates to service 2 from api-gateway and from service 1 to api-gateway.
+	The other solution is to not communicate to service 2 via api-gateway but rather directly communicates from service 1 to 2 internally
+	and assign separate pair of threads to it from service 1 thread pool.
+	
+	

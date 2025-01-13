@@ -1,0 +1,129 @@
+Transaction Management
+--
+
+-Transaction management relates to changes in the data
+-We want either all of the changes to be reflected or none of the changes to be reflected.
+
+ACID Properties
+1) Atomicity
+   .Ensures either all of the changes (steps in a transaction) should reflect or none of the changes should reflect.
+2) Consistency
+   .Ensures any transaction should leave a system in a consistent state
+   Example
+   .Total sum of account A and B should be the same at the start and end of the transaction whether it succeeds or fails
+3) Isolation 
+   .There are multiple levels of isolation. How does one transaction effects another transaction which is running in parallel
+   Example
+   .If a transaction updating account A's value and it is in between transaction while B accesses A's account value. Will B see
+    the updated value ? This is what isolation determines.
+4) Durability
+   .Ensures once the transaction completed its execution, the changes should be persisted even if the system crashes or a 
+   failure occurs. Any changes made should be durable.
+
+
+-When 2 transactions are running parallel, there might be some of the scenarios that can come into picture
+
+1) Dirty Read
+-2 Transactions running in Parallel
+-Transaction 2 reading the modified value made by transaction 1 before it is committed.
+-This reading of value is called dirty read
+
+Example Where the problem can occur
+-Initial value of A account is 200, B is 300 and C is 500
+-Transaction 1 aim is to transfer 50Rs from A to B account
+-Transaction 2 aim is to transfer 100Rs from A to C account
+
+The order of transaction is
+*Deduct 50Rs from A account (T1) -> Read value 200, Deduct 50, the value of A account will be 150
+*Deduct 100Rs from A account (T2) -> Read value 150, Deduct 100, the value of A account will be 50
+*Deposit 50Rs to B account (T1) -> Add 50 to B, the value of B account will be 350
+*Deposit 100Rs to C account (T2) -> Add 100 to C, the value of C account will be 600
+
+-If the current scnarios run successfully, there will not be a problem
+-But the problem occurs if step 3 fails because of some problem
+-When step 3 will fail, the transaction will rollback the changes previously made. Now consider the situatuon
+
+*Deduct 50Rs from A account (T1) -> Read value 200, Deduct 50, the value of A account will be 150
+*Deduct 100Rs from A account (T2) -> Read value 150, Deduct 100, the value of A account will be 50
+*Deposit 50Rs to B account (T1) -> Fails. T1 will revert back (add 50 that was deducted) and A account will be back to 200Rs. B will be 300
+*Deposit 100Rs to C account (T2) -> Add 100 to C, the value of C account will be 600
+
+-Here now the balance of A remains the same, but C has extra 100 rupees from nowhere.
+
+
+2) Non Repeatable Read
+-When a transaction reads particular value twice. It gets 2 differenct value
+-The value is non repeatable
+-This occurs when in between reading the value, some other transaction running in parallel has updated the value
+
+Example Where the problem can occur
+-We have a Person table with id name and age
+-We have 1 row in it with id 10, name Usama and age 25
+
+The order of transaction is
+*Select age From Person where id = 10 (T1) -> Reads the value 25
+*Update Person Set age = 30 Where id = 10 (T2) -> Updates the current value
+*Select age From Person where id = 10 (T1) -> Reads the value 30
+
+
+3) Phantom Read
+-When a transaction accesses the rows from database twice, it gets different results
+-This occurs when in between accessing the records, some other transaction running in parallel has inserted or deleted some of the records
+
+Example Where the problem can occur
+-We have a Person table with id name and age
+-We have 3 row in it with, 
+   id 10, name Usama and age 25
+   id 11, name Ali and age 27
+   id 12, name Ahmed and age 30
+
+The order of transaction is
+*Select * From Person where age between 5 and 55 (T1) -> Gets back all 3 records
+*Insert Into Person (id, name, age) Values (13, Test, 15) (T2) -> Insert a new record
+*Select * From Person where age between 5 and 55 (T1) -> Gets back 4 records
+
+
+
+The 4 Isolation Levels
+--
+1) Read Uncommitted
+.In this level, all the 3 problems can occur because the values can be accessed and modified as they are not committed by a particular
+transaction
+
+2) Read Committed
+.In this level, Dirty Read problem will not occur
+.When a transaction accesses a particular value, it puts a lock on that and other transactions running in parallel cannot accesses or
+modifies the value as soon as the first transaction commits it
+
+3) Repeateable Read
+.In this level, Dirty Read and non-repeateable read problem will not occur
+.When a transaction accesses a particular row from database, the whole row gets locked and other transaction will not be able to
+access it. For example row with id = 10;
+
+4) Serializable
+.In this level, no problem can occur
+.When a transaction queries the database, it locks down the table records that matches the query criteria.
+.Any transaction tries to insert or delete or update the record that matches that criteria it wont be able to do it until the commit
+of transaction 1 is done.
+-If we do Select * From Person, the whole table gets locked. No entries can be modified or inserted by other transactions
+
+
+
+Implementation
+--
+-There are 2 types of @Transactional annotation in spring.
+-One provided by spring and other by jpa
+-Using the jpa annotation, if we are accessing multiple databases in a single transaction, using this annotation will be restricted to
+individual database.
+-Using the spring annotation, changes in all the databases will be recorded by the transaction
+-We have also the isolation property in spring framework transactional annotation
+
+@Transactional(isolation = READ_COMMITTED / READ_UNCOMMITTED / NON_REPEATABLE_READ / PHANTOM_READ)
+
+-If you want to provide single isolation level for all the transaction we can specify it in the application propertes
+spring.jpa.properties.hibernate.connection.isolation = {constant_number}
+  .None -> 0
+  .READ_UNCOMMITED = 1
+  .READ_COMMITTED = 2
+  .NON_REPEATABLE_READ - 4
+  .SERIALIZABLE = 8

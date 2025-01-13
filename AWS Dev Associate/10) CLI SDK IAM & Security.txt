@@ -1,0 +1,100 @@
+CLI, SDK, IAM and Security
+--
+
+EC2 Instanc Metadata (IMDS)
+..
+This is a powerful service which allows our EC2 instance to know and learn about themselves from the metadata. There is a specific URL
+with the endpoint => 169.254.169.254/latest/meta-data which the instance can connect to and learn about its meta data. From the metadata
+we can know the instance name, the public and private ip, retrieve IAM roles, etc. We cannot see what IAM policy is attached to those 
+roles.
+
+We have 2 versions of its,
+  1) IMDSv1 which communicates with the provided URL directly
+  2) IMDSv2 which is a more secure way and it is done in 2 steps
+      a) First we get the session token by issuing a request to 169.254.169.254/latest/api/token (PUT)
+	  b) Use the token to fetch the meta-data from 169.254.169.254/latest/meta-data "X-aws-ec2-metadata-token": $Token
+	  
+When launching an instance, we can leave the default setting for instance metadata and after the instance is launched, we can connect
+to it using EC2 instance connect feature or by terminal manually. After that we can issue the get session token command to retrieve 
+the token and then use the second profile api
+
+The /profile api will return a list of items like 
+events/
+hostname
+identity-credentials/
+instance-id
+local-ip-v4
+services/
+...
+...
+...
+and so on
+
+The items with trailing slash means that we can go inside it and find more information
+The items without trailing slash means that it is a value we can access
+
+For example we can issue the url as,
+169.254.169.254/latest/meta-data/hostname/, and it will return back the ec2 hostname
+169.254.169.254/latest/meta-data/local-ip-v4/, and it will return back the private ip
+
+169.254.169.254/latest/meta-data/identity-credentials/, and it will return back more options to look into
+This endpoint helps us to check what IAM role this EC2 isntance has been assigned to under the path /ec2/security-credentials/ec2-instance
+
+
+For creating multiple profiles when using multiple aws accounts we can use the command "aws configure --profile test-profile" and 
+then put our access key and secret key for the account to create a new profile. When issuing any api call we can provide the 
+profile by --profile test-profile argument.
+
+For using MFA in CLI, we need to integrate sts get session token api call
+
+When using SDK, we are performing actions on AWS directly from our applicaton instead of from console or CLI. If we dont specify the 
+region when issuing api call from SDK, then us-east-1 is chosen by default
+
+
+Limits
+..
+We have 2 types of limits in AWS
+
+1) API Rate Limits
+    .It is defined as how many an api can be called for a certain period of time
+	.DescribeInstance api for EC2 can be called 100 times per second
+	.GetObject api for S3 can be called 5500 times per second per prefix.
+	.We need to define exponential backoff strategy when we exceed this limit and get errors
+	.Also for consistent errors we can request an API throttling limit increase with AWS.
+	
+2) Service Limits
+    .It is defined as how many resources we can utilize per service
+	.We can use 1152 virtual CPUs when running on demand standard instances.
+	.We can request a service limit increase by opening a ticket to AWS
+	.We can request service quota increase by using Service Quota Api
+	
+	
+For exponential backoff, when we are using any aws sdk, then it is already implemented as a retry mechanism but if we have implemented
+the api call by ourself without using the aws sdk then we must implement exponential backoff on 5xx server errors only. For 4xx errors,
+we must not implement exponential backoff because 4xx error means something wrong is being sent by the client and we will get the same
+errors on retry steps as well.
+
+If we get ThrottlingException then we must use exponential backoff. The term exponential means that we do retries not immediately,
+but wait for the time in exponential manner. If we get 5xx exception we do a retry, then we retry after 2 seconds, then after 4 seconds,
+then after 8 seconds, then after 16 seconds, etc...
+
+
+AWS Credentials Provider Chain
+..
+The CLI will look for credentials in the following order
+  1) Command line options
+  2) Environment variables
+  3) CLI credentials file eg: ~/.aws/credentials OR ~/.aws/config
+  4) Container credentials for ECS tasks
+  5) EC2 Instance profiles
+  
+Lets say we have an application and we have stored aws secret key and access key in environment variables. This key is of some 
+IAM user which has full access to S3 bucket. This should not be done as it is not a good practice.
+However, we now define another IAM role and EC2 instance profile that is assigned to the EC2 instance with relevant S3 permission. But
+still the EC2 instance has full permission the bucket. This is because the environment variable precedence is higher than EC2 instance 
+profile. We will have to remove the environment variables to be able to make EC2 instance profile work
+
+The best practice is that if we are working and deploying application within AWS then there is no need to store credentials inside
+env variables. We can define IAM roles and assign to our instances like EC2 instance roles for EC2 instances, ECS roles for ECS takss,
+Lambda roles for Lambda functions.
+If we are working outside aws then we can define env variables and named profiles.

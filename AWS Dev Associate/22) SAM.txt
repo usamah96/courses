@@ -1,0 +1,154 @@
+Serverless Application Model (SAM)
+--
+
+It is a framework for developing and deploying serverless application. It can be termed as Simple CloudFormation because from simple YAML file, SAM 
+generated complex.
+It supports everything from CloudFormation like Outputs, Mappings, Parameters, Resources, etc
+
+With SAM, we can deploy Lambda functions using CodeDeploy and it also heps us deploy Lambda, Api Gateway, DynamoDb locally
+
+
+
+SAM Recipe
+  - We add transform header in our SAM template to indicate that is is SAM template 
+      .Transform: 'AWS::Serverless-2024-09-16'
+  - We then write code in SAM's construct rather than CloudFormation's construct
+      .AWS::Serverless::Function, which indicates Lambda Function
+	  .AWS::Serverless::Api, which indicates Api Gateway
+	  .AWS::Serverless:SimpleTable, which indicates DynamoDb
+  - We then package and deploy in aws using,
+      .sam deploy
+  - The local changes can be synced quickly to aws lambda by using SAM Accelarate with command,
+      .sam sync --watch
+	  
+	 
+	 
+So the flow is,
+  - We have the SAM YAML template with application code which is transformed into CloudFormation YAML template along with application code. The template 
+    and code is then zipped and uploaded into s3 where the changeset is executed in CloudFormation by creation lambda function, api gateway, dynamodb 
+	table, etc whatever we have defined in our template
+	
+	
+	
+With SAM Accelarate we deploy the changes into aws with reduced latency. It synchronizes our project to aws like if we have SAM YAML template with our 
+application code and lambda function already deployed previously, then any changes to our code/lambda function will not trigger the whole deployment 
+flow, instead the "sam sync" command will directly sychronizes the code with lambda function.
+Different command options are,
+  .sam sync (no options) and it will deploy code + infra
+  .sam sync --code and it will deploy just the code
+  .sam sync --code --resource AWS::Serverless::Function and it will deploy all lambda functions 
+  .sam sync --code --resource-id HelloWorldLambdaFunction and it will deploy just specific lambda function
+  
+  
+We can install SAM CLI in out OS by googling install SAM CLI and then following the commands based on our OS. After installing we can then run 
+"sam --version" to check if installation is successful.
+
+After that we can create a basic project folder with src/ directory which will contain application code (as lambda function). We can define our code 
+in python like,
+
+Directory: src/app.py
+..
+  import json
+
+  print("Loading Function")
+  
+  def lambda_handler(event, context):
+    return "Hello World"
+..
+
+Then we create a sam yaml file in our root directory which will indicate how our function should look like and what it is using like,
+
+Directory: /template.yaml
+..
+  AWSTemplateFormatVersion: '2024-09-16'
+  Transform: 'AWS::Serverless-2024-09-16'
+  Description: Starter Lambda Function
+  Resources:
+    helloworldpython:
+	  Type: 'AWS::Serverless::Function'
+	  Properties:
+	    Handler: app.lambda_handler
+		Runtime: python9
+		CodeUri: src/
+		MemorySize: 128
+		Timeout: 3
+		
+The Handler format is <code_file_name>.<function_name>
+The CodeUri is the directory where our code is
+
+After that we need to run some command in order to package and deploy our infra +  code
+  .First we will create an s3 bucket using the command,
+    => aws s3 mb s3://test-sam-bucket
+  .Then we package our code using the command, 
+    => sam package --s3-bucket test-sam-bucket --template-file template.yml --output-template-file gen/templte-file-generated.yaml
+	.This command will package the bundle and upload it in s3 bucket. Also it will generate updated .yaml file according to s3 bucket and place 
+	 this file inside gen/ directory. We can create this directory in our local project folder beside src/ directory.
+  .Then we deploy our code using command,
+    => sam deploy --template-file gen/templte-file-generated.yaml --stack-name hello-wordl-sam --capabilities CAPABILITY_IAM
+	.This command will execute the changeset in CloudFormation and a new Lambda Function will be created for us. Also the --capabilities paramter means 
+	 that we will be assigning new IAM Role and this will be created for us too)
+	 
+
+Similarly we can do for api gateway and dynamodb tables.
+The examples can be found at => https://github.com/amazon-archives/serverless-app-examples/tree/master/python
+
+
+
+
+
+Policy Templates
+..
+List of templates that we can use to apply the permissions to our serverless service.
+All templates are listed in above doc -> https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-policy-templates.html#serverless-policy-template-table
+
+Some of the templates are
+  1) S3ReadPolicy: It gives read objects policy to s3.
+  2) SQSPollerPolicy: It gives policy to poll messages from SQSPollerPolicy
+  3) DynamoDbCrudPolicy: It gives policy to create, read, update, delete actions on dynamodb
+  
+Lets say we want to give our lambda function the access to poll messages from sqs queue name as TestQueue then we will define the policy in template as,
+..
+  ...
+  ...
+  ...
+  ...
+  Policies
+   - SQSPollerPolicy:
+       QueueName:
+	     !GetAtt TestQueue.MyQueue
+..
+
+
+
+Local Capabilities & Multiple Environments
+..
+We can start lambda functions locally with the help of sam by using the command,
+  => sam local start-lambda
+It will provide us local endpoint that emulates aws lambda where we can run automated tests against this endpoint.
+To invoke this function, we can execute the command,
+  => sam local invoke
+If the function needs to make api calls to other aws services then we need to make sure correct aws profile is configures using the --profile parameter.
+
+Similarly we can start an api gateway endpoint by using command,
+  => sam local start-api
+It will start local http server that hosts all our function.
+
+
+To enable multiple environments like deploying on dev or prod, we need to create one more file samconfig.toml which will contain the configuration 
+for dev and prod.
+Whenever we then execute sam deploy command we pass parameter --config-env and value as dev or prod as defined in our .toml file
+The parameters can be defined as
+..
+  [dev.deploy.parameters]
+  stack_name = "my-dev-stack"
+  s3_bucket_name = "dev-bucket"
+  ...
+  ...
+  ...
+  [prod.deploy.parameters]
+  stack_name = "my-prod-stack"
+  s3_bucket_name = "prod-bucket"
+  ...
+  ...
+  ...
+..

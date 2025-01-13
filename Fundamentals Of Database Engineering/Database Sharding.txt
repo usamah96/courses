@@ -1,0 +1,63 @@
+Database Sharding
+---
+
+DB Sharding is the process of segmenting data into multiple database instances to speed up queries and scaling.
+
+Lets say we have a table with millions of records. Querying that table will be costly and slow even if we have index on columns.
+Eventually those indexes will grow large with time. So we split our data into multiple db instances
+
+Splitting data on the bases of,
+  .Zip Code on users table. The East zone users goes to instance 1. West zone users goes to instance 2 and so on
+  .Id on users table. From record 1 - 50k goes to instance 1 and from 50001 to 100k goes to instance 2.
+ 
+What if we want to split our data on the basis of random string column? Like if we have a column 'url', we also have a separate
+column 'url_id' which identifies a specific url. We usually queries 'url_id' to identify a url.
+To split data based on url_id, we then use specific technique call Consistent Hashing.
+
+In consistent hashing, we hash the input string that gives us back a number/port_number/identifier which specifies which 
+instance to connect to.
+
+Horizontal Partitioning vs Sharding
+  .In HP, we split the table into multiple tables withing the same schema or different schema but the database and instance
+   remains the same
+  .In Sharding, the table is splitted and the data goes into separate instances which has its own database and the table name
+   remains the same.
+   
+   
+Example Of URL Shortener
+  .Consider mysql server running on 3 different ports (1111, 2222, 3333)
+  .Creating an endpoint that takes url as parameter
+  .The backend calculates the hash of that url and takes first 5 character as url identifier (crypto npm module)
+  .Then we use this url identifier to generate the port number of the database. (Consistent Hashing: hash-ring npm module)
+  .We connect to that port and insert the record with id, url, url_id as values.
+  .Similarly to fetch the url, we get url_id as request parameter
+  .Calculate the database port using the url_id
+  .Query the database with where clause url_id and fetch the record.
+  
+  
+Pros of DB Sharding
+  .High Scalability
+  .Better use of memory
+  .Security Purposes, we can use a separate database shard for vip customers (fast retrieval/insertion of data)
+  .Smaller index size
+  
+Cons of DB Sharding
+  .Very difficult to manage transactions and rollbacks
+  .Very difficult to execute join and range queries
+  .New addition of shard or reduction of shard will need re-computation of hashes and all re-sharding
+  .If the update/select query contains where clause other than shard key, then we will have to query all shards because there is
+   no identifier that can generate specific port number of database to connect to.
+   
+   
+When do you need sharding?
+First ask yourself, do you really need sharding? Because it must be the last thing you should do with your database.
+There are many approached which can be opted before sharding
+  1) Horizontal Partitioning
+  2) Make Read Replicas if horizontal partition are still large and read becomes slow for concurrent requests.
+  3) If there are many number of writes, make 2 master database but make sure the data writes in those master dbs are independent
+     of each other so that no conflict arises. For example user base in North America writes to the database in North America
+	 region and user base in South America writes to the database in South America region.
+	 
+Forget about ACID and Transactions management in sharding. Also resharding is the worst any software can imagine.
+In nothing works, then you can consider sharding. Consider Vitess tool for sharding in mysql
+Vitess Link: https://vitess.io/docs/17.0/reference/features/sharding/

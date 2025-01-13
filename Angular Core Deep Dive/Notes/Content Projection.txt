@@ -1,0 +1,87 @@
+Content Projection
+---------------
+
+-All about making configurable components
+-We can modify the look and feel of component via content projection
+-We can use the ng-content tag to grab the content part of our component to be displayed
+-The content part of the component lies in between the component tag
+..
+<course-card>
+<p>Hello</p>    // This tag is the content part of the component
+</course-card
+
+Inside course-card.html
+<ng-content></ng-content> // Will display Hello
+-It will select all the elements from the content part and display where the ng-content is placed
+
+-We can group our contents via select property
+
+<div *ngIf="course[0] as course">
+  <course-card [course]="course">
+    <div class="course-img">
+      <img [src]="course.imageUrl" />
+    </div>
+    <div class="course-desc">
+      {{ course.description }}
+    </div>
+    Edit Description: <textarea></textarea>
+  </course-card>
+</div>
+
+-All the elements under course-card refer to the content part and can be projected via ng-content
+Inside course-card.html
+
+<ng-content select=".course-img"></ng-content>  // Will display image tag
+<ng-content select=".course-desc"></ng-content>  // Will display description
+<ng-content></ng-content> // Will display all the elements that does not match the selectors specified.
+
+
+
+
+
+
+
+The ContentChild Decorator
+-If we run in a situation where we want to grab the reference to the content projected, we can use @ContentChild
+for this.
+-Unlike @ViewChild, with ContentChild we can only access the content part of the component that is 
+projected with ng-content and nothing else
+..
+
+<course-card>
+  <p #paragraph> Hello </p>
+</course-card>
+
+Inside course-card.html
+<h1> Course Card </h1>
+<ng-content></ng-content>
+
+Inside course-card.ts
+@ViewChild('paragraph')
+paragraph;
+
+ngAfterViewInit(){ console.log(paragraph); } // Will display undefined
+
+-This shows that the ViewChild's scope is the direct elements and not the projected elements. We can grab
+the <h1> tag but not what is inside the <ng-content>
+-For this we should use
+..
+Inside course-card.ts
+@ContentChild('paragraph')
+paragraph;
+
+
+-Also we can use a nested component like
+<course-card [course]="course">
+  <course-image [src]="course.imageUrl"></course-image>
+</course-card>
+
+Inside course-card.ts
+@ContentChild(CourseImageComponent)
+image:CourseImageComponent;
+
+ngAfterContentInit(){ console.log(paragraph); } // Will display undefined
+
+
+
+Similarly we can use @ContentChildren to grab the list of content parts that matched the criteria

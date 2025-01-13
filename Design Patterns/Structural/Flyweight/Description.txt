@@ -1,0 +1,53 @@
+Flyweight
+--
+
+-Space Optimization
+-Technique that lets us use less memory by storing the common data in an external place and then using it by referencing
+whenever there is a need.
+
+Motivation
+..
+-Avoid redundancy when storing the data
+-Example of a multiplayer game where the users can be of same first and last name
+    .No sense of storing the name over and over again
+    .Store a list of names and pointers to them
+-Example of a paragraph where we need to make some words bold or italic
+    .Dont want to go through each character and want each character to have a formatiing character
+    .Operate on range like line numbers, start and end position.
+
+
+
+Example of a User where we store the first and last name
+If we have 2 users like John Smith and Jane Smith, storing both of these full names will cost us extra 5 bytes because Smith
+name is repetetive.
+So we alternatively store unique names and specify the indexes of first and last name
+
+Example of Text Formatting like if we are building the functionality to capitalize some of the text in a specific range then
+a normal implementation would be to use a boolean array where we set the index values to true where we want the text to be
+capitalize. Then when returning the text we check whether the particular index is set to true or false.
+An optimized implementation could be to use a inner class of TextRange that has the start and end index of range and boolean
+formatting types. We can create a function that tells us whether the particular index falls in the start and end range or not
+and then apply the formatting if set to true.
+
+In Java we there is a concept related to StringPools that uses Flyweight behind the scenes
+
+In Java we have Integer Cache that ranges from -128 to 127. If we create any integer object in this range we get the same 
+pointer to the reference. But only if the object is created implicitly by the JVM and not explicitly.
+..
+Example
+
+Integer a = 300;   // Implicit creation. JVM will do
+Integer b = 300
+a == b will be false
+
+Integer a = 50;
+Integer b = 50;
+a == b will be true
+
+Integer a = 127;
+Integer b = 128;
+a == b will be false
+
+Integer a = new Integer(50);  // Explicity creating object
+Integer b = new Integer(50);
+a == b will be false

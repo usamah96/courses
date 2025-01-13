@@ -1,0 +1,61 @@
+public interface IShapeColor {
+  public void fillColor();  
+}
+
+public class ColorRedImpl implements IShapeColor {
+ 
+  public void fillColor() {
+    System.out.println("Red Color");
+  }
+}
+
+public class ColorBlueImpl implements IShapeColor {
+ 
+  public void fillColor() {
+    System.out.println("Blue Color");
+  }
+}
+
+public abstract class Shape {
+    protected IShapeColor color;
+    
+    Shape(Color color){
+        this.color=color;
+    }
+    abstract public void applyColor();
+}
+
+public class Circle extends Shape{
+ 
+  Circle(IShapeColor color) {
+    super(color);
+  }
+  public void applyColor () {
+    System.out.print("Circle filled with ");
+    color.fillColor();
+  }
+}
+
+public class Rectangle extends Shape{
+ 
+    Rectangle(IShapeColor color) {
+      super(color);
+    }
+    
+    public void applyColor () {
+      System.out.print("Rectangle filled with ");
+      color.fillColor();
+    }
+}
+
+
+class Main{
+  public static void main(String[] args){
+      
+      Shape s1=new Rectangle(new ColorRedImpl());
+      Shape s2=new Circle(new ColorBlueImpl());
+
+      s1.applyColor();
+      s2.applyColor();
+  }
+}

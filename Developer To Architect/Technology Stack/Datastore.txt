@@ -1,0 +1,302 @@
+Technology Stack
+--
+
+About RDBMS
+  .It is a general purpose database which means that if there is no specific requirement for database then we can go for RDBMS. With RDBMS, it can
+   scale upto 1 TB of data and 10k connections. At that point of time problems starts to occurr.
+  .It supports ACID transactions. It is possible on a single node. If we move to multiple nodes with distributed data then we will require 2PC or
+   3PC
+  .We have a fixed schema in RDBMS which helps us in Data analysis like we can filter out rows, select the columns, join multiple tables, index the
+   columns whenever we want, etc. It has a drawback also like in production database we have to do migrations if any column needs to be added or
+   deleted and also using Joins are great but everytime using joins will cause performance issues as it slows downs the query
+  .We can store data in effecient way which will make our writes effecient due to normalization of the data and saving disk space also. The amount of
+   memory is reduced when the data is loaded into the memory. Sometimes denormalization also helps because in modern day systems, memory is not an
+   issue and also with horizontally scaled system, the aggregate memory can also be huge which means that normalization will become an overhead
+   as we have to do more joins. So Denormalization also helps in such scenarios.
+  .In RDBMS design, whenever we update the data, we override the old values. This is the old design approach when the disk were expensive. Modern
+   day systems don't have disk storage problems and that is why in NoSql database when we update any value, it creates a whole new document with a 
+   new timestamp and it keeps the old record for versioning purposes.
+   
+   
+How we can scale RDBMS?
+At first, we scale our database verticallt but that is limited to some extent. After that we try to vertically partition our database which means that
+if our catalog-service, order-service and inventory-service previously were using the single database instance, we now break the data into 3 
+separate instance each for catalog, order and inventory more like in a microservice architecture
+But if one of the node lets say order node becomes heavily loaded, we can do replication for reliability and high availability
+There will be 1 master node and multiple read replicas with asynchronous replication. The master node will be connected to backup node using
+synchronous replication. The read queries on read replicas will be eventually consistent as it takes little delay for asynchronous replication
+updates. Also there will be a single master node for write operations
+
+These are some of the limitations in scaling RDBMS so NoSQL comes into picture to solve these limitations. In order to achieve this objective, there
+were some design and architectural trade-offs in NoSql databases
+Some of them are,
+  1) Scalability
+     .As we know that RDBMS are not horizontally scalable, NoSql allows horizontal partitioning of data across different nodes. The trade-off is
+	  that we will loose the feature of ACID transaction. ACID can be achieved using 2PC or 3PC but that is not complete replacement of ACID. Also
+	  we cannot use joins anymore using this architecture.
+  2) Availability
+     .In RDBMS, availability is done pretty nicelt but in NoSql it is much better using data replication. We have multiple nodes working
+	  simultaneously so that any of them can become master when original master goes down. The trade-off is related to data consistency as our
+	  data will be eventually consistent.
+  3) Flexible Schema
+     .There is no fixed defined schema with data type like in RDBMS. It is a key-value storage system. No migrations will be needed in production
+	  as any type of data can be stored in any column. The schema can be changed as our application evolves. The trade-off is that we loose 
+      structued query language (SQL), seconday indexes. So keep in mind that when going to NoSql, there may be no secondary indexes
+  4) Performance
+     .NoSql database has aggregate schemas which is highly denormalized. The trade-off is that we loose normalization feature and also since every
+      column is aggregated, we cannot do non-key queries. Non Key queries are done at RDBMS level due to secondary indexes.	 
+  
+  
+  
+About Amazon DynamoDB
+  .It is a NoSql Cloud service provided by Amazon
+  .Key Value pair Datastore in which each value is identified by a key. The value can be any json, xml. The value is a free schema like we can store
+   complex java object converted into json in value part and the id in key part
+  .No extra effort of normalizing the database and adding fileds in different tables. Just need to convert the object in json using any library
+  .The schema can be evolved freely and we donot need to make any changes to our object to store new fields
+  .It brings very high scalability and availability (discussed later)
+  .DynamoDB is like Hash Table in java. The concept is similar but obviously Hash Table is in memory but DynamoDB is persistent and distributed
+   among different nodes if there are any. 
+  .The api is simple and provides operations like put, get, update, delete, query
+  .The primary key of dynamodb has 2 parts
+    a) Partition key, which is mandatory and have only 1 attribute like product_id. The partition key is hashed and consistent hashing approach is 
+       used to identify on which node the record will be placed
+    b) Sort key, which is optional and it is used to order the records which have the same partition key. This helps in searching for the record
+       having same partition key using binary search algorithm
+  .The operations for a key are atomic which means either a complete change will either be done or not.	   
+  
+DynamioDB is suitable for storing small chunks for data within range of 1MB. 1MB is still not small enough we can store a very large json or xml.
+For binary and big data files it is not suitable.
+
+The most distictive feature of DynamoDB is that it is Peer to Peer cluster. Suppose there are 6 to 7 nodes and each node is responsible for a set
+of partition keys (like range partition). Each node will randomly connect to every node like Node D connects to Node A and Node B. These connections
+are through GOSSIP protocol which allows Node D to know that what range Node A and Node B is responsible for. Similarly Node A and Node B will come
+to know what range Node D is responsible for. In this way, a client can connect to any node and get its data. If a client connects to Node H and needs
+to fetch data for partition key 1 which is located at Node C, then Node H will forward that request to Node C to fulfill the request because it
+knows that key 1 is located at Node C. Similarly multiple nodes can be responsible for same set of keys acting like replica nodes.
+The allocation of keys to node is done using consistent hashing (a more advance consistent hashing is used using machine name and ip name)
+
+With this approach, there is no master node and client can connect to any node which provides high availability and if any node goes down, the
+updates are not rejected unlike in RDBMS that if master goes down the write operations will be down too. Now since there is no master, multiple
+user can fire updates to multiple nodes which can cause merge conflicts. To tackle that, vector clocks, timestamps or custom business rules are there
+to avoid it.
+
+DynamoDB beleives in High Availability rather than Strong Consistency that is why there are multiple nodes to write to. So if there is a write
+operation on a single node then updates are propagated to other nodes responsible for same partition key and that can take time which makes the
+system eventually consistent.
+The consistency guarentee is adjustable. The sum of minimum number of nodes to read and minimum number of nodes to write should be greater than
+total number of nodes
+   .R + W > N for strong consistency
+   
+Network Partition and DynamoDB's technique to prodivde high availability
+Amazon DynamoDB uses a distributed architecture where data is replicated across multiple nodes in a cluster. To ensure high availability and fault 
+tolerance, DynamoDB uses a quorum-based replication mechanism where each update must be written to a majority of nodes in the cluster before it is 
+considered successful.
+During a network partition, the nodes in the cluster become divided into two or more separate segments that cannot communicate with each other. 
+This can cause a split-brain scenario where each segment believes that it has a majority of nodes and can continue to accept writes independently.
+To prevent this scenario, DynamoDB employs a technique called the leader election protocol, where one of the nodes in the cluster is designated as 
+the leader. The leader is responsible for coordinating writes and ensuring consistency across all nodes in the cluster.
+During a network partition, the leader node will continue to accept writes from the client application and propagate updates to other nodes that can 
+communicate with it. However, if the leader node becomes isolated from a majority of nodes, it will step down and trigger a new leader election 
+process to select a new leader.
+
+   
+   
+   
+About Google BigTable
+  .Another implementation of NoSql database
+  .It is very much similar to Apache HBase, infact Apache HBase is the opensource implementation of Google BigTable. Architecture wise they both are
+   same
+  .It is a column family storage where related columns are grouped under one column family. There is a row key which is sorted by default much 
+   similar to partition key in dynamodb and there is no sort key individually. Then we can have multiple column family which can contain at-least 
+   one column. Example can be Column Family Document with 1 column, Column Family Language with 1 column, Column Family Referrer with 3 columns 
+   (trips, holidays, news)
+  .The purpose of column family is for more effecient storage and fast search
+  .Example of column family
+     We have row_key as com.airlines.com
+	 We have Column Family Document with 1 column and the value is the landing html page content of www.airlines.com
+	 We have Column Family Language with 1 column and the value is any language like EN, PT, ES, etc
+	 We have Column Family Referrer with 3 columns. The purpose is to identify if that column is referring airlines.com or not
+	   a) Column trips.com with value Check Fligh which means trips.com has a text 'Check Flight' which references www.airlines.com
+	   b) Column holidays.com with value Empty String because the sire does not reference www.airlines.com
+	   c) Column new.com with value Empty String too.
+	Similarly we have another record with row_key as www.hotels.com
+	We have Document, Language and Referrer Column Family
+	For Referrer we have, 
+	   a) Column trips.com with value Empty String because the site does not reference www.hotels.com
+	   b) Column holidays.com with value Your Hotel which means holidays.com has a text 'Your Hotel' which references www.hotels.com
+	   c) Column new.com with value Venue which means news.com has a text 'Venue' which references www.hotels.com.
+  .Like DynamoDB stores data like HashMap/HashTable, Google Big Table stores data as TreeMap as row_key is by default sorted. All functionality are
+   same like the data is persisted and distributed. It has 2 more properties that data is sorted and sparsed. By sparse it means that logically,
+   there are many columns in a column family which will be stored as empty string like in the example that www.airlines.com row_key, there is
+   empty string in holidays.com and news.com as they are used in other rows (www.hotels.com). But this is not how data is stored inside google
+   big table. The data is stored in such a way that each column family is break down into multiple rows like,
+     row_key            column_family   column   timestamp    value
+	 ------------------------------------------------------------------------
+	 com.airlines.com     Document                 123        ....
+	 com.airlines.com     Language                 124         EN
+	 com.airlines.com     Referrer     trips.com   125        Check Flights
+	 com.hotels.com       Referrer   holidays.com  126        Your Hotel
+	 com.hotels.com       Referrer   news.com      127        Venue
+	 ------------------------------------------------------------------------
+  .The timestamp value helps in versioning the records as in google big table we dont delete the record. ANy record if needs to be updated, the
+   new record is inserted with new timestamp.
+  .The combination of all the columns except the value part becomes the index key
+     Index Key => Row Key/Column Family:Column Name/Timestamp
+  .With this representation, it becomes much like a key value pair with index key as a key and value as value.
+  .There is a limitation that we can store less than 100 Column Families. But inside single column family we can store unlimited columns
+  
+
+Google Big Table has a free schema and helps in storing structured data. By structued data it does not mean like in RDBMS but like Column Family
+Storage.
+The sorting technique helps in range queries.
+
+Under the hood, Big Table uses Google File System for reliable persistent storage and helps in storing very large files
+These files are very large so reading and loading can take time so there is caching like mechanism called tablet servers which loads the data
+into the memory when the first time user requests for any data. 
+
+For write operations, the writes are written in a log file called Write Ahead Log
+Files and then later they are persisted into BigTable which is why writes are also very fast. The WAL files are stored reliably on persistent layer 
+(GFS) so  even if tablet server crashes while writing the data then it will be recovered when a new tablet server will comeup. Also there will
+be no write conflicts because for write operations, there is only single tablet server responsible for it and that is a big plus for big table which
+also makes it very strongly consistent across multiple nodes. When that WAL is reliably stored on GFS then that data is replicated on multiple nodes.
+
+BigTable is horizontally scalable too as the load is distributed. The client load is distributed on tablet servers and tablet server load is
+distributed on persistence layer (GFS)
+
+There are 2 more components which is master server and lock server (chubby). The responsibility of master server is to check tablet servers whether they
+are alive or not and to assign which type of data each tablet server will serve. Each tablet server holds a lock to the Lock Server and when the lock
+is released, it means that a particular tablet server is dead. Then master server will move the data to another tablet server.
+The client will connect to master server that will send the tablet metadeta which holds the information about what tablet server holds what data
+So if client wants to modify the record with row_key www.airlines.com, it will check tablet metadeta which is a B Tree like data structure which 
+will tell what tablet server to connect to.
+
+The range queries are extremelt effecient because of sorting nature. If we want to get data for com.hotel, com.hotel1 and com.hotel2 then we know
+these data will be stored aside each other. If we do hash partition like in dynamodb then more I/O will be done because data will scattered across
+multiple nodes. In BigTable there will be extremely less I/O then DynamoDB.
+
+
+
+
+About HBase
+..
+It is very much similar to Google Big Table because it is an open source implementation of Google BigTable
+The underlying implementation of HBase is similar to BigTable
+
+Some of the component names are different like,
+  Tablet Servers in HBase are known as Region Servers
+  Lock Server (Chubby) is known as ZooKeeper
+  The persistence layer is Hadoop Distributed File System as HDFS is an open source implementation of Google File Syste (GFS)
+  
+Both HBase and Google BigTable supports strong consistency over high availability.
+
+
+
+
+Comparison between BigTable and DynamoDB
+..
+Google Bigtable is well-suited for applications that require strong consistency and high throughput, such as those in the financial, healthcare, 
+and telecommunications industries. Some specific use cases where Bigtable may be a good fit include:
+
+High-performance time-series data storage and analysis: Bigtable's ability to handle massive amounts of data with low latency makes it a good fit 
+for storing and analyzing time-series data, such as stock prices, sensor data, or web logs.
+
+Real-time data processing and analytics: Bigtable's strong consistency model enables real-time processing of data, making it well-suited for 
+applications that require low latency data access and processing, such as fraud detection or recommendation engines.
+
+Large-scale machine learning: Bigtable's integration with other Google Cloud services such as Cloud Dataflow and Cloud Machine Learning makes it 
+an attractive option for large-scale machine learning applications that require real-time data access and processing.
+
+Amazon DynamoDB, on the other hand, is well-suited for applications that require high availability, scalability, and low cost, such as those in the 
+gaming, e-commerce, and IoT industries. Some specific use cases where DynamoDB may be a good fit include:
+
+Web and mobile applications: DynamoDB's ability to handle high-traffic web and mobile applications makes it a popular choice for e-commerce 
+websites, social networks, and other consumer-facing applications.
+
+Gaming: DynamoDB's low latency and scalability make it well-suited for gaming applications that require real-time data access and processing, 
+such as multiplayer games and leaderboards.
+
+IoT: DynamoDB's ability to handle large volumes of data and scale to meet demand makes it an attractive option for IoT applications that require 
+real-time data ingestion and processing, such as smart homes and industrial automation.
+
+
+About Cassandra
+..
+It is an opensource database and came after Google BigTable and DynamoDb so it has mix features from both databases.
+In cassandra, we have a partition key and sort key feature from dynamodb and column family like storage from google bigtable
+
+If we see the storage logically then the storage looks like this,
+  product_id    sort_key    name   qty   discount
+    1              L         A      10  
+	1              XL        B      20
+	2              M         C      30     5
+	2              L         D      40     7
+	
+Here, apart from partition and sort key, we have columns much like in rdbms structure. But since the columns are sparse in nature, cassandra
+stores in such a way that each column becomes a row like,
+
+  product_id    sort_key   col_name   col_value
+    1              L         name         A
+	1              L         qty          10
+	1              XL        name         B
+	1              XL        qty          20
+	2              M         name         C
+	2              M         qty          30
+	2              M         discount     5
+	2              L         name         D
+	2              L         qty          40
+	2              L         discount     7
+	
+	
+In this way, each product_id is hashed and then it goes to a particular node like product_id 1 goes into Node B and product_id 2 goes into Node HBase
+
+Just like in DynamoDB and BigTable, Cassandra is horizontally scalable and provide partition technique across different nodes. The cluster
+mechanism it follows for partitioning is taken completely from DynamoDB as there is no master and the architecture is peer to peer with 
+decentralization which helps in high availability even in the presence of network partitions.
+
+The read and write operations are very much exactly like that in Goolge BigTable
+  .When the write operatios is executed, it is first written in write ahead log file.
+  .After that, the data in the log file is propagated to MemTable which is the cache memory similar to Tablet Server (BigTable) / Region Server (HBAse)
+  .After that the acknowledgment is sent to the client about successfull write operation
+  .This is done when the MemTable is out of memory and is near to full
+  .The MemTable is then flushed to the disk/persistence layer very similar to GFS (BigTable) / Hadoop (HBase)
+  .If the node goes down then the data can be recovered from log file and persistence layer to MemTable
+  .If the data is not able to be recovered then there are replica nodes simultaneously updated behind the scenes for recovery purposes.
+  .In this way Cassandra ensures high availability and reliability.
+  
+  
+  
+  
+About MongoDB
+..
+It is another implementation of NoSql database and it stores data as Key -> Document instead of Key -> Value
+Here, the document part is in JSON format. The JSON can be nested so MongoDB is designed to store nested jsons unline other implementations like
+Cassandra or DynamoDB. They might also can store nested data but they were not initially designed for.
+
+The columns can be dynamically created and we can create indexes on any column we want
+MongoDB also supports 2 Phase Commit where operations on multiple document is done but it is just for the sake of feature completion. We usually
+dont do that in these kind of databases. It can be done in very rare cases.
+
+For indexing, there is no difference in comparison with RDBMS. Here also we get write overhead if we do over indexing 
+The way it differes from RDBMS is related to scalability
+We do sharding to achive high scalability and we can do either Range Sharding or Hash Sharding
+
+When doing replication, we do usually master slave configuration and asynchronous replication is enabled by default. Synchronous replication can 
+also be enabled on demand.
+A single node is assigned as primary node for some set of data (if doing range sharding) and other nodes are termed as secondary node
+Lets say we have 5 nodes
+  Node 1 is responsible for data range from id 1- 50
+  Node 2 is responsible for data range from id 51 - 100
+  Node 3 is responsible for data range from id 101 - 150
+  Node 4 is responsible for data range from id 151 - 200
+  Node 5 is responsible for data range from id 201 - 250
+Here Node 1 is primary node for data range from 1- 50 which is the master node. For data range from 1- 50, the secondary node can be any of them
+like Node 2 and Node 3 which are primary for data range from 51 - 100 and 101 - 150 respectively. Similarly, the secondary node for Node 2 and Node 3
+can be Node 1 or Node 4 or Node 5, or any combinarion of nodes.
+
+MongoDB works very well with javascript applications like NodeJs as backend business logic server as javascript works with JSON formats.
+
+In MongoDB there is a Config Server which holds the metadeta about instances and information about data ranges. The client connects with MongoDB
+Router component which caches the data from config server component and based on request it routes the request to the mongodb node instance 
+accordingly.
+

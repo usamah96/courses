@@ -1,0 +1,290 @@
+Deployment
+--
+
+When deploying a large scale system, there are few challengers related to,
+  1) Application Deployment
+     .The application deployment becomes challengeing when we talk about large scale system
+     .Deploying a simple monolithic application with limiterd services is not challenging
+     .But whne it comes to microservice architecture, it will include several number of web application replicas, microservices and their
+      replicas, databases and their partitions/replications, caches, messaging queues and their replications, content and file storages, etc
+     .There are not few components to deal with rather there are many number of components so we need to focus on auto deployments as 
+	  deployment is not a one time activity. There are updgrades and bug fixes	 
+	
+  2) Infrastructure Deployment
+     .Like application deployment, we need to worry about infrasturcture deployment to manage on how our application will be deployed on
+	  the system
+	 .Infra has nothing to do with our application and its functionality
+	 .The application is deployed on top of this infrasturcture
+	 .We need to provide adequate functionality for our infra so that our application can function and scale accordingly.
+	 .Some of the things to notice are, 
+	   How much CPU, RAM, Disk should be there for each components
+	   How external traffic will route in our system
+	   How firewalls needs to be configured for secure access along with digital certificates
+	   How network will be maintainted between different data centers
+	   What are the type and capacity for our Load Balancers and whether to use Hardware LB or Software LB (Generally use HLB for heavy
+	   facing traffic and SLB for internal communication)
+	   How our applications will be discovered through DNS and Discovery Service
+	   Where to host the containers and vms for our machine
+	   Where to put database backups and log files
+	   What mail server to use for sending notification
+	   Need to worry about CDN if customers are global and contents need to be distributed globally.
+	.Different type of infrasturcture needs to be deployed for different environments like dev, testing, staging, production
+  
+  3) Operations
+     .There are many things need to be worried about operations
+	 .The components in operations should run smoothly. These components include,
+	   Once the development is done by the dev team, it is build, tested, packaged and rolled our to operations
+	   The rolling out can be in the form of any build file like .jar or .war or any image that can be pulled
+	   Then the Deployment is done with some configuration
+	   After the deployment the logs are maintained for tracking of any issue
+	   The Monotoring is done for tracking the load, performance of the system, security checks, etc
+	   If any issue occurs then the issue is either rolled back or given for hot fix to development
+	   If there is a need for scaling up or down then it is also done
+	   If some failover occurs then the system is backed by Hot and Cold backups.
+    .These are all the steps done in an Operations which needs to be automated and perfectly organized
+	.The Development and Operations in combinations forms the DevOps.
+	
+	
+There are many automation devops tools like Vagrant, Ansible, Chef but there are also some out of the box automation provided by docker
+for application deployment, google cloud and aws for infrastructure deployment and kubernetes for operations.
+
+
+Application Deployment
+--
+
+
+To understand deployment of a system, lets see how a particulat component is deployed
+Consider a Web Application based on Java which we want to deploy. What we need is,
+  .A host machine
+  .An Operating System running on that host machine
+  .JVM running on that Operating System
+  .Installing Web Container like Jetty
+  .Finally the Web Application to be deployed on that Container. Copying the .jar or .war on jetty and starting the server
+  .For all the steps, we will also need some configuration like config for JVM, config for Web Container, etc
+With this approach there are some issues,
+  .This approach is error prone as human errors can be done
+  .This approach is time consuming as we have to install each and everything like JVM, Containers, Setting Configurations etc
+  .This approach is repetetive as same steps will be done for other components that are needed to be deployed.
+  
+Now this approach can be automated to save time. To automate the system there are 2 approaches
+ 1) Write a shell script that does all the automation for you
+    The script will be related to installing jdk, installing jetty, copying the war or jar to web container and starting the server.
+	 
+  2) Using DevOps Tools
+     Already built devops tools like Chef or Ansible can be used for automating the component deployment
+	 
+Using DevOps tools instead of writing a shell script includes few advantages
+  .The commands we use in Chef or Ansible are idempotent which means that applying the operation multiple times without changing the result
+   Example => Lets say when we write shell script and that shell script is creating a directory for some purpose. While the shell script is 
+   running it crashed due to some network issue or machine going down. The next time shell script will run and try to create a directory, it 
+   will give error because the directory was already created.
+  .The commands are declarative rathar than imperative
+  .The commands can be accessed from any remote machine
+  
+We can take this deployment technique one step further with the use of Virtual Machines which means that virtual machine software need 
+to be installed on the system where we need to deploy our application and start its new instance. Once all the setup is done on one
+machine, we can take its image and upload that image on to another system where virtual machine software is installed. This will help
+replicating the same steps and reviving the same state of the application.
+This approach is much more reliable, effeciently repeatable and time saving.
+
+Using Hypervisor, a virtual machine can be run. Hypervisor is nothing but a piece of software or firmware that helps creating virtual 
+machine. It is also called Virtual Machine Manager (VMM). They are of 2 types
+  1) Using Hypervisor Type I
+     .It is commonly used by enterprises and large companies and is very effecient
+	 .Also called Bare Metal or Native Hypervisor
+	 .It is a firmware and not software which means that it is directly installed on physical hardware and not on top of any operating system 
+	  like on a brand new system we plug in usb device with bootable os file to install an operating system. In the same way we dont install 
+	  OS on physical hardware rather we install hypervisor type 1 using a usb device or something else. This is why it is called Bare Metal 
+	  Hypervisor.
+	 .Now by the use of hypervisors, we create different virtual machines and on each virtual machine we can install different OS like
+	  windows on VM1, Linux on VM2 and Mac on VM3. Each VM is assigned a RAM, Processor, Disk directly from the hardware
+	 .We can create as much VMs as possible until we have RAM. Processor and Sotrage available in the physical hardware.
+	 .The hardware is known as a host and the OS running on VM is called guest OS.
+	 .One such example of Type 1 Hypervisor is VMware ESXi. VMWare provides a Suite called VSphere which contains a tool ESXi just like
+	  Microsoft provide a Suite Office which contain tools like Word, Powerpoint, Excel, etc
+	 .It is more secure than Hypervisor II because it is not dependent upon any OS and easily updatable and scalable if hardware is increased.
+  
+  2) Using Hypervisor Type II
+     .Not very commonly used. Mostly used for learning and testing purposes
+	 .Also called Hosted Hypervisor
+	 .It is a software because it is directly installed on top of any operating system like any laptop containing windows 11 in it then 
+	  we can install hypervisor type 2 in it. This is why it is called Hosted Hypervisor as it is installed on Host OS.
+	 .Now by the use of hypervisors, we create different virtual machines and on each virtual machine we can install different OS like
+	  windows on VM1, Linux on VM2 and Mac on VM3. Each VM is assigned a RAM, Processor, Disk directly from the hardware
+	 .We can create as much VMs as possible until we have RAM. Processor and Sotrage available in the physical hardware.
+	 .Common examples are VMWare Workstate, Oracle Virtual Box, Microsoft Virtual PC
+
+
+Just like Virtual Machines, the deployment can be done using Containers also. Containers are very much similar to Virtual Machines and is
+also called as Lightweight Virtual Machine. This is the difference between VM and Containers that container images are very lightweight in
+comparison with VM images. The reason for that is container image does not contain guest Os in it. When we create a virtual machine image,
+all the neccessary components are captured in an image including the operating system which makes it a heavy object. Container images does
+not contain operating system so that is why they are lightweight and also start up very fast. The images can be moved easily from one system
+to other. There is a container runtime which converts the system calls from the images to the host operating system. If our container
+image is in linux and we are running it on windows operating system, then limux system calls are converted to windows using container 
+runtime component
+
+We can use VM deployment images when 
+  We need to run multiple operating systems on the same physical hardware.
+  We need to run legacy applications that require specific operating systems or configurations
+  
+We can use Container images when
+  We need to run applications that are designed to be deployed in a cloud-native environment.
+  We need to run applications that require fast deployment and scaling.
+  We need to run microservices-based architectures.
+  
+The container images are created using a set of instructions if we are creating it with docker containers and these instructions are similar
+to shell script used in linux operating system
+
+
+
+Infrasturcture Deployment
+--
+
+Consider a 3-tier system with a Web Application, Serivce Layer and Database Layer
+These 3 components can be deployed using Application Deployment discussed already
+
+Now there can be many other things like how client will reach to the web application, how load balancer will be placed, how firewalls will
+be configured and many other things.
+
+All these components can be handlede with cloud when we do deployment with cloud vendors like amazon
+Amazon has many services for all these components like,
+  EC2 for hosting our services like Web App, Services
+  Amazon API Gateway for routing of requests
+  Amazon S3 for static contents and file storages
+  Amazon Cloud Front for CDN
+  Amazon Elasic Cache for Object Caching
+  Amazon RDS and DynamoDB for Sql and NoSql database
+  Amazon SQS for Messahe Queue
+  Amazon SNS for Notification Service
+  etc
+  ..
+  ..
+  ..
+  
+All these services are fully managed and also we should not worry about backups in the database, logging and monitoring of services. All
+these infra things are handled by the cloud and we should mainly focus on the development of the product
+
+
+
+
+Deployment and Operations with Kubernetes
+--
+
+Once we are done with application deployment using docker and infrastructure deployment using cloud vendor, there are some of the things and
+capabilites that we need from the deployment system
+  1) Lifecycle Management
+     .Starting of Container/Application
+     .Stopping of Container/Application
+     .Monitoring the Container to see if system is working dine or not
+     .Restarting the Crashed Containers.
+	These lifecycle management are the things that we need either we need an automation for that or a framework that does these things for
+	us and kubernetes is one such framework that brings it for us.
+	 
+  2) Naming and Addressing of Components
+     .For every deployed component like a Web App, Load Balancer or a Service will require an ip address to communicate with
+	 .For client facing component like Web App, it will be good that if some framework provide us a name for that component that will be
+	  resolved by the DNS with respect to its ip address 
+	  
+  3) Scaling
+     .We should have a capability to scale our instances and spin up more instances according to the requirement
+	 .On top of spinning up more isnstances using just a command, we should expect our system should moninor the load itself and auto scale
+	  according to the requirement. Kubernetes can fulfil these requirements
+	 .We should be able to assign a command to fire as many instances as we want 
+	 
+  4) Load Balancing
+     .As discussed that when firing multiple instances, there should be a single point of contact where the load should be balanced between
+	  multiple instances
+	 .Kubernetes provide us with the Load Balancing feature also as part of deployment system
+	 .Normally we can deploy the load balancers but when using kubernetes it can provide us on its own in an automated fashion
+	 .The difference is that, using our own LB will require extra expertise as it can become complex to manage. If resources and expertise
+	  are limited than kubernetes LB can be simpler option. Also there are some limitation to kubernetes LB and we cannot customise it much
+	  so if our LB has much more customization we can drop using kubernetes LB. Lastly, as part of kubernetes cluster we get the LB for free
+	  so it can be cost effective if we use that one rather than deploying our own LB.
+	  
+  5) High Availablity
+     .As running multiple isntances, there are chances some instances go down at a particular time
+	 .We expect as part of our deployment that those down instances should be detected automatically and replaced with healthy instances
+	  as soon as possible and kubernetes provide this facility to us
+	 .We can do some automation do get that replacing capability but with kubernetes we get that already
+	 
+  6) Rolling Upgrades
+     .We often need to release some new versions of our service in production
+	 .We need the capability to release rolling upgrade for our service
+	 .How it works is that lets say we have 4 instances running in our system as version 1 and we need to release a new version 2
+	 .Instead of directly releasing version 2 with 4 instances, we gradually release them in a way that we first create a new instance 
+	  with version 2 and other 4 instances of version 1 will keep on running. Slowly and gradually we remove version 1 instances one by 
+	  one and add new instance of version 2 till we get 4 instances of version 2 and 0 instances of version 1
+	  
+When deploying on kubernetes, each component is packaged in a pod which means that our Web Application, Services, Database are separately
+paclaged in a pod. A pod is an abstraction layer which contains an ip address and a docker container for our application. There can be
+many other docker containers inside a pod beside the main docker container for our application. These separate containers act like a 
+SideCar that cannot run without the main docker container. If these separate containers can run without main docker container then they
+cannot be placed inside a same pod.	
+Kubernetes creates its own network where web app, services, database communicate with each other which is different from the main network
+Each pod act like a virtual machine that has an ip address
+
+
+
+System Upgrades
+--
+
+There are many ways in which the system upgrade can be done while the application is running in production environment.
+
+1) Rolling Update
+   .Discussed before already
+   .It is used when it is okay to have both old and new version simulteneously runnung
+   .Old version is replaced with new version incrementally.
+   
+2) Canary Deployment
+   .It is used when we are not confident about such feature and that feature can be thoroughly tested in a production environment with certain
+    number of requests coming in
+   .New version is exposed to only small number of requests
+   .If there are initially 4 instances then only 1 instance is updated to new release for some time and only some amount of trafiic is routed to
+    new instance
+   .After sometime if that instance is working fine then updates are rolled out completely.
+   
+3) Recreate Deployment
+   .It is used when new and old version cannot run at the same time and involves some migration or transformation of data
+   .All the instances are first stopped, then migrations are done and then new updates are rolled out
+   .It involves some amount of downtime.
+   
+4) Blue Green Deployment
+   .It is used when we are about to roll out some risky feature and there are chances of some failures
+   .We cannot afford any downtime so if we have 4 instances running initially, then we dont bring them down instead we create a whole new
+    environment for our new release.
+   .All our requests are routed from env 1 to env 2 and if some error occurs then we quickly roll back and all the requests are routed to env 1
+    again to avoid any downtime
+   .If env 2 works fine for some time then we bring down env 1 with old version instances
+   
+5) A/B Testing
+   .Also known as Split Testing and is quite similar to Canary Release
+   .It is used to compare two versions of a product or feature to determine which one performs better. The process involves randomly 
+    dividing users into two groups, with each group being shown a different version of the product or feature. 
+   
+   
+   
+Example of A/B Testing:
+..
+Suppose you are designing an e-commerce website and want to test whether a new layout for your product page will increase sales. 
+You could divide your users into two groups: Group A and Group B.
+Group A would be shown the existing product page layout, while Group B would be shown the new layout. Both groups would be presented with 
+the same products and prices. After a set period of time, you would analyze the data to determine which group had a higher conversion 
+rate (i.e., more users completing a purchase).
+If Group B had a higher conversion rate, you could conclude that the new layout was more effective in generating sales and implement it on 
+the website permanently. If Group A had a higher conversion rate, you could conclude that the existing layout was still more effective and 
+retain it.
+
+
+Issue with Canary Release
+..
+As for the scenario, where a user is routed to the new release server for one request and the old release server for the next request, 
+this is known as "flapping" and can be a potential issue in canary deployments. Flapping can occur if the routing mechanism is not properly 
+configured or if there are other issues with the deployment that cause inconsistent behavior.
+
+In some cases, more sophisticated routing techniques may be used to determine which users should be routed to the new release server. 
+For example, if you have user profiles or other data that can be used to identify users who are more likely to be interested in the new 
+features, you could use this data to target those users specifically.
+
+To minimize the risk of flapping, it's important to carefully test and validate the canary deployment before rolling it out to production, 
+and to monitor the deployment closely after it has been rolled out.

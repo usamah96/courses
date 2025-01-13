@@ -1,0 +1,64 @@
+Spring Cloud Config Server
+--
+
+1) Using Git Repo
+..
+-Configuring our microservices at a centralized place
+-We have application properties at the moment for individual microservice
+-We will create a provate git repository that will hold external configuration for our microservices
+
+-Create a new microservice with the name of config server
+-Add the dependency of spring cloud config server
+-Annotate the main class with @EnableConfigServer
+-Create a empty git repo and clone it
+-Add the following properties
+   *spring.cloud.config.server.git.uri=https://github.com/usamaa96/config-server
+   *spring.cloud.config.server.git.username=usamaa96
+   *spring.cloud.config.server.git.password=MynameisBinLaden
+   *spring.cloud.config.server.git.clone-on-start=true
+-Create a new property file, add some properties and push into the git repository
+
+-Configue any microservice to act as a client of config server microservice (user-service in this case)
+-Add the dependency of spring-cloud-starter-config and spring-starter-bootstrap
+-Create a new bootstrap file that will load beofre the service application properties file
+-Add the following configuration that will specify on which port the config server is running and what properties to fetch
+   *spring.cloud.config.uri=http://localhost:8888
+   *spring.cloud.config.name=config-server
+      .load config-server.properties and also application.properties which is by default if present or not
+-Now by default, the properties fetched from github wil be given higher priority instead of service properties.
+-If we want to give the local server properties higher priority, add the following configuration to the github properties file
+   *spring.cloud.config.allow-override=true
+   *spring.cloud.config.override-none=true
+   *spring.cloud.config.override-system-properties=false
+-Now if 2 properties with same key present, the local property key will be used
+
+
+
+2) Using Local System
+..
+
+-We can setup a centralized application properties at our local system to be shared by microservices
+-Find any suitable location, create a folder and inside it create a properties file
+-Give the name to the properties file (discussed in 3rd point)
+
+-Add the following configuration in the config-server application properties file to use the native local system file as a centralized file.
+    *spring.profiles.active=native
+    *spring.cloud.config.server.native.search-locations=file:///{full_path}
+
+
+
+3) Configuration For Multiple Microservices
+..
+
+-The property file name matters
+-The priority is as follows with priority from lowest to highest
+..
+
+application.properties -> service-application-name.properties -> service-application-name-<profile>.properties
+
+-If only application.properties is present in the folder or git repo, all services will use this file
+-If a file user-service.properties is present, then user-service will load both application.properties and user-service.properties. Values
+from user-service.properties will be given higher priority as compare to application.properties
+-We have to give spring.cloud.config.name=user-service in user-service bootstrap.properties file which tells to fetch this file.
+-Same goes for other services as well
+

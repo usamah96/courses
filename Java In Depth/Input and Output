@@ -1,0 +1,227 @@
+Input and Output
+--
+
+We read data from the source and write onto the destination for multiple purposes. The destination can also be refrred as a sink
+Building a I/O framework is very challenging because of multiple sources and sink types like,
+  .File
+  .Network
+  .Conolse
+  .etc
+The data reading can also be of multiple types like reading data,
+   .Sequentially
+   .Randomly
+   .Individual bytes
+   .Group of bytes
+The format of data can be multiple as well like Binary or Text
+
+Java provies us multiple specialized classes for all these purposes and we can combine them to achieve good effeciency and speed when doing I/O
+operations. Also Java IO uses Decorator Pattern heavily to perform the task.
+
+Java IO comes in 2 packages
+  1) java.io -> Referred to as Stream IO which is from the start and most commonly used
+  2) java.nio -> Reffered to as New IO and was introduced in Java 4
+  
+In Stream IO we have 2 sets of packages
+  1) Byte Stream
+       .Used for handling binary data like images
+       .Input Stream and Output Stream
+  2) Character Stream
+       .Used for character handling like text files
+       .Built on top of Byte Stream
+       .Reader and Writer
+       
+       
+Stream IO
+..
+Stream is a connection between a Java program and the source/destination
+
+Can be of 2 type
+  1) Input Stream
+       .Base abstract class for all byte input stream
+       .Reads 8-bit data and returns the code value between 0 and 255 -> int read()
+       .We can also read group of byte by specifying the offset and length of byte -> int read (byte[] b, int offset, int length)
+       .All read calls are blocking which means it will read until an exception is generated, exit is reached or wait till data is not available
+  2) Output Stream
+       .Base abstract class for all byte output stream
+       .Writes 8-bit data -> void write(int). int is 32 bit so it writes only lower 8 bits and remaining 24 bits are discarded
+       .Writes group of bytes -> void write(byte[] b, int offset, int length)
+  
+3 operation
+  a) Open Stream
+  b) Read/Write Data
+  c) Close Stream
+
+
+The read() and write() method are grossly ineffecient as each read and write call has access to disk
+For this we use memory buffer. We read data at one from the memory buffer and write data to disk from the buffer only once
+To do buffering we have BufferedInputStream and BufferedtOutputStream
+The buffer we are talking about is a simple byte array with a default size of 8192 bytes
+Buffer Streams cannot work independently and they have to be chained with other stream like FileInputStream
+
+Example
+BufferedInputStream in = new BufferedInputStream(new FileInputStream("abc.jpg"));
+This is an example of Decorator Pattern since FileInputStream is decorated with BufferedInputStream with additional buffer functionality
+
+We read group of bytes using BufferedInputStream which we can also do with FileInputStreamReader also but internally JVM fills the buffer in a much
+faster way than FileInputStream and also BufferedInputStream provides us with some special methods also like mark(), reset() which we cannot do 
+from FileInputStream. Also BufferedInoutStream reader read's method is synchronized so we can also share the object with multiple threads also while
+in FileInputStream we have to mainta	in the concurrency logic also while doing that.
+
+
+
+Character Stream
+..
+Can be of 2 type
+   1) Reader
+        .Base abstract class for all character input stream
+        .Reads 16-bit character data (1 character at a time) in UTF-16 format and returns the value between 0 and 65535 -> int read()
+        .Reads group of data with -> int read(char[] c, int offset, int length)
+        .All read calls are blocking which means it will read until an exception is generated, exit is reached or wait till data is not available
+   2) Writer 	
+        .Base abstract class for all character output stream
+        .Writes 16-bit char data to sink -> void write(int c) It writes 16 bits (2 bytes) that appear on right most end and left 16 are discarded
+        .Write group of characters -> void write(char c[], int offset, int length)
+        
+FileReader and FileWriter internally uses FileInputStream and FileOutputStream for reading of bytes and they perform the byte to character 
+transformation.
+JVM uses the default encoding scheme of the Operating system. The linux uses UTF-8 by default. To change the default scheme use,
+   .-Dfile.encoding=UTF-8 as a command line argument
+To check the default scheme use,
+   .System.getProperty("file.encoding") or Charset.defaultCharset()
+But instead of using this we have also 2 classes that can do the same thing
+   1) InputStreamReader(InputStream in, String charsetName) that extends Reader
+   2) OutputStreamWriter(OutputStream out, String charsetName) that extends Writer
+Example
+FileInputStream in = new FileInputStream("abc.txt");
+InputStreamReader reader = new InputStreamReader(in, "UTF-8")
+
+We also have buffering capability same as Buffer in Stream
+   1) BufferedReader(Reader in)
+   2) BufferedWriter(Writer out)
+Apart from read methods we have readLine() method that will read single line and return a String
+
+Example
+BufferedReader in = new BufferedReader(new InputStreamReader(new FileInputStream("abc.text"), "UTF_8"))
+
+We also has a Scanner class which we can use to get the input from user on console. 
+There are two ways to get the user input
+   1) BufferedReader in = new BufferedReader(new InputStreamReader(System.in, "UTF_8"))
+      while(in.readLine()){}
+   2) Scanner in = new Scanner(Sytem.in);
+      while(in.nextLine()){}
+With scanner we have more flexibility that we can check for String, Integer, Double etc with hasNext(), hasDouble()
+BufferedReader works with Strings
+
+
+
+The File Class
+..
+The File class helps us in performing the operations on a file
+
+Example
+File file = new File("abc.text")
+   .It will not throw exception if it is unabled to open the file
+
+We have several methods in the file object related to files
+We can also list all the files and directory on a specific location and then filter out
+
+Example
+File path = new File(".") -> refers to current directory
+String[] list;
+
+1) list = path.list() -> Will return all the directories and files present inside the current directory
+2) list = path.list(new JPGImageFileFilter())
+     .Takes FilenameFilter as an argument to filter out files by some criteria
+
+class JPGImageFileFilter implements FilenameFilter{
+	  @Override
+	  public boolean accept(File file, String name){
+	    return name.endsWith(".JPG") || name.endsWith(".jpg");
+	  }
+}
+
+
+
+
+Serialization and Deserialization
+..
+Saving Java objects to some destination in the form of byte streams with its state
+Serialized objects can be transmitted acrossed JVMs to be Deserialized and get back the original state
+
+A class to be serialized must implement the marker interface Serializable and to do Serialization we make use of ObjectOutputStream and for
+Deserliazation we make use of ObjectInputStream which implements ObjectOutput and ObjectInput interface respectively.
+
+Example Serialization
+ObjectOutputStream out = new ObjectOutputStream(new BufferedOutputStream(new FileOutputStream("object.ser")))
+out.write("Hello This Is Usama");
+out.write(new Date());
+
+object.ser is the file that will hold the serialized data byte stream information. The extension.ser is the convention we follow. We can ommit
+the extension.
+We use write to place the data onto the file
+Both String and Date classes implements the Serializable interface so that is why we can use them in write method
+BufferedOutputStream is used for performance purposes we can ommit it also.
+
+Example Deserialization
+ObjectInputStream in = new ObjectInputStream(new BufferedInputStream(new FileInputStream("object.ser")))
+String text = (String) in.readObject();
+Date date = (Date) in.readObject();
+
+Notice that we read objects in a sequential way in which it was serialized.
+BufferedInputStream is used for performance purposes we can ommit it also.
+We need to downcast the object since readObject return Object class
+
+
+Serialization Use cases
+1) When Web Pages display huge amount of data and the pages traffic are very large.
+     .The web pages perform frequent read operations than write operations and the data is static most of the time
+     .When the data is accessed for the very first time, construct java object and serialize it to the dist
+     .Next time return the data from the serialized object
+     .Also we can use caching in this scenario like memcached
+2) When passing java objects to remote hosts
+3) Post-mortem analysis
+     .If our java objects causing some unexpected errors we can serialize it and its data and then later deserialize it with some debugger points
+      to check for the issue
+     .If an error is generated on production, we can serialize the object with the information and then deserialize it on our local system to 
+      check for the issue.
+
+
+-Arrays and primitives are by default serializables
+-The whole object graph is serialized with its nested references
+   .All nested objects must be serializable also otherwise serialization will not be done.
+-Static variables are not serialized
+   .Serialization is about object states and static is not related to object
+   .Static variables will be assigned the value at that particular time when the object is deserialized.
+-If a super class is serializable then its sub-classes are automatically serializable
+-If a super class is not serializable then its sub-classes can be made serializable
+-If we dont want to serialize any object or type we can make it "transient"
+   .During serialization variables value will be skipped
+   .During deserialization variables values will get null as default value
+-If the class is evolved and the serialized object is of old class then deserialization cannot be performed.
+
+
+Deserialiation Process
+..
+-Read serialized object
+-Find serialized object's class name and load the class
+-Deserialization failse if
+    .Failed to load the class
+    .Version mismatch issue (Class have evolved)
+-The object is resotred after JVM allocates space inside the heap. The ctor is not run when deserializing the serializable object
+   .If there is a non-serializable ancestor then it will run its ctor and its subsequent parent
+   
+Every serializable class has a serialVersionUID generated according to its class structure and it is stamped with that id, so when the
+deserialization occurs this check is performed 
+    .serializedObj.serialVersionUID == class.serialVersionUID
+So if it does not matches then the serialization cannot occur
+
+How we can deserialize the object even if the class is evolved in future?
+Ans: Make the version id constant even if the class is evolved.
+Example
+static final long serialVersionUID = 88787675556762928l
+
+Where can we get this long number?
+Ans: We have a command "serialver" which we can run on the class file to get this number
+     .serialver com.xyz.dto.TestClass
+     
+

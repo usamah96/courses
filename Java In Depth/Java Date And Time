@@ -1,0 +1,245 @@
+Java Date And Time
+--
+
+Epoc is arbritrary set to January 1st 1970 UTC (midnight) and it is referred to as UNIX time.
+Epoc means start of something. It is the origin and any time measured in timestamp is measured from this epoc time
+
+UTC means Cordinated Universal Time and it is the Universal Time Standard.
+  .Computer servers, space stations, air traffic control all rely on this standard of time
+  .A typical UTC day has 86400 seconds (24* 60m * 60s)
+  .In a year or two there can be a day where it will contain 1 second more or less (86401 Or 86399) due to the uneven rotation of earth. We know that
+   23 have 24 hour in a day due to earth's rotation and in some cases earth might sometime slows down or fasten which results in additional second
+   in a day. This additional second is referred to as leap seconds
+  .JVM implementations donot consider leap seconds as they are not considered a serious problem
+   
+UTC time is measured by atomic clocks which are highly precised
+
+**An atomic clock is the most accurate type of timepiece in the world, designed to measure time according to vibrations within atoms**
+
+GMT (Greenwhich Mean Time) also sometime referred to as UTC
+
+
+If we are considering only dates rather than time then we consider and think in terms of calendar and just like UTC computers also follow some
+standards for Calendar
+Human beings come up with 3 types of calendars
+
+1) Solar
+     .2 main types of calendars are Gregorian and Julian. Gregorian is a widely used calendar. The main difference between them is the leap year
+      difference. In Gregorian leap years refers to year which is exaclt divisible by 4 or 400 but not 100. In Julian leap year is the year which
+      is exactly divisible by 4 only.
+
+
+2) Lunar
+    .Islamic Calendar is the example of Lunar Calendar
+
+3) Lunisolar
+    .Buddhist, Chineese, Hindu Lunisolar, Hebrew are example of Lunisolar Calendar
+    
+    
+Gregorian Calendar started from 15th October 1582 and before these dates are referred to as Proleptic Grogerian Calendar in which all the rules
+of leap year applied to generate the dates
+
+In Java 8 Date Time Api, ISO 8601 standard is followed which is the rule for Proleptic Gregorian Calendar
+
+
+
+
+
+
+
+
+Legacy Date and Calendar Classes
+--
+
+
+There are several classes in java.util package like,
+  .Date class
+  .Calendar class
+  .GregorianCalendar class
+  .TimeZone class
+  
+Date class was there from jdk 1.0 and has several issues related to usability
+Example
+Date class uses year 1900 as the starting value so if we want June 8th 2016 in the form of Date class we would use
+  Date date = new Date(116, 5, 8);
+We have to pass 116 as 1900 + 116 = 2016 which would be used internally in Date class
+It also accepts negative value so to represent 1899 as the year we would use -1 because 1900 - 1 = 1899
+
+
+Other classes introduced like Calendar (abstract class), GregorianCalendar and TimeZone to address these issues but still contains some problem.
+The month value starts from 0 instead of 1. These classes are mutable so they are not thread safe.
+
+
+Most of the methods and constructors in Date class are deprecated and suggessted to use methods from Calendar class.
+
+Examples
+--
+
+1) Date date = new Date()
+   print(date.getTime())  ->  Will print timestamp from epoc time January 1st 1970
+   
+
+2) Calendar c = new GregorianCalendar(2016, 8, 30)  ->  June 30th 2016
+   c.add(Calendar.MONTH, 9)
+   print(c.getTime())  ->  March 30th 2017
+   c.roll(Calendar.MONTH, 11)
+   print(c.getTime())  ->  Feb 30th 2017
+   
+   The difference between .add() and .role() is that with .add() if there is an overflow the next largest field will be incremented like the year.
+   With .role() the year will not be effected
+   
+   
+   
+3) We have all avaialbe time zone in the form of ids
+   String[] timezones = TimeZone.getAvailableIDs();  ->  Asia/Karachi, IST, PST, etc
+   
+   We can convert the time into different timezones by just setting the timezone value
+   If the current time is in UTC
+   
+   Calendar c = new Calendar(TimeZone.getTimeZone("Europe/London))
+   c.set(2017, Calendar.JANUARY, 03, 09, 00)  ->  January 3rd 2017 at 09:00 AM
+
+   If the user is from Karachi viewing the time then we can show to him the value as
+   c.setTimeZone("Asia/Karachi")
+   
+   print(c.get(Calendar.MONTH))
+   print(c.get(Calendar.DAY_OF_MONTH))
+   print(c.get(Calendar.YEAR))
+   print(c.get(Calendar.HOUR))
+   print(c.get(Calendar.MINUTE))
+   print(c.get(Calendar.AM-PM) == 0 ? "AM" : "PM")
+   
+   The reason for using .get() to show the time is because actual time we get from this method. If we use .getTime() then we would see the original
+   server time and not the setted timezone time
+
+   Also we can just set the GMT and offset value if we dont know the actual timezone by,
+   c.setTimeZone("GMT+05:00")
+   c.setTimeZone("GMT-08:30")
+
+
+
+
+Daylight Saving Time is the practice of advancing clocks during warmer months so that darkness falls at a later clock time. THe UK observes
+Daylight saving time from March to October by increasing 1 hour (GMT+01:00) which means that they are ahead of UTC 1 hour in 8 months.
+
+Example 1
+Calendar c = new GregorianCalendar(TimeZone.getTimeZone("Europe/London"));
+c.set(2017, Calendar.JANUARY, 8, 1 ,00, 00);
+System.out.println(c.get(Calendar.HOUR));
+Will Print Hour as 1 as UTC and GMT+0 is same
+
+
+c.setTimeZone(TimeZone.getTimeZone("Asia/Karachi"));
+System.out.println(c.get(Calendar.HOUR));
+Will Print Hour as 6 because of GMT+5
+
+
+Example 2
+Calendar c = new GregorianCalendar(TimeZone.getTimeZone("Europe/London"));
+c.set(2017, Calendar.JULY, 8, 1 ,00, 00);
+System.out.println(c.get(Calendar.HOUR));
+Will Print Hour as 1 but here GMT+1 is considered because of Daylight Saving Time
+
+
+c.setTimeZone(TimeZone.getTimeZone("Asia/Karachi"));
+System.out.println(c.get(Calendar.HOUR));
+Will Print Hour as 5 because of GMT+5
+
+
+
+
+
+
+
+New Date and Time Api
+--
+
+Limitations in the Old API
+
+1) With java.util.Date, there is no separate representation of data and time. The date and time is always combined form
+2) With java.util.Date, there is a confusing 1900 offset when we use the year feature
+3) The Apis are mutable and not thread safe
+4) Confusing month range [0, 11] 
+5) We have both Date and Calendar so developers might get confuse which one to use. Date's mostly feature is deprecated and is kept for backward
+   compatibility.
+   
+   
+ 
+The New Date and Time Api
+
+1) Comes in java.time package
+2) Inspired by Joda Time
+3) Mostly immutable classes and thread safe
+4) Static Factories are there instead of public constructors (eg: of)
+
+Commonly Used Classes are
+  .LocalDate, represents only date without timezone
+  .LocalTime, represents time  without timezone
+  .LocalDateTime, represents date and time both  without timezone
+  .ZonedDateTime, represents all things including date, time and timezone
+  .Instant, used to represent and recording timestamps. Represents a point on the timeline
+
+All these classes implements Temporal interface which extends TemporalAccessor which includes only the read methods.
+
+There are another 2 classes namely,
+  .Duration
+  .Period
+Represents amount of time and hence implements TemporalAmount interface
+
+Duration represents duration between 2 instances of the Instant class
+Period represents interval between dates
+
+ISO-8601 Format
+  [date]T[time][zone-offset]
+
+Example
+  ------------------ZonedDateTime------------------
+  2022-03-21   T    15:22       +5:00[Asia/Karachi]
+  -LocalDate-      LocalTime
+  ------LocalDateTime-------
+  
+  
+  
+  
+Example To Show The User Time According to His Timezone
+..
+
+LocalDate date = LocalDate.of(2021, 7, 21);
+System.out.println(date)  ->  2021-07-21 (July 21 2021)
+
+LocalTime time = LocalTime.of(15, 40, 0);
+System.out.println(time)  ->  15:40 (3:40 PM)
+
+LocalDateTime dateTime = LocalDateTime.of(date, time);
+System.out.println(dateTime)  ->  2021-07-21T15:40
+
+ZonedDateTime zonedDateTime = ZonedDateTime.of(dateTime, ZoneId.of("Europe/London"));
+System.out.println(zonedDateTime)  ->  2021-07-21T15:40+01:00[Europe/London]  (Daylight Saving Time because of July)
+
+ZonedDateTime pkTime = zonedDateTime.withZoneSameInstant(ZoneId.of("Asia/Karachi"));
+System.out.println(pkTime)  ->  2021-07-21T19:40+05:00[Asia/Karachi]
+
+
+
+
+Example to Calculate the Age using Period
+..
+
+LocalDate date = LocalDate.of(1996, 1, 21);
+LocalDate now = LocalDate.now();
+Period p = date.until(now);
+
+System.out.println(p.toString())  ->  P26Y2M5
+System.out.println(p.getYears())  ->  26
+System.out.println(p.getMonths())  ->  2
+System.out.println(p.getDays())  ->  5
+
+
+Example to Calculate elapsed time of Function using Duration
+..
+
+Instant before = Instant.now();
+myFunc();
+Instant after = Instant.now();
+Duration duration = Duration.between(before, after);
+System.out.println(duration.toMillis())

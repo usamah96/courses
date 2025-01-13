@@ -1,0 +1,45 @@
+import java.util.*;
+
+public class Main
+{
+	public static void main(String[] args) {
+	    CodeBuilder cb = new CodeBuilder("Person").addField("name", "String").addField("age", "int");
+	    System.out.println(cb);
+	}
+}
+
+class CodeBuilder
+{
+    private final String newLine = System.lineSeparator();
+    private String className;
+    private Map<String, String> values = new HashMap<>();
+    
+    
+    public CodeBuilder(String className)
+    {
+        this.className = className;
+    }
+    
+    public CodeBuilder addField(String name, String type)
+    {
+        this.values.put(type, name);
+        return this;
+    }
+    
+    @Override
+    public String toString()
+    {
+        StringBuilder sb = new StringBuilder("public class ");
+        sb.append(this.className);
+        sb.append(newLine);
+        sb.append("{");
+        sb.append(newLine);
+        String i = String.join("", Collections.nCopies(2, " "));
+        for(String key : this.values.keySet()){
+            sb.append(String.format("%spublic %s %s;%s",i, key, this.values.get(key), newLine));
+        }
+        sb.append("}");
+        
+        return sb.toString();
+    }
+}

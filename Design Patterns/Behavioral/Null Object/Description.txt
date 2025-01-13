@@ -1,0 +1,30 @@
+Null Object
+---
+
+Pattern with no behaviors
+Not mentioned in Gang of Four
+
+Motivation
+--
+-When component A uses component B, it typically assumes B will not be null. We dont check for null in every single call
+-There is no option of telling A not to use an instance of B. The use of B in A is hard-coded
+-Thus, we build a no-operation, non-functioning inheritor of B and pass it into A.
+
+-We can use this pattern for testing purposes (unit tests) also as we want to feed in some sort of implementation that just
+des nothing and moves on.
+
+Example of a Bank account where whenever we deposit any amount, we want to log the message. Our logger can be of different
+types so we have sevaral implementations of it. 
+To use it we can do it like log.info("Message") where log is our Interface type.
+But at some places we dont want logging to happen. We cannot just pass null to set our log as it will give NullPointerException.
+Neither we can do explicit checks like if(log != null){ log.info() }. We have to it for every single call. So for this we
+can create a null object. We create a concrete class for our Log that does nothing and we just pass this NullObejct to set
+our Interface type.
+
+Dynamic Null Object
+--
+-We have seen that to perform a no-operation we have to create a new class that does absolutely nothing. This is tideous work
+and if we have 10 different objects, we have to create 10 different classes to perform no-operation
+-To avoid this we can create something like Dynamic Null object that intercepts our call and does nothing.
+-Same approach we have used in proxy design pattern.
+

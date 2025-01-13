@@ -1,0 +1,32 @@
+Facade
+---
+
+-Exposing several components through single interface
+-Provide simple and easy to understand user interface over a large sophisticated body of code.
+
+Motivation
+..
+-Balancing the complexity and presentation
+-Example of a Home
+   .Contains many sub-systems like electrical, sanitation etc
+   .Complex internal structure like how the floor is made
+   .End user is not exposed to the internal
+-Example of a Software
+   .API consumers just want the work to be done.
+
+
+Example of a console like application that behind the scenes use buffers, viewports and many other sub-systems
+to display something on the screen. So the user is not concerned with all these sub-systems that console uses, they
+just want the output to be shown on the console.
+
+When we have to start a computer, all we have to do is press the start button. We really do not care 
+what all things go inside the computer hardware and software. It is an example of Facade pattern.
+
+In Java programming, we must have connected to a database to fetch some data. We simply call the 
+method dataSource.getConnection() to get the connection but internally a lot of things happen such as 
+loading the driver, creating connection or fetching connection from pool, update stats and then return 
+the connection reference to caller method.
+
+
+-A factory creates just one object behind the scenes. A facade as the one shown here creates several interconnected objects. 
+Plus, a factory is only concerned with creation, whereas a facade is also concerned with operations.

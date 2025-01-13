@@ -1,0 +1,227 @@
+Map Interface
+---
+
+Besides the Collection hierarchy, there is a Map hierarchy
+
+-When fast lookup by key matters
+-Also called associative array
+-No null keys are allowed although null values are allowed
+-When it comes to null keys and values, it depends upon the implementation of Map interface
+-Like Collection interface, Map interface also comes with its skeletal implementation AbstractMap which is extended by the implementation of
+Map interface like HashMap.
+
+Operations
+*Basic
+  E put(K key, E value) -> puts key value pair and returns the value inserted
+  E get(Object key)
+  E remove(Object key)
+  boolean containsKey(Object key)
+  boolean containsValue(Object value)
+  int size()
+  int isEmpty()
+*Bulk
+  void putAll(Map<E, K> map) -> combines the map
+  void clear() -> clear all pairs.
+*Collection View Operations
+  Set<K> keySet() -> returns all the keys. The Set is backed by the original map so any modifications in keySet or Map will reflect changes on
+                     both the ends. We can remove keys but we cannot add new key to keySet. The reason the return type is Set because the
+                     keys are unique.
+  Collection<K> values() -> returns all the values stored with keys in a map. The reason the return type is Collection is because values can
+                            be duplicate.
+  Set<Map.Entry<K,V>> entrySet() -> used to iterate through a map. Entry is a nested interface of Map interface that has several operations 
+                                    that can be invoked while iterating a map. Entry is backed by the original map.
+
+
+public interface Map{
+  ...
+  ...
+  interface Entry{
+    K getKey();
+    V getValue();
+    V setValue(V value)
+  }
+}
+
+For iteration, its better to use the entrySet method as it is much more powerful then using keySet and getting values from .get()
+THe .get() method most of the time returns value in constant time but it gets expensive as our map grows and our linkedlist grows on a 
+particular bucket.
+
+
+
+HashMap
+--
+
+-O(1) operation for get, put and remove
+-Insertion order is not preserved as it used hashtable behind the scenes
+-Permit null values and only 1 null key
+-The methods are not synchroinzed and if synchronization is to be performed then it should be taken care of externally.
+
+Beware of mutable keys because if map keys are mutable then the result will be inconsistent.
+Example 1
+List<Integer> values = new ArrayList<>();
+values.add(1);
+
+Map<List<Integer>, Integer> integerListMap = new HashMap<>();
+integerListMap.put(values, 1);
+
+values.add(2);
+sout(integerListMap.get(values)) => will return null
+
+This is because when we use put to add the key value pair, hashmap internally calls the hashcode of ArrayList which is used to find the bucket
+number of hashtable. When the ArrayList is mutated and added new value 2 then the hashcode gets changed and the .get() operation returns null.
+
+
+Example 2
+class Student{
+  private Integer id;
+  private String name;
+  
+  // ctors, getters and setters
+}
+
+Student s = new Student(1, null)
+Map<Student, Integer> studentMap = new HashMap<>();
+studentMap.put(s, 1);
+
+s.setName("Usama");
+
+sout(studentMap.get(s)) => will return 1 and not null
+
+This is becayse hashcode and equals are not overriden in Student.class so the default implementation is used. The hashcode is not using the
+class's state so that is why hashcode will be same even though the state is changed.
+
+
+
+LinkedHashMap
+--
+
+-HashTable and LinkedList implementation of the Map interface
+-It preserves insertion order due to doubly linked list feature
+-It extends HashMap so all the operations are as fast as HashMap but it might be slighly slower due to the linked list node class memory
+ consumption
+-Permits null values and only one null key
+-Not synchronised similar to HashMap. Synchronization can be handled externally
+
+One more important feature of LinkedHashMap is that it can be used as Least Recently Used (LRU) Cache
+Note that LRU Cache feature is only applicable to LinkedHashMap and not LinkedHashSet although LinkedHashSet internally uses LinkedHashMap.
+
+To use LinkedHashMap as LRU Cache, there is a special constructor which we call
+LinkedHashMap(int initialCapacity, fload loadFactor, boolean accessOrder)
+The accessOrder decides whether to use LinkedHashMap as LRU Cache or not. If passed true then it will be used otherwise not.
+
+By default, the size of LRU Cache is unlimited and the least recently used item will not be removed upon inserting new item to the cache.
+To have a fixed size LRU Cache then we have to extend this LinkedHashMap class to our custom class and define the logic there.
+There is a special method with name,
+  removeEldestEntry(Map.Entry<K, V> eldest) which returns true if the LRU item should be removed and false if not to be removed.
+  By default when we insert the item using put() or putAll() method, this removeEldestEntry function is called and returns false everytime
+  indicating that LRU item must not be removed as Cache size is unlimited. But we need to override this method in our custom class to return
+  true if our cache size is full upon put() or putAll().
+  
+Default Implementation of LRU Cache Example
+..
+  Map<String, Integer> values = new LinkedHashMap<>(16, 0.75f, true);
+  values.put("A", 275); 
+  values.put("B", 250); 
+  values.put("C", 150); 
+  values.put("D", 200);
+  System.out.println(values); // {A=275, B=250, C=150, D=200}
+
+  values.get("B");
+  System.out.println(values); // {A=275, C=150, D=200, B=250}
+
+  values.put("E", 1500);
+  System.out.println(values); // {A=275, C=150, D=200, B=250, E=1500}
+..
+The first item is the LRU item and the last item is the MRU item., so whenever the element is accessed using the .get() or any element is
+newly added, it is placed at the last to make sure it is MRU item. No item is deleted since cache size has no limit,
+
+
+Implementation of LRU Cache of fixed size
+..
+  class LRUCache<K, V> extends LinkedHashMap<K, V> {
+
+    private static final Integer MAX_ENTRIES = 4;
+
+    public LRUCache(){
+	    super(16, 0.75f, true);
+    }
+
+    @Override
+    public boolean removeEldestEntry(Map.Entry<K, V> eldest){
+	    return size() > MAX_ENTRIES;
+    }
+  }
+  
+  Map<String, Integer> values = new LRUCache<>();
+  values.put("A", 275); 
+  values.put("B", 250); 
+  values.put("C", 150); 
+  values.put("D", 200);
+  System.out.println(values); // {A=275, B=250, C=150, D=200}
+
+  values.get("B");
+  System.out.println(values); // {A=275, C=150, D=200, B=250}
+
+  values.put("E", 1500);
+  System.out.println(values); // {C=150, D=200, B=250, E=1500}
+..
+Now here, the size will always be 4 because we have limit the max entries to be 4, so when a new element is added, the first item will be
+removed, all elements will be shifted left and new element is added at the last as it is LRU item. Here shifting does not means O(n) operation
+because since it is the linked list implementation so only pointers gets changed (head element is chaged from A to C only)
+
+
+
+SortedMap
+--
+-Supports all the Map capabilities as it extends Map interface and also sort the data based on map keys
+-Sorting can be done either by Natural Ordering (comparable) or by using comparator by keys. The Keys should implement Comparable interface
+ for natural ordering
+ 
+The methods are very much similar to the SortedSet
+
+Operations
+*Range-View
+   subMap(K fromKey, V toKey) -> returns subset of sortedmap that is backed by original collection. toKey is exclusive
+   headMap(K toKey) -> returns subset of sortedmap from head till provided key
+   tailMap(K fromKey) -> returns subset of sortedmap from provided key till last key.
+*End-Points
+   E firstKey() -> returns first key
+   E lastKey() -> returns last key
+*Comparator access
+   comparator()
+   
+   
+   
+NavigableMap
+--
+-Sub interface of SortedMap that provides navigation feature iniside a map
+-All methods are similar to the NavigableSet interface
+
+Operations
+*Closest Match
+   K lowerKey(K key) -> returns the greatest key less than K key
+   K floorKey(K key) -> returns the greatest key less than equals to K key
+   K higherKey(K key) -> returns the lower key greater than K key
+   K ceilingKey(K key) -> returns the lower key greater than equals to K key
+   
+   In addtion to we have Map.Entry closes matches function,
+   Map.Entry<K, V> lowerEntry/floorEntry/higherEntry/ceilingEntry (K key) 
+*Endpoints
+   Map.Entry<K, V> pollLastEntry() -> removes last entry and returns it
+   Map.Entry<K, V> pollFirstEntry() -> removes first entry and returns it.
+*Iterators
+   NavigableSet<K> descendingKeySet() -> returns the navigable set in the reverse order.
+   NavigableMap<K, V> descendingMap() -> returns the navigable mao in reverse order.
+*Range-View
+   headMap(K toKey, boolean inclusive) -> returns NavigableMap instance from head key to the key provided
+  
+There are also other methods which are included in these categories.
+
+
+
+TreeMap
+--
+-Implementation of NavigableMap interface
+-Supports sorting based on keys
+-Time complexity of basic insert, delete and search operation is O(logn) because it is a red-black tree implementation which is self balanced
+ binary search tree

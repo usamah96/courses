@@ -1,0 +1,102 @@
+Performance
+--
+
+What is Performance?
+The performance is a measure of how fast the system is under
+  .A given workload (Amount of data, Number of requests per second)
+  .A given hardware (Kind of hardware used, Size of ahrdware used)
+  
+Obviously the performance gets changed if these 2 parameters of the system changes
+So when performance testing and measuring the performance of the system we will need to make these parameters fixed
+
+If we increase the amount of load, then the performance should be stable and not degrade much. It can degrade slightly but it should not
+degrade much. Similarly if we increase the size and capacity of the hardware the performance should increase.
+
+How To Identify Performance Problem?
+Whenever there is a performance problem there will always be a queue building somewhere like,
+  .Network Queue where lot of requests are incoming and system is unable to handle so the request queue will be building
+  .DB I/O Queue where number of connections wanted to access data but due to load and connection not available the DB I/O queue increases
+  .OS run queue where it identifies how much thread the system can handle
+  ...
+  ...
+So whenever there is a congestion of requests anywhere then there will be a queue of request building up there
+
+The resons for these queues to build up
+  1) Ineffecient slow processing like a slow and ineffecient built algorithm
+  2) Serial resource access like depositing or withdrawing the amount from account as only one thread can access at a time the critical region
+  3) Limited resource capacity as our system is capable of async operations but due to multiple threads the resources are short and limited.
+  
+The task is to identify where the queue is building up so that the fix can be done, and if building a new system we should focus on
+identifying those areas where the queues can built up to avoid future performance problems
+
+
+Some of the Performance Principles that applies on the reasons of queue build up discussed before are,
+  1) Effeciency to avoid slow processing
+  2) Concurrency to avoid serial resource access
+  3) Capacity to avoid limited access availability
+  
+Before discussing these principles, lets assume 2 systems that will be applied to these principles
+  1) Single threaded system which means that at a given time there will only be single thread in our system that is processed and gives user
+     the response
+  2) Multi-Threaded system which means that at a given time there can be multiple threads in our system, but also there will be a possibility
+     that some piece of code is accessed in serial fashion that we have done delibirately.
+	 
+
+So when we talk about effeciency, it largely depends upon the code that is written and how much effecient it is keeping the capacity 
+constant because obviously if that code is running on low cpu then it will be executed slower than that of fast cpu.
+The things to keep in mind when handling effeciency is,
+  .Effecient Resource Utilization like I/O, Network, Memory Disk, CPU, etc
+  .Effecient Logic like optimized algorithm techniques and optimized database queries should be written to minimuze I/O to the database
+  .Effecient Data Storage like good use of data structures, database schema is designed with indexes to be used in queries.
+  .Enable Caching as it involved minimal code changes and gives phenomenal performance improvements.
+So if all these things are properly catered then it ensures very good resposne time of a request which is processes in a single threaded
+system.  
+  
+  
+Now that we have made our system in such a way that a single request will be effecient enough, our next target will be Concurrency that should
+purely related to concurrency.
+When we talk about Concurrency which means the system supports multi requests/threaded and for that we need,
+  .Hardware that supports concurrency
+  .Software for Queueing and Coherance. Here the queueing refers to threads that are blocked in a queue because of other threads accessing
+   the system resource which are not available at the moment- (Discussed later extensively)
+   
+The last thing is capacity which is obvious that if we put better hardware, replace Hard Disk with SSD, increase RAM processor then
+our performance will be increases. The main task is to find that a particular problem is not related to Effeciency or Concurrency but it is
+related to Capacity.
+
+
+How To Measure the Perofrmance of the System. What are those important Metrics that are needed to be measured?
+There are number of mertics but the 4 important ones are,
+  1) Latency
+      .It means how much time our request is taking. The time is a combination of waiting time + processing time 
+	  .It is measured in time
+	  .It affects user experience because if latency is high then user expericen will be very bad.
+	  .Latency must be as low as possible
+  
+  2) Throughout
+      .It means how many requests the system can process at a given time
+	  .It affects the number of users to be supported because higher the throughput will support more number of users.
+	  .The system should support maximum number of users.
+  
+  3) Errors
+      .It is measured as percentage of errors
+	  .There should be no errors in the system which are based on functional basis
+	  .Only errors that are supported are Timeout Errors.
+	  .Functional Erorrs are not tolerated. These errors just make the minimal latency and max throughput feature useless in our system
+  
+  4) Resource Saturation
+      .If the hardware capacity is full and the network is choked than these signals are related to resource saturation
+	  .The resource should be utilized effeciently and it should be measured and considered as well
+	  .Increase the capacity if needed
+	  .If we have reasonable amount of hardware and controlled latency then we will get the desired throughput
+	  
+The latency is the backbone of all the performance exercise which can be controlled if we pay attention to Tail Latency
+Tail Latency is used to measure the latency of the slowest requests or operations in a system.
+For example, consider a web application where most requests take around 100ms to complete, but some requests can take 1 or 2 seconds to 
+complete. If we only measure the average latency, we may not notice the slow requests and assume that the system is performing well. 
+However, if we measure the tail latency, we can identify these slow requests and work to improve their performance to ensure a better user 
+experience overall.
+So there should be a maximum threashold of latency which we can call as Tail Latency and if we see requests time above that threashold
+value then it is a sign we need to fix things.
+
+If the latency is reduced, the throughput is automatically increased for the system.

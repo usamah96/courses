@@ -1,0 +1,87 @@
+Hibernate and Jpa Tips
+--
+
+1) Hibernate Soft Deletes
+-When we want to maintain the history of deleted rows and not entirely remove the row from the database
+
+Implementation
+..
+-Add the isDeleted boolean variable inside the entity
+-On the class level, specify what to perform when the delete method gets fired
+
+@SQLDelete(sql = "update course set is_deleted = true where id = ?")
+public class Course{
+  ..
+  ..
+  private boolean isDeleted;
+}
+
+-Now when we delete this entity by deleteById, hibernate will fire this query and not remove the whole row.
+-But when we retrieve with findById, the row will still be fetched because we have not specified condition to ignore the row that are
+being soft deleted. For this we have to do,
+
+@SQLDelete(sql = "update course set is_deleted = true where id = ?")
+@Where(clause = "is_deleted = false")
+public class Course{
+  ..
+  ..
+  private boolean isDeleted;
+}
+
+-Now with every query related to course, hibernate will put an extra where clause for is_deleted = false.
+
+-Not to remember is that these 2 annotations dont work for the native queries if we fire them with entity manager
+-We have to specify at the query level to fetch the courses where is deleted is false. The @Where clause dont work here.
+em.createNativeQuery("Select * From Course c Where c.is_deleted = 0")
+
+-Also when we remove an entity, the @SQLDelete annotation dont work here and we have to implement a jpa life cycle method for this
+-When we do em.remove(course),
+
+public class Course{
+  ..
+  ..
+  private boolean isDeleted;
+  @PreRemove 
+  public void preRemoveEntity(){
+    this.isDeleted = true;
+  }
+}
+
+
+
+2) Jpa Life cycle methods
+
+-@PostLoad (after the hibernate fires select statement and retrieves the data)
+-@PostPersist (after saving the data)
+-@PostRemove (after deleting the data)
+-@PostUpdate (after updating the data)
+-@PrePersist (before saving the data)
+-@PreRemove (before removing the data)
+-@PreUpdate (before updating the data)
+
+
+
+3) Use of @Embeddable and @Embedded
+
+-If we want to diectly store other object inside and entity without creating any type of relationship
+
+@Entity
+@Table(name = "student")
+public class Student{
+  private Long id;
+  private String name;
+  
+  @Embedded
+  private Address address;
+}
+
+@Embeddable
+public class Address{
+  private String line1;
+  private String line2;
+  private String city;
+}
+
+-Notice that Student and Address has no relationship
+-By using these 2 annotations, hibernate will generate extra 3 columns inside student entity (line1, line2 and city) that is related to
+the address object.

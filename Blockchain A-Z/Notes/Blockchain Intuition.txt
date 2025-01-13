@@ -1,0 +1,238 @@
+Blockchain Intuition
+--
+
+1) What is Blockchain
+2) Cryptography with Sha-256
+3) Immutable Ledger (First Layer of Security)
+4) Distributed P2P Network (Second Layer of Security)
+5) Mining (Nonce)
+6) Mining (Cryptographic Puzzle)
+7) Byzanitine Fault Tolerance
+8) Consensus Protocol (Defence against attackers)
+8) Consensus Protocol (Competing chains)
+
+
+What is Blockchain?
+
+In 1991, a paper was published which defined "How to timestamp a digital document" and the concept of blockchain and its features used today are
+defined in that paper
+
+As per Wikipedia, blockchain is a continuously growing list of records called blocks which are linked and secured using cryptography
+Waht are those records and what constitutes a block?
+A record is a block which consists of
+   *Data, which can be a string that says "Hello World"
+   *Previous Hash which is the fingerprint of the previous record
+   *Current Hash which is referred to as a fingerprint of the current record
+   
+The very first record in the blockchain is referred to as Genesis Block after which the blockchain is initialized. The Genesis block does not contain
+a previous hash since it is the very first block.
+The second block will contain the previous hash value of the first block and that is how all the blocks are linked cryptographically
+
+If any one tempers with once of the block then due to cryptographic link, all connecting blocks fingerprint will be changed
+
+
+
+
+Understanding SHA-256
+
+As we know that every human is recognized through his/her fingerprint and it is said that one person in 60 million has the same fingerprint which is 
+unique, and if we apply same thing to any type of docucment SHA-256 is an hash algorithm which gives us back the fingerprint of that document.
+
+It is called SHA256 because the fingerprint takes up 256 bits and contains 64 alphanumeric characters. Each character takes up 4 bits hence 
+4*64 = 256
+This algorithm works for any digital document (video, text, image, exe, whole operating system etc)
+
+If we change any one single character then whole fingerprint will get changed. This is called avalanche Effect in cryptography
+
+5 requirements for hash algorithm (Not only Sha256)
+  *One Way, cannot go backwards
+  *Deterministic, gets exactly same result for the same input
+  *Fast Computation
+  *Avalanche Effect, a tiny little change should change the whole result
+  *Must withstand collisions (relevant to blockchain as collisions need to be avoided) 
+
+
+
+
+Immutable Ledger
+
+We know that in a blockchain, the blocks are cryptographically linked together
+
+Consider the example
+Suppose you want to buy the house and you have the money in the bank. You withdraw that money and buys the house. But what is the proof that the
+house is bought by you? How you can tell someone that this house is yours? You get the deed for it (papers of that house) which you registers 
+in the goverment authority or local council or any other council. Now the authority registers it by writing down it in traditional ledger which is
+a proof that this house is now yours.
+
+Now if someone hacks that hardcopy ledger, tears that page which has the proof of your house and replaces it with another page in which all entries
+are same but the entry of your house is changed. Now the house is not yours because there is no registration.
+
+Here blockchain comes to the rescue
+If we store every single transaction or anytime a user buys the house we store that record in a blockchain it will become near to impossible to change
+the record due to cryptographic link. That is what an immutable ledger is because you cannot change the data. The longer the time has passed, the
+longer the blockchain, the harder to change data
+
+
+
+
+
+Distributed P2P Network
+
+Considering the previous house example, lets say the house is worth some thousand dollars and some hacker spent some time changing that block
+and the subsequent block in the blockchain and he becomes successful in that
+
+There are 2 scenarios the middle block can be changed
+  *Either some hacker temperes it
+  *Due to any mistake or system error, the block's data is changed unintentionally
+  
+How to resotre the data in these scanrios
+This is solved by distributed P2P network
+
+In a distributed P2P network, there are lots of nodes (computers) in a network that are interlinked. Not everybody is connected to each other but
+through the network everybody is interconnected
+The blocchain is distributed over the network and all the computers contain these data and can be changed by anyone because everyone has access
+to it
+If a new block is added, that is communicated to all the nodes to sync up the blockchain. the network is designed in such a way that it continuously 
+check up their peers if their blockchain match up
+
+So if anythong goes wrong or someone hacks the block, all the nodes will communicate to that hacked node and tell that there is something changed
+in the blockchain and all the data will be restored. That builts the trust in the network
+Now the hacker needs to hack all the computers (at-least 51%) to hack the blockchain and that too in a matter of seconds and minutes which is
+practically impossible
+
+
+
+
+
+
+
+How Mining Works
+
+1) Nonce
+
+In a blockchain, it is not necessary that it holds single transaction. A block can hold multiple different transactions
+In a block we know that we have
+  -Block number
+  -Data
+  -Prev Hash
+  -Current Hash
+  
+If that is what is takes to create a block then where does this whole computation thing goes? Why it needs to have a super fast computer and requires
+a lot of computation to mine the block
+Here the concept of nonce comes in because a block contain an additonal field called Nonce (Number Only Used Once). This field is mining is all about.
+Everybody is changing this field all the time. This field dictates the updated hash of the block
+
+Nonce gives us extra flexibility and extra control to manipulate the hash
+We cannot change the block number because it is the block number
+We cannot change the previous hash because it is linked to what we have in the previous block
+We cannot change the data because it will then lead to tempering of the data and will defeat the purpose of blockchain which is immutable
+We, however, can change the value of nonce that will allow us to control the hash value. The value can lead up to 4 billion
+
+
+
+2) Cryptographic Puzzle
+
+In mining, there is a target that is set for miners. 
+The target for miners is to compute and accomplish for a certain hash
+And how it works is that the target is our threshold. Any hash beyond that target does not count
+
+Lets say we have certain amount of hashes
+  *18D5A1AEDCBF543B.......... (Largest)
+  *000087EC6D488604.......... (Smaller)
+  *000000000000159C.......... (Smallest)
+  
+We sets the target that any hash beyond 000000000000159C.........., which is the smallest, will not be acceptable and not good enough for the 
+blockchain.
+
+We set the target that the hash must start with leading 4 zeros.
+Now the miners just sits at their place guessing for the nonce value until they reach the target to add the new block to blockchain
+Once miners successfully guesses the nonce they get the golden nonce
+
+
+
+
+
+
+
+Byzantine Fault Tolerance
+
+It is the feature of a distributed network to reach consensus (agreement on the same value) even when some of the nodes in the network fail to 
+respond or respond with incorrect information.
+
+ 
+
+
+
+Consensus Protocol
+
+
+We know that from the byzantine fault tolerance feature, it is a challenge for a node if it receives different instruction from multiple nodes and
+which command to listen to (General receiving instruction and deciding whether to attack or retrieve)
+
+The consensus protocol has to solve 2 main challenges 
+  *First Challenge is to prevent the blockchain network from the attackers. There is already a case where the attacker tries to manipulate the 
+   middle block and then it becomes almost impossible for him to attack because he needs to hack the subsequent block for all the nodes in the 
+   blockchain
+   What if the attacker tries to put the block at the end of the chain which is malicious?
+   
+   *Second challenge is about competing chains. What if 2 nodes are very far away from each other in a large worldwide blockchain network. There
+    could be a lag between nodes. This could lead to a problem in such a way that 2 nodes far from each other could successfully mine different 
+    block at the same time. This is not malicious but it is in a way that when the first node mines the block and before this information reaches
+    the other node, the other node mines a different block which will unlink the blockchain
+    
+There are multiple types of consensus protocol. 2 of them which are most famous are
+  *Proof Of Work (PoW)_which bitcoin currently uses
+  *Proof of Stake (PoS)
+  *....
+  *....
+   
+1) Defence Against Attack
+
+The hash generated by the miners is actually called Proof Of Work because they have spent a lot of time, elecricity and a lot of computation
+power to find the value of nonce which eventually generates the hash value.
+It is the proof that they have put all their work together to solve the cryptographoc challenge
+
+These miners get the fees for their proof of work only if their block gets accepted. If rejected they won't get that reward. They have to play
+fair for that.
+
+When a miner adds a new block, every single node will conduct a series of checks and those series of checks are very rigorous (strict, careful)
+The list is very long
+  *They check the merkle hash
+  *They check the previous hash block
+  *They check the timestamp
+  *They check the transaction list must not be empty
+  *....
+  *....
+  *....
+  
+If any check is not passed then the block is rejected
+
+For a cryptographic puzzle, they are hard to solve (brute force technique) but they are easy to verify
+Mining and Verification are different things
+
+
+2) Competing Chains
+
+If 2 nodes mines different block then there will be a conflict between the chain. How to resolve it
+
+Here the Byzantine Fault Tolerance concept comes where we check what is the average for what information we are getting and do that. If somebody is
+saying to attack the castle and somebody saying to retrive the castle. SO the decision is based on the majority
+
+Suppose there are 6 nodes in a netowrk and node 1 mines the block (orange block)
+3 of the nodes are closer to that miner node so the information is received by those nodes faster and they accepted the block
+By the time information gets at node 5, it has mined a different block (purple block) and passed the information to node 4
+Now node 4 is asking node 3 to add purple block and node 3 is asking node 4 to add orange block
+
+Now here comes the general byzantine problem where there are conflicting messages going across the network. Now in byzantine's problem their
+consensus protocol approach is to take the average and look for the majority
+In blockchain, the approach is different
+We have 2 versions of the chain now one with the purple block and one with the orange block so we have competing chains
+The 2 chains will wait until a new block is added to the blockchain and once the block is added, it will see which chain is the longer. Its basically
+which chain adds the block first will win the consensus. The longest chain is the king
+
+The key here is that part of the network which generates the highest hashing power will eventually generate the longest chain. Hashing power
+refers to how many hashes can be calculated in a particular time
+Considering every node with same hashing power, so we have 4 nodes in chain 1 and 2 nodes in chain 2 so chain 1 will have double the hashing power 
+than chain 2 so it has double the change of solving the cryptographic puzzle first
+Consider now node 3 from chain 1 discovers a new block and add to chain 1. Now chain 1 is longer than chain 2 with 2 blocks additionally and now
+the purple chain will adopt the orange chain since longer chain won. And the purple node which was generated is called the orphan node

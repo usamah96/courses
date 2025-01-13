@@ -1,0 +1,44 @@
+Angular Modules
+---
+
+Angular Module is what is the combination of all the components, directives, pipes that are
+tightly coupled together.
+
+Inside the app.modules.ts we have serveral things
+
+1) declarations array which consists of all the components, pipes and directives
+2) imports array which consists of 3rd party or internal external modules. The imports contain
+the BrowserModule which inside also contains CommonModule. The CommonModule is what we are
+capable of using the structural directives like ngFor, ngIf etc.
+3) providers array which consists of services to be provided to the application
+4) bootstrap array which defines the application root component. The root component can be
+multiple that is why it is an array. If there are other root components then add here the
+component name and also add the selector in the index.html file aswell.
+
+
+
+
+Feature Module
+
+-Create a module with ng g m course
+-This will create a module with the imports array importing the CommonModule
+-We will link all the course related components, services and directives here and then import
+this module inside our main app.module.ts
+..
+@NgModule({
+  imports: [CommonModule],
+  declarations: [CourseCardComponent, CourseImageComponent, HighlightedDirective],
+  providers: [CourseService]
+})
+export class CourseModule{}
+
+-Notice that we wont be able to use this module features until and unless we define the exports
+array to tell that whenever this module gets imported, what features you want them to be used
+-So in our application we are using the course-card and course-image component we need to
+define them in the exports array also
+
+exports: [CourseCardComponent, CourseImageComponent]
+
+-Finally now we can import this module inside the app.module.ts
+
+imports:[..., CourseModule]

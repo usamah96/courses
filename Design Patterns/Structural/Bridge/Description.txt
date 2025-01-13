@@ -1,0 +1,38 @@
+Bridge
+---------
+
+-Connecting components through abstraction
+-Lets you split a large class or a set of closely related classes into two separate hierarchies, abstraction and implementation
+which can be developed independently of each other.
+-Decouples abstraction from implementation
+-Stronger form of encapsulation
+
+Motivation
+..
+-Prevents a 'Cartesian product' complexity explosion
+Example 1
+..
+We have a ThreadScheduler that can be preemptive or coperative. It can run on Windows or Unix. We will end up with a 2x2
+scenario that would be WindowsPreemptive, WindowsCoperative, UnixPreemptive and UnixCoperative.
+
+Example 2
+..
+We have a Shape class that can be of difference colors. Shape could be Rectangle, Square, Circle etc. We will end up with
+classes like RectangleBlue, CircleRed, RectangleRed, SquareBlue, CircleBlue etc .........
+Any new addition of shape or color will grow the system exponentially in terms of inheritance
+
+
+What is meant by "decouples abstraction from implementation"
+-Abstraction and Implementation can vary independently since the concrete class does not directly 
+implement Abstraction ( interface)
+
+Shape is Abstraction
+Triangle is RedefinedAbstraction
+Color is Implementor
+RedColor is ConcreteImplementor
+
+-Here Triangle contains a concrete Color object ( Composition). If there is a change in the Color abstraction (interface), 
+RedColor and GreenColor are responsible for implementing the abstraction of Color interface.
+-Shapes like Triangle is not affected by changes in contract to the Color interface. So the Color interface can vary 
+independently. This is possible because Shape holds the contract that uses Composition rather than implementation.
+

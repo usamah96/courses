@@ -1,0 +1,96 @@
+Database Engines
+--
+
+Sometimes called storage engines, embedded engines
+DB Engines are nothing but a library that takes care of storage on disk and CRUD operations
+
+Some DBMS allows you to change the underlying engine like MySQL but some DBMS stuck with the default engine you cannot change
+like Postgres. Uber switched from Postgres to Mysql and this was one of the reason for it.
+Link: https://www.uber.com/en-PK/blog/postgres-to-mysql-migration/
+
+
+
+MyISAM
+  .Open Source & Owned by Oracle
+  .Stands for Indexed Sequential Access Method
+  .Everything is indexed and the index points directly to the row (B Tree)
+  .Transaction is not supported
+  .Inserts are very fast because inserts always happen at the end of file (WAL) and we know where the file ends. Updates and Deletes
+   are slow and problamatic because these operations change the file offsets. If something is updated or deleted in the middle 
+   then the row offset changes and all the indexes also changes that points to the old offset row location
+  .Suppports table level locking and no row level locking. If you want to update something, you have to acquire lock on whole
+   table
+  .MySQL, MariaDB supports MyISAM
+  .It used to be the default engine for MySQL but not now.
+  
+  
+InnoDB
+  .Owned by Oracle
+  .Default engine for MariaDB and MySQL
+  .It is a transactional database storage engine
+  .Supports B+ Trees and only the PK index points to the actual row location. Every other index points to the PK
+  .Supports ACID, Foreign keys, Row level locking
+  
+  
+XtraDB
+  .Owned by a single person that doesn't like Oracle. So he created his own engined which is a fork of InnoDB and contains all the
+   feature from it.
+  .MariaDB default was XtraDB engine for a long time until 10.1 version. From 10.2 MariaDB switched back to default InnoDB
+  .XtraDB couldn't kept upto date with the latest features of InnoDB and cannot be used. Because oracle is a big company and 
+   XtraDB owner is just a single person. Link to artice: https://mariadb.com/kb/en/why-does-mariadb-102-use-innodb-instead-of-xtradb/
+  .MariaDB System Tables uses Aria. Link: https://mariadb.com/kb/en/aria-storage-engine/
+  
+
+
+SQLite
+  .Popular embedded database for local data
+  .Its everywhere, in the browsers (WebSQL under Application tab in console), softwares, operating systems by default
+  .Uses B Tree by default
+  .Postgres like syntax
+  .Supports full ACID and table locking. Does not support row locking because it is not needed. There are no multiple users
+   in local
+   
+   
+   
+BerkeleyDB
+  .Owned by Oracle
+  
+LevelDB
+  .Owned by Google
+  
+RocksDB
+  .Owned by Facebook
+  .A complete fork of LevelDB with many more features
+  .MyRocks for MySql and MariaDB
+  .MongoRocks for MongoDB
+  
+  
+DBMS/Engines that uses B Trees
+  .MySQL
+  .Postgres
+  .MongoDB
+  .Couchbase or CouchDB
+  .Sq Server
+  .IBM DB2
+  
+DBMS/Engines that uses LSM Trees (Very fast reads and writes)
+  .Cassandra
+  .Elasticsearch
+  .Google BigTable
+  .Apache HBase
+  .LevelDB
+  .RocksDB
+  
+  
+  
+We can use show engines; command in mysql container to list down all the engines mysql supports. It will maybe not show LevelDB
+or RocksDB but we can install RocksDB in our machine and then we can use it
+
+We can create a table in mysql with different storage engines like one with InnoDB and one with MyISAM. We will have to specify
+the engine on query. By default it is InnoDB but if we have to change it we can change it like,
+"Create Table employees_myisam (id int primary key auto_increment, name text) engine = myisam;"
+"Create Table employees_innodb (id int primary key auto_increment, name text) engine = innodb;"
+
+Now since myisam does not support transactions, foreign keys and stuff, when we run a query inserting a new row or updating acquire
+new row and within our transaction if some external client tries to select * from myisam table, they will see the changes because
+myisam does not support transaction.

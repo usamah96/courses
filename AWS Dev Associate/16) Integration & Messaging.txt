@@ -1,0 +1,420 @@
+Integration & Messaging: SQS, SNS & Kinesis
+---
+
+When we deploy multiple applications, these applications might need to share some data between them and communicate with each other.
+For this we need some sort of communication pattern.
+
+We can communicate between 2 different applications in two ways,
+  1) Synchronous where applications are directly related to each other
+  2) Asynchronous where applications are decoupled and are not directly realted to each other. There is a middleware in between and 
+     this middleware can be a queue, a topic, or any thing. Its event based approach
+	 
+While using SQS, we use the queue model.
+While using SNS, we use the pub/sub model.
+While using Kinesis, we use real-time streaming model for big data.
+
+
+1) SQS - Simple Queue Service
+
+For SQS to operate, the simplest thing to understand is that there is a producer that sends a piece of message to the queue. On the 
+other side of the queue, there is a consumer that recevies the msg for some operation. We can have multiple producers and multiple 
+consumers for sending and receiving messages.
+
+
+The Standard Queue
+..
+It is a fully managed service use to decouple applications. It has unlimited throughput (we can send any number of msgs per second) 
+and unlimuted storage for queue (any number of msgs in a queue), but the msg will live for atmost 14 days in a queue. It provides 
+low latency (less than 10ms) with a maximum msg size of 256KB.
+Since we are give with unlimited throughput, there is a change of duplicate msgs and have out of order msgs also.
+
+For producing messages, the producer will send the message using the SDK or SendMessage Api call and the msg will be persisted 
+uptil 14 days until the consumer reads it and deletes it.
+
+For consuming messages, the consumer will either be running on some EC2 instances, on-permises servers or Lambda Functions that 
+will receive messages from queue. The consumer can receive upto 10 messages at a time and then delete the msg using the DeleteMessage 
+Api so that no other consumer can read the same messages.
+It is possile that there are multiple consumers running on multiple EC2 instances, so it is guarenteed that messages are delivered
+once and it is the responsibility of consumer to delete those messages after processing otherwise other consumer will see those 
+messages.
+
+We can set a CloudWatch metric about the SQS queue length that whenever it crosses a certain number of messages, then it should 
+breach a CloudWatch Alarm which will trigger the ASG to increase the number of consumers (launch more EC2 instances as consumers)
+to provide high throughput in message processing.
+
+SQS provides us security measures in the following way,
+  1) In flight encryption using HTTPs
+  2) At-rest encryption using KMS
+  3) Client side envryption if client want to do encryption and decryption
+  
+We can also add SQS Access Policies similar to S3 Bucket Policies to define who can access the Queue for example if some other AWS 
+service (SNS, S3,...) wants to write a message to the queue.
+If we have a queue in on account and an EC2 instance running on a different account and that instance wants to poll for messages then 
+we need to define a SQS policy to allow that instance to poll for messages. The way we do is define a policy like this,
+Statements:[
+ {
+  Effect: Allow
+  Resource: <arn-of-queue>
+  Principal: {AWS:[111222333]},
+  Action: [sqs:ReceiveMessage],
+ }
+]
+Here the Principal specifies the account id of the aws account where the EC2 isntance resides and the policy specifies that it should 
+allow receving messages to the queue.
+
+Another usecase is that whenever there is an object uploaded to s3 bucket, we need to notify by sending message to the queue. For this 
+we need to create a polciy with effec allow, action to SendMessage, principal can be wild card (*), resource will be the arn of queue,
+and additionaly the condition parameter in this way,
+Condition:{
+  ArnLike: {awsSourceArn: <bucket-arn>},
+  StringEquals: {aws:SourceAccount: <bucket-owner-id>}
+}
+In this way we have given access to s3 bucket to send the message to the queue. Now when we create a bucket we can create an 
+event notification to send message to sqs queue whenever any object is created, edited, deleted, etc
+
+
+Visibility Timeout & Delivery Delay
+..
+It is the time duration for which other consumer will not see the message when any one of the consumer is still polling for messages.
+It is the window of a consumer polling and execution of the message
+
+The default visibility timeout is 30 seconds and lets say we have a msg in our queue. If any consumer polls for msg, then the timer for
+visibility timeout starts and withing 30 seconds if that consumer does not perform relevant operation and delete the message, then that 
+msg will again be put back into queue and be available to other consumers.
+
+If for some reason, the consumer is processing the msg and realizes that it needs more time to process the msg, then it can execute 
+ChangeVisibilityMessage api to increase the window timer.
+
+We cannot put the visibility timeout to a very large value like in hours because if the consumer crashes then it will take hours for 
+this msg to be available for other consumer to process
+Also we cannot put visibility timeout to a very low value because it will create chances for duplicate processing it consumer does 
+not processes in the given time.
+
+For Delivery Delay, the message is sent after a specified period of time. If we have specified delivery delay of 10 seconds then when 
+the send message api is called, the message will not be available immediately if the consumer polls for msgs, instead it will be 
+available after 10 seconds.
+
+
+Dead Letter Queue (DLQ)
+..
+We have the DLQ where the messages are stored which are unable to be processed from the source queue. We know that when a consumer 
+fails to process the message withing the visibility time then this msg is queued back and available to be processed again for 
+the consumers. Now, this can happen multiple times and ends in a forever loop if there is something wrong with either the msg or 
+the consumer processing code.
+
+To avoid this forever ending loop, we set a threshold value for which if the msg is unable to be processed for certain amount of time 
+then this message is sent to dead letter queue with a retention period of 14 days. This will help us manually debug and inspect what 
+is wrong and why it is being unable to process.
+
+We should fix the issue and process the message before the retention period of dead letter queue ends. If the issue gets fixed, we can 
+redrive the task and send the msg back to source queue to be processed by the consumer again.
+
+After creating the DLQ, we can go to our source queue and we will see the option of Dead Letter Queue. We can enable it, specify 
+the queue name from dropdown and also set the threshold value for messages.
+
+
+
+Long Polling, & Extended Client
+..
+When a consumer requests for message or polls for msg from the queue, it has the option to wait if the queue is empty. It will wait 
+for some amount of time to check if any msg comes in for processing. This is called Long Polling because it saves from multiple 
+api calls to check if the message is available or not which is the short polling concept.
+
+The wait time for Long Polling can be between 1 and 20 seconds and it is preferrable to use long polling instead of short polling.
+If we want to enable long polling at the api level then we can execute ReceiveMessageWaitTimeSeconds Api.
+
+From the console, while creating queue, we can set the receive message time property to enable long polling.
+
+For Extended Client, we know that we have the msg size limit of 256KB, but what if we want to send a very large message like for 
+eample a msg of size 1GB. We can use the SQS Extended Client (Java Library)
+
+The process is that we first upload the large data in S3 bucket and send small metadata of the message to the queue. When the consumer 
+will read the mesage metadata from the queue, it will then fetch that large data from S3 bucket to be processed.
+
+
+
+The FIFO Queue
+..
+It is the First in First Out Queue which means that messages are ordered inside the queue and also when the consumer polls for 
+msgs, the the first inserted msg will b ereceived first.
+
+Since the ordering is importatnt, we get a limited throughput which is 300 msgs per seconds without using batches and 3000 msgs when using 
+batches.
+
+To enable FIFO queue, we create a queue and selet the FIFO option and also while naming the queue it is important to name this 
+queue ending with .fifo like (MyQueue.fifo)
+
+In Fifo queue, we can enable content based deduplication where if the same message is send twice, then the duplicated msg will be 
+ignored. There are 2 ways it can be handled. One way is that SQS calcualtes SHA-256 of the message content and if another msg comes 
+in with same SHA-256 hash then it will be ignored. The other way is that a deduplication id is sent in the msg and if the same id is 
+being sent once again, the msg will be ignored. This deduplication id is optional and if not sent then the SHA-256 hash approach will 
+take place.
+
+We can enable message grouping also where we assign a specifi message group id to a message which is mandatory field. The messages 
+with the same message group id will be grouped together and the ordering will take place within that group. Each group will be 
+processed by a single consumer.
+Lets say we have msg A1, A2 and A3 with message group id as A then it will be ordered in fifo fashion and process by consumer #1
+Now we have msg B1, B2 and B3 with message group id as b then it will be ordered in fifo fashion and process by consumer #2
+Similarly for others.
+
+Message grouping is very helpful lets say we want to make msgs send by specific customer in order and processed at one place so we 
+can make msg group id as customer id.
+
+
+**SQS Scales Automatically**
+
+
+2) SNS - Simple Notification Service
+
+It is helpful when we want to send one message to many receivers where we have multiple subscribers unlike simple queue service 
+where if one consumer has consumed the msg then it will not be available to other consumers till the visibility time period and also 
+it will be deleted after it is being processed.
+
+It is a publish/subscribe model where we can have multiple subscriber to the same topic and each subscriber will get all the msgs 
+to the topic which is being subscribed to except filtered msgs.
+An Example can be that when a msg is received on SNS topic, we might want to send an email from email service, a push notification 
+from notification service, some logging data on Kinesis Data Firehose, Run a Lambda Function that integrated with S3, etc..
+
+We can have upto 12 million subscribers to a topic and have 100,000 topic limit.
+
+SNS provides us security measures in the following way,
+  1) In flight encryption using HTTPs
+  2) At-rest encryption using KMS
+  3) Client side envryption if client want to do encryption and decryption
+  
+We can also add SNS Access Policies similar to S3 Bucket Policies to define who can access the topic for example if some other AWS 
+service (SNS, S3,...) wants to write a message to the topic.
+
+
+
+SNS + SQA: Fan Out Pattern
+..
+In this pattern, we have the sqs queue as subscribers to the sns topic. A msg is pushed to sns topic and the queues receive those 
+msgs which will contain consumers to process those messages.
+We can push the msg directly into the individual queues as well but the problem is that what if the application gets crashed in between.
+We had 10 queues and after pushing the msg into 4 queues the app get crashed. Also what if new queues are introduces for scaling purposes
+then we need to make changes.
+
+With msg pusing into sns topic, we can many sqs subscribers and it will allow us to make fully decoupled model with no data loss. SQS
+will allow us for data persistency, delayed processing and retres of work. Also there is a possibility for cross region delivery if 
+our sns is in one region and sqs are in other regions. We will have to make sure all the policies are updated like SQS must allow SNS 
+to write to the queue.
+
+The use cases can be,
+
+1) Lets say we have S3 bucket and we want to make an event notification for object creation in our /image path. The limitation is that we 
+can only create one event notification for a specific path and if we want this event to go in multiple places then we can use the 
+Fan Out Pattern. This event notification will push a msg to sns topic, where we will have multiple sqs queue as subscribers and those 
+queue will have consumers. Also we can have a lambda function as sns topic subscriber to do some other job.
+
+2) We can send data from sns to amazon s3 using the kinesis data firehose. As SNS has a direct integration with Kinesis we can send 
+any data from SNS to Kinesis supported destinations. Kinesis can send data to S3 so we can send SNS to S3 via Kinesis (or other Kinesis
+supported destinaion). This is helpful if we want to persist our sns topic msgs.
+
+With SNS, we also get the FIFO feature just like with SQS with deduplication and message group id for handling duplicate and grouping 
+of msgs. With SNS FIFO Queue we can make a Fan Out Pattern using SNS FIFO and SQS FIFO 
+
+
+
+Message Filtering
+..
+SNS also provide us the feature for message filtering. Message filtering is a JSON based policy where we define how to filter the 
+msg. Lets say we have a OrderService where orders are placed, cancelled, declined, etc. Whenever any operation is performed then a 
+message is pushed to sns topic with order information. This topic can be subscribed by many SQS queues and we can place a JSON policy 
+document for msg filtering that SQS Queue 1 should process orders which are placed, Queue 2 should process orders which are cancelled, 
+Queue 3 should process orders which are declined, etc. So the filtering is applied on order status.
+
+
+
+
+3) Kinesis
+
+It makes it easy to collect, process and analyze streaming data in real time such as appliaction logs, website click streams, metrics,
+etc.
+
+Different features are,
+  - Kinesis Data Streams, which captures, process and stores data streams
+  - Kinesis Data Firehose, which loads data streams into AWS data stores (within or outside aws)
+  - Kinesis Data Analytics, which analyse the data stream using SQL or Apache Flink
+  - Kinesis Video Streams, which captures, process and stores video streams
+  
+  
+a) Data Streams
+..
+It helps us to stream big data in system. So the stream in kinesis data stream is made up of multile shards and we have to define how 
+many shards we want when we instantiate the data stream.
+
+The producer (can be applications, client, sdk, kinesis agent, etc) provides the data to stream and and that data is split up into
+the pre-defined shards lets say 6 shards. The record that producer provides consists of a partition key and data which is a blob upto 
+1MB.
+
+On the other side, we can have multiple consumers (can be apps, lambda functions, kinesis firehose, kinesis data analytics). The record 
+that consumer receives contains a partition key, data blob and also additionaly a sequence number which represents on which shard it 
+was put in the stream.
+
+Some of the properties include,
+ .The retention of data can be between 1 and 365 days
+ .Once the data is inserted it cannot be deleted so it has immutibility nature.
+ .Data that shares the same partition key, goes into the same shard so we can make use of key based ordering also.
+ 
+The Security features include,
+ .The access can be controlled using IAM policies
+ .Encryption in flight using Https and at rest using KMS
+ .VPC endpoints are available to access data stream from EC2 instance inside a private subnet (EC2 -> VPC Endpoint -> Kinesis Data Stream)
+ .API calls can be monitored using CloudTrail
+
+
+Producers
+..
+The producers put data records into the stream. This data consists of sequence number which is a shard number, partition key and data
+blob uptil 1MB. These producers can be AWS SDK, Kinesis Producer Library (KPL), Kinesis Agent, IoT Devices, etc.
+To send the data to the stream we use the PutRecord Api call.
+
+We get the write throughput of 1MB/sec or 1000records/sec per shard.
+
+If we use batches while sending records to the stream, it will reduce cost and increase throughput.
+
+Lets say we have an IoT device with id 11223344 which want to send data to knesis data stream, the data record will be sent with the 
+partition key as 11223344 with data blob. The record will get hashed and the hashed function will return back the shard number to which 
+this data needs to resides.
+Our shards and distribution of data based on sequence number or key hash should be managed because as we know that we only get 1MB/sec
+or 1000reords/sec per shard so if data is not distributed propery, one of the shard may get overwhelmed and receive more than 1000 
+records per second. This will cause ProvisionThroughputExceeded exception raised. To overcome this we need to increase or scale 
+the shards or make retries with exponential backoff.
+
+
+Consumers
+..
+The Kinesis consumers can be AWS Lambda, Data Analytics, Data Firehose, Custom Consumer using AWS Sdk or Kinesis Client Library (KCL).
+
+For custom consumer lets say we have an application that receives data from kineses shard, so we can have 2 approached
+  1) Classic, where we get 2MB/sec data per shard across all consumers which means if we increase the number of consumer, the bandwidth
+     will decrease. If we have 2 consumers retrieving data from shard 1 then both the consumers will get 1MB/sec as it will be split up.
+	 The consumer get the data using the GetRecord Api call which references to pull mechanism as data is pulled by the consumer from
+	 the shard. In this approach, a total of 10MB or 1000 records can be fetched in a single time them we get a 5second throttle. Also,
+	 we can only issue 5 GetRecord API per second.
+  2) Enhanced, where we get 2MB/sec per shard per consumer. So no matter how many consumer we initialize, we get 2MB/sec for each of 
+     them. The consumer here issue a SubscribeToShard Api call to shard and the shard pushes the data to the consumer which references a 
+	 push mechanism. It is costly as compare to Classic approach.
+	 
+If using lambda function as a consumer, then the function read the records in batches using the GetBatch api. We can configure the 
+batch window and size and can process upto 10 batches per shard simultaneously. If any error occurs, the function does a retry until
+it gets successful or the data gets expired.
+We can use this to process the data received from shard and dump into DynamoDB or for something else.
+
+
+Hands On
+***
+
+When creating a kinesis service we can specify what we want to create either data stream, data analytics or data firehose
+We can specify a name and create the stream with one shard
+All the information is available that how much cost it will take per hour for one shard and how many MB/sec or records/sec we will get 
+per shard.
+
+After creating the stream we can now use AWS CloudShell (built in CLI) to execute some api calls to the stream to produce and consume the 
+message. It is a low level execution where we want to specify the shard id (from which shard to read from), shard iterator (to iterate 
+through all the shards for data), etc. These things are handled when using Kinesis Client Library (KCL) but with AWS CLI SDK we need to 
+specify this.
+
+The commands are as follows (present in kinesis-data-streams.sh file.
+For producing record,
+  .aws --version (to check the version because if using v1 then producing record has some different command and v2 has different command)
+  .If using v2 -> "aws kinesis put-record --stream-name <name-of-stream> --partition-key user1 --data "user signup" --cli-binary-format 
+   raw-in-base64-out". The data with same partition key will go into the same shard and here we have specified to store the data in base64 
+   format.
+  .If usig v1 -> aws kinesis put-record --stream-name <name-of-stream> --partition-key user1 --data "user signup"
+  
+For consuming record,
+  .aws kinesis describe-stream --stream-name <name-of-stream>. This will give us the information of stream with all the shard ids present.
+  .aws kinesis get-shard-iterator --stream-name <name-of-stream> --shard-id <shard-id> --shard-iterator-type TRIM_HORIZON. This will return 
+   a random string which represents the specific shard iterator which will be used to iterator through all the records in that shard.
+  .aws kinesis get-records --shard-iterator <shard-iterator-string>. This will return a list of all the data present in the shard like 
+   sequence number, partition key, data (which will be base64 encoded string), timestamp of record addition, etc.
+***
+
+
+KCL - Kinesis Client Library
+..
+It is a java library that helps read records from Data Streams. Each data stream shard can be read by only one KCL Instance. SO if we 
+hace 4 shards in our data stream, we can get a maximum of 4 KCL instances. If we have 6 shards then 6 maximum KCL instances.
+
+The KCL instance can be run on EC2 instance, Elastic Beanstalk or on-permises servers. The progress is tracked and checkpointed in DynamoDB 
+which will hold the information that how much amount of data has been read by a specific KCL instance. This is helpful when`lets say if 
+EC2 instance goes down runing KCL instance reading from shard 1, then if any new instance launched that needs to run from shard 1 or 
+already running instance take over reading from shard 1 will resume reading from where the last instance has left. Also when we want 
+to scale our KCL instance and initially 2 instances were reading from 4 shards and now 4 instances reading from 4 shards separately then 
+new instances can resume reading from where it was left by old instances.
+
+If we have 4 shards and 2 isntances, one instance can read from 2 shards and other can read from 2 shards,
+If we have 4 shards and 3 instances, one instance can read from 2 shards, one can read from 1 shard and one can read from 1 shard.
+If we have 4 shards and 4 instance, each instance can read from 1 shard each.
+
+
+
+Operations
+..
+With Kinsesis Operations, we can do
+
+Shard Splitting, where we can split a hot shard which means that compare to other available shards, one shard contain more data and is 
+considered hot. This shard can be split up into 2 more shards and by doing this we get an extra 1MB/second because we now have 1 extra 
+shard.
+The old shard will be closed and be deleted once the data is expired after the retention period is over. New data will go onto splitted
+shards. There is no auto scaling for shards, we have to do this manually and also we cannot split a shard into more than 2 shards in a single 
+operation. If we want to do so we need to do more number of splitting.
+With shard splitting, obviosuly it will cost us more because we are increasing the shard
+
+Shard MErging, where we merge 2 shards to decrease the capacity and cost. 2 shards can be grouped and merged together to be a single new 
+shard and old shards will be deleted once the data is expired after the retention period. We cannot do a merge of more than 2 shards in a 
+single operation. To to do it will need multiple merge operations.
+
+
+
+b) Data Firehose
+..
+It is the ingestion service which simplifies the process of collecting, transforming, and loading streaming data into multiple destinations. 
+It takes the data from multiple producers and these producers are similar to producers in Kinsesis Data Strema (application, agent, sdk, 
+client) and additionally it can take from Kinesis Data Stream, Amazon CloudWatch, AWS IoT.
+
+The producers can put records uptom 1MB and Firehose can optionally transform this data using the lambda function and batch write this 
+data into multiple destination. For writing the data we dont have to do anything, it is the responsibility of Firehose itself. The 
+destinations include,
+  - AWS Destinations -> S3 Bucket, OpenSearch, Redshift (It first upload the data into S3 then issue a copy command to Redshift)
+  - 3rd Party Destinations -> New Relic, Splunk, MongoDB, Datadog
+  - Custom Destinations -> HTTP Endpoint where we can place custom endpoint to receive the data on our custom running server.
+All the data that is failed in batch write can be moved to Amazon S3 for future inspection.
+
+The data can be transformed like conversions, transformations, compression or we can write custom transformations using lambda function
+
+
+Comparing Data Stream vs Firehose
+ - Data Stream -> It is a streaming service where we write custom code for producer and consumer. We have to manage scaling ourself (splitting 
+   or merging of shards) and data storage is from 1 day to 365 days.
+ - Firehose -> It is a ingestion service where we dont have to write any code for destination. It is near real time if we enable buffering
+   and supports automatic scaling. There is no data storage, all the data is transformed and sent to destinations.
+   
+   
+On AWS Firehose is named as DeliveryStream
+
+
+Hands On
+***
+
+We can create a DeliveryStream by choosing the producer and destinatin
+We can select producer as Kinesis Data Stream and destination as S3 Bucket.
+We set up the buffer size and interval. If we set buffer size to 1MB it means that it will wait till the buffer is full 1MB before flushing 
+and loading it to the destination. If we set buffer interval to 60seconds then it means that it will wait at max 60seconds for the buffer to 
+get full. If not then it will load the data to the destination no matter how much size the buffer is filled up.
+***
+
+
+c) Data Analytics
+..
+
+In Kinesis Data Analytics for SQL Application, the data analytics can consume data from either Kinesis Data Firehose or Kinesis Data Stream. After 
+that we can apply SQL statements to perform real time analytics or also enrich our data by referencing it from S3 bucket. After that the 
+data can be sent to either Firehose or Data stream from which this can be sent to Amazon S3, Redshift, other destination that Firehose 
+supports or apply some lambda function and send it to some EC2 instane if the route is from Kinesis Data Stream
+
+In Kinesis Data Analytics for Apachae Flink, we have to write custom code in Java, Scala or SQL that will do the analytics operation. The 
+data can be read from Kinesis Data Stream or Amazon MSK (Managed Kafka service). This is more powerful that SQL based analytics and provide
+parallel computing with autoscaling also.

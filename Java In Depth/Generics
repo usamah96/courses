@@ -1,0 +1,421 @@
+Generics
+---
+
+Introduced in Java 5
+It is a compile time concept
+We get type safety at compile time 
+Helps in reusing of code in a more better way
+
+-We can also make our class generic by just using the Object root class but it has some problems
+   .Way too generic
+   .Need explicit casting
+   .Cause runtime exception
+   
+Example
+class Store {
+  Object a
+  // Getter and Setter
+}
+
+Developer 1
+Store s = new Store();
+s.set(new Date()) -> Using java.sql.Date
+Date date = (Date) s.get();
+
+Now Developer 2 does this,
+s.set(new Date()) -> Using java.util.Date
+
+If Developer 1 tries this,
+Date date = (Date) s.get() -> Will get ClassCastException since Date Type was changed from sql to util
+
+Solution
+class Store<T>{
+   T a;
+   // Getter and Setter	
+}
+
+
+
+
+Generic Type and Paramtertized Type
+..
+-A Generic type is just a class or interface with type parameters
+Example
+class Store<T>{...}
+
+-A paramtertized type is a whole Type with the argument
+Example
+Store<String>, Stire<Integer>, Store<List<String>>
+   .Here String is a type argument
+   
+We have a diamond notation introduced in Java 7 that we donot provide type argument on the right hand side of the declaration
+Example
+Store<String> stringStore = new Store<>();
+Store<Integer> stringStore = new Store<>();
+
+Before Java7
+Store<String> stringStore = new Store<String>();
+
+For type argument follow some conventions
+1) Use single and upper case letters
+2) Use E for collections element
+3) K and V for Key Value Map
+4) N for Number types
+5) T for non collection and non Number type
+6) S,U,V for 2nd, 3rd and 4th type if dealing with multiple types.
+
+
+Subtyping Generic Type
+Example
+interface Collection<E>{
+  E getElement();
+}
+class MyList<E> implements Collection<E>{...}
+
+
+Multiple Type Parameters
+Example
+class MyMap<K, V>{
+  K key;
+  V value;
+}
+
+
+Restrictions with Generics
+..
+1) Type argument cannot be a primitive
+Example
+Store<int> store = new Store<>() -> Invalid
+
+2) Type parameter cannot be used in a static context nor static methods and static initializers
+Example
+class Store<T>{
+  public static T value -> Invalid
+}
+   Why it is invalid?
+   Asuume it is valid
+   Example
+   Store<String> stringStore = new Store<>();
+   Store<Integer> integerStore = new Store<>();
+   Now what will be the static T value if it is valid to do so? String or Integer? That is why it is invalid and cannot be used with static context
+   
+   
+
+
+Type Erasure Concept
+..
+The compiler does 2 things
+1) Erase the type and insert Object class
+2) Cast the object when retrieving it
+
+As we know that the generic is a compile time type safety check and it is no runtime feature, the compiler will remove the type paramter T and
+replate it with object. When trying to fetch the element it will then cast it.
+Example
+
+List<String> list = new ArrayList<String>();
+list.add("Hi");
+String x = list.get(0);
+
+is compiled to
+
+List list = new ArrayList();
+list.add("Hi");
+String x = (String) list.get(0);
+
+
+
+
+Bounded Type Parameter
+..
+-We want to put restriction to the type argument also
+-Type parameter can be with 1 or more bounds
+-The bound will ensure that the type paramter will be either that class or one of its sub classes
+
+Example
+<Type-Paramter extends bound1 & bound2 & bound3>
+class GenericDemo<T extends List>
+
+-Will allow us to use the pre-defined methods and avoid compilation errors
+class GenericDemo<T>{
+  public void go(T a){
+    log.info(a.size()) -> Compilation Error as compiler dont know whether T will contain size() method
+  }
+}
+class GenericDemo<T extends List>{
+  public void go(T a){
+    log.info(a.size()) -> Successfull
+  }
+}
+
+-Now in this case of Type Erasue, the compiler will erase the type paramter with the bound itself insead of the Object class.
+    .T will be replaced with List
+    
+The valid bounds are
+1) Classes
+2) Interfaces
+3) Enums
+4) Paramtetrized Types
+
+Invalid Bounds are
+1) Primitives
+2) Arrays
+
+Some Rules
+..
+1) If using multiple bounds, then the type argument should be sub type of all the bounds
+Example
+class GenericDemo<T extends List & Serializable>{...}
+GenericDemo<List> withList = new GenericDemo<>() -> Invalid as List is not a subtype of Serializable
+GenericDemo<ArrayList> withArrayList = new GenericDemo<>() -> Valid as ArrayList is both the subtype of List and Serializable
+
+2) If using multiple bounds and one of the bound is a class then it should be defined first then others
+3) If using multiple bounds then we can have only one class in the bound and remaining must be interfaces
+      .Multiple classes not allowed as multiple inheritance we cannot do
+4) If using multiple bounds and the first class is a final class or enum then the type argument is the bound itself because final classes are
+   not extendible
+       .Enums are also final classes internally
+
+
+
+-Avoid using Raw types as it can also lead to ClassCastException
+Example
+
+Using without raw type
+public void setPriceWithoutRaw(List<Double> prices){
+   int value = API.getPrice();
+   prices.add((double) value)
+}
+
+Using with raw type
+public void setPriceWithRaw(List prices){
+   int value = API.getPrice();
+   prices.add(value)
+}
+
+List<Double> price = new ArrayList();
+
+1) setPriceWithoutRaw(price)
+   Double value = price.get(0) -> Valid
+
+
+2) setPriceWithRaw(price)
+   Double value = price.get(0) -> ClassCastException Integer cannot be converted to Double
+
+Raw type is supported only because to support the legacy code as Generics were introduces after 10 years of Java
+Use Raw types in
+1) Class literals
+     .List.class instead of List<String>.class
+2) instanceof operator
+     .instance of Set instead of instance of Set<String>
+     
+     
+
+
+
+
+Unbounded WildCards
+..
+-Refers to ? using as a type agrument
+
+-Cannot be used with type parameter because if we use multiple types then how to ensure which type refers to which property
+Example
+class Test<?,?>{
+   private ? a -> Ambiguous
+}
+
+-Common use case is to use it with method parameter
+Example
+public void go(Store<?> store){...} -> Does not care what type comes in whether String, Integer, Double, etc...
+
+
+Why not use Store<Object> instead of Store<?> since Object is the root class of all
+Ans: Due to invariance (Discussed afterwards)
+We cannot declare some other type other than Object
+
+Example with Object
+Store<Object> store = new Store<Object>();
+
+Example with wild card
+Store<?> store = new Store<Integer>();
+Store<?> store = new Store<Double>();
+
+-We have the restrcition to set any value or make an assumption what value will be fetched when using wild cards.
+-We cannot invoke methods that uses class level type parameters with any arguments except null
+Example
+List<?> myList = new ArrayList<>();
+myList.add(1) -> Invalid
+
+List<?> myList = new ArrayList<Integer>();
+myList.add(1) -> Invalid
+
+List<?> myList = new ArrayList<>();
+myList.add(null) -> Valid
+
+Object a = myList.get(0) -> Valid as it does not use class level paramter
+
+-So most developer prefer wild card instead of raw types
+
+-Use case to get the common elements counts between 2 lists
+Example
+public void getCommonElementsCount(List<?> listOne, List<?> listTwo){
+   int count = 0;
+   for(Object elem : listOne)
+     if(listTwo.containts(elem)) count++;
+}
+
+
+
+
+
+
+
+
+Invariance & Covariance
+..
+Enusres compile time type safety just like Generics
+
+Example
+class BookMark{}
+class Book extends BookMark{}
+class Movie extends BookMark{}
+
+Here Book and Movie is a sub type of BookMark
+Due to invariance property List<Book> is not a sub type of List<BookMark> and we cannot assign to it.
+
+Problem that can occur
+public void go(List<BookMark> items){
+   items.add(new Movie());
+}
+go(new ArrayList<Book>)
+-We will get compilation error at the invokation of go() method because if we dont get it, the method will insert the movie object into it which
+is valid because Movie is a sub type of BookMark but since method is called with ArrayList of Books, the developer will ensure all Book object
+instead of Movie object. So we can get ClassCastException while retrieving it as Book is not sub type of Movie.
+
+Since generics are invariant, the arrays are covariant which means that,
+Book is a sub type of BookMark
+List<Book> is not a sub type of List<BookMark> but,
+Book[] is a sub type of BookMark[]
+
+Problem that can occur
+public void go(BookMark[] items){
+   items[0] = new Movie();
+}
+go(new Book[1]);
+-No compilation error but we will get runtime exception as ArrayStoreException
+
+The difference between invariant and covariant is that generics helps us in compile time safety as arrays helps in runtime type safety. So
+compile time type safety is better than runtime so prefer Lists over Arrays.
+
+
+Example
+public <T> void arrayToCollection(T[], Collection<T> collection){...}
+
+1) arrayToCollection(new Integer[5], new ArrayList<Number>())
+     .Valid because common super type is Number (T will be Number) and Integer[] can be assigned to Number[] and List<NUmber> to Collection<Number>
+2) arrayToCollection(new Number[5], new ArrayList<Integer>())
+     .Invalid because common super type is Number and NUmber[] can be assigned to Number[] but List<Integer> cannot be assigned to Collection<Number>
+      due to invariance property.
+
+
+
+
+
+
+
+Generic Methods
+..
+-Useful for implementing static utility methods
+-Methods also uses type parameters just like classes to ensure what can be passed and what can be returned from the method
+
+<T1, T2, ...> returnType methodName(T1 a, T2 b, ...){...}
+The type paramter list should be between the method return type and the modifier
+
+Examples From Java
+1) Collections toArray
+     .<T> T[] toArray(T[] a);
+2) Colletions replaceAll
+     .<T> boolean replaceAll(List<T> list, T old, T new);
+     
+When using generic method we also define type parameter <T> and the enclosing class also has the type parameter <T>
+class GenericDemo<T>{
+   <T> void go(T object);
+}
+-In this case the method level type parameter will override the class level type parameter
+-Try to avoid using the same name for both class and method type paramter as it can be confusing
+
+
+
+
+Using bounded type parameters
+<T extends List & Serializable> go(T a){...}
+
+Also method level type parameter can be used with class level type parameter. Invalid for static methods 
+class GenericDemo<E>{
+  <T extends E> void go(T obj){...}
+}
+
+Inferring multiple type paramters
+When using multiple type parameters then then the type paramter will be the most specific common super type among the arguments
+Example
+<T> T go(T a, T b){
+  return T
+}
+Invoking as go("Hello", 1)
+   .One is String and other is Integer so what will be the return type
+   .The common super type is Serializable so Serializable can be used as the return type.
+   
+
+Expilicitly specify Type Arguments
+We rarely used it and when using it we use it as follows
+Give type argument before method name and after the dot (.)
+
+Example
+GenericDemo generic = new GenericDemo();
+generic.<String>go();
+
+
+
+
+
+
+
+
+Bounded Wildcards
+..
+-We use it for increasing Api Flexibility
+We know that generics support invariance and List<Book> is not a sub type of List<BookMark> even if Book extends BookMark
+If we have a function
+void display(List<BookMark> items), then we cannot invoke it with List<Movie> or List<Book>
+
+One solution is to make method overloading such as,
+display(List<Book> items)
+display(List<Movie> items)
+But these methods will be considered as duplicates due to type erasure. In Generics the types are erased
+
+Now 2 solutions are there to handle it
+
+1) Upper bounded wild card
+Example
+void display(List<? extends Bookmark> items){...}
+
+2) Generic method type parameter
+Example
+<T extends Bookmark> void display(List<T> items){...}
+
+
+We also have lower bounded wild card that will accept the super types instead of sub types
+void display(List<? super BookMark> items){...}
+Here we can also invoke it as display(new ArrayList<Object>());
+
+
+Specifics
+1) Lower bound is onyl for the wild card and not for type parameters
+      .<T super BookMark> is Invalid
+2) Wild card can only have single upper or lower bound
+      .<? extends bound1 & bound2> Or <? super bound1 & bound2> is Invalid
+      
+      
+Remeber the rule PECS -> Producer Extends, Consumer Super
+If we use List<? extends Number> which is the producer then we can read the data (list.get) but cannot add it (list.add)
+If we use List<? super Number> which is the producer then we can add the data (list.add) but cannot read it (list.get)
+Use exact match List<T> if you want to both product and consume the data

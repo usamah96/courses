@@ -1,0 +1,27 @@
+Observer
+---
+
+I am watching You.
+
+Motivation
+--
+-We need to be informed when certain things happen
+.Object field changes
+.Object does something
+.Some external event occurs
+-We want to listen to events and notified when they occur.
+-In old fashioned java we used to add the listeners for some event to occur and peform our operation after that
+-Nowadays java now has functional objects. We can wrap our functions in Supplier<T>, Consumer<T> or Function<T> and fire them
+whenever it is necessary
+
+An observer is an object that needs to be informed when some event occurs in the system. The entity generating those events are
+the Observables.
+
+-Example of a Person class where whenever the age field is changed, all the Person observers will get notified.
+-Example of a a Loan on which interest rate is subject to change and when it changes, Loan notifies to 
+Newspaper or Internet media to display a new loan interest rate.
+
+These 2 examples are an old approach. Since lambdas are now introduced we can now implement using Consumers<T> with
+combination of Memento Design Pattern to return the subscription which can be unsubscribed later on.
+
+**Read about Observer<T> and Observable <T> with Rx java support.**

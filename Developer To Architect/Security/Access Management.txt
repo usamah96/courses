@@ -1,0 +1,118 @@
+Security
+--
+
+There are different entities in a Role Based Access Control Model (RBAC)
+  1) User
+     .They are the entities which needs access to the system
+	 .They are identified by specific id
+	 .For administrative purpose, user's are assigned to specific group which contain set of user ids so that a particular permission cannot
+	  be assigned to a whole group (multiple users)
+
+  2) Permission
+     .It is the allowed operation what a user can do in a system
+	 .Like user assigned to a group, a set of permissions can be used as a single Role.
+	 
+  3) Resource
+     .They are the service apis which system exposes to clients/users to consume
+	 
+We can assign a particular permission or a role to single user or only the permission to user group but that is not done generally because it
+is administrative overhead. Instead what is generally done is assigning a set of permissions (role) to set of users (user group). We also
+assign the same role to the resource service apis also so that a particulat set of users can access the system resource.
+In this way we can manage Authorization using RBAC
+
+
+There are 2 authorization schemes 
+
+1) OAuth 2 Authorization
+  ..
+  It is an authorization system designed for distributed system 
+  It separated resource server with authorization server
+  It supports authorization only and not authentication
+  Two types of tokens are supported which are Bearer and MAC
+  Two types of token formats supported which are JWT (Json based) and SAML (XML based)
+  ..
+  
+**Have a look on Spring Security Course for OAuth2 detail**
+
+In OAuth 2 there can be 2 types of tokens
+  1) Bearer Token
+     .This is the type of token which can be used by anyone no matter if that person is authorized client or not
+	 .It requires TLS to securely transfer data because if man in the middle takes out the token he can misuse that.
+	 
+  2) MAC Token
+     .It is a special type of token which is encrypted with a max key (symmetric key)
+	 .The first request will require TLS connection because a set of data is being sent by authorization server to the client which includes
+	  (access_token, refresh_token, expiry, mac_key, max_algorithm). This data needs to be protected from man in the middle.
+     .Also an agreement is done between authorization server and resource server on the encryption algorithm because the access_token is
+      encrypted.
+     .Once the data is received, all subsequent requests can be done without TLS because the attacker cannot do anything still
+     .The data from the sender will be digitally signed with the mac_key (symmetric key) and sent along with access_token in the Authorization
+      header to the server. The server will decrypt the access_token, take out symmetric key and verify the signature of the message.	 
+  
+2) API key
+   ..
+   Not widely used and has specific use cases so will have a higher overview of it
+   The use case is that it is not used to authenticate or authorize user, but it is for the system itself
+   Example => If my system wants to use Google Maps, google map will provide me the api key based on my system's ip address or the domain
+   where my server is running. When the user connects to my system and wants to see some location on google map, my system will request these
+   location using the 'Authorization: ApiKey 123abc' header sent to google map. This key can only be used by my system as it is registered
+   with respect to my domain server or ip address.
+   
+   
+As we know that in JWT the format is {Header}.{Payload}.{Signature}
+The header part stores the type of encryption algorithm used
+The payload part is the actual user related stuff
+The Signature part is encrypted which is digitally signed by the authorization server and verified by resource server when received from
+client.
+The signature part look like this
+  => Enc(base64Encoded(header) + "." + base64Encoded(payload), secret)
+The secret is decided on the encryption algorithm used
+There can be 2 encryption algorithm that can be used 
+  1) HS256 (HMAC with SHA256)
+     .In this, symmetric key is used between authorization server and resource server to verify the digital signtaure
+	 .Need to take greate care because the key is same and if its compromised then attakcer can misuse it.
+	 .This approach can be used with trusted clients and trusted environments only
+  2) RS256 (RSA with SHA256)
+     .In this, public private key is used
+	 .Authorization server signs the signature with its private key
+	 .Resource server verifies it with authorization server's public key
+	 .Can be used in untrusted environemnts.
+   
+The token received from the server, can be saved in many ways on client end but they has some pros and cons.
+  .For Web Clients, the tokens can be stored in browser cookies which is said to be the safest way to store the token because we can make
+   cookies HTTP Only and they wil not be accessible from JavaScripts. Cookies are vulnerable to CSRF attacks but they can be prevented
+   if implemented a good design. Another option is Local Storage which is permanent storage which can be easily accessed by JavaScripts so
+   this option should not be used. It is vulnerable to XSS attacks. Another option can be session storage which is similar to local storage
+   but the data is lost as soon as the browser session is closed.
+  .For Single Page Applications, we can use username and password to authenticate and then store the token in memory temporarily for future
+   requests. Saving in local sotrage is a bad option.
+  .For Mobile Application, we can use KeyStore for Android and KeyChain for IOS.
+  
+  
+Securing Data At Rest (Database Level)
+..
+There are many approaches where can secure our data
+  1) Hashed Password
+     .Passowrds should be hashed when storing inside database
+  
+  2) Transparent Data Encryption
+     .This is something which is provided by the database engine itself
+	 .It is a security feature in which when the data is stored inside the disk, it is first encrypted and then stored. Similarly when the
+	  data needs to be read it is first decrypted and then read.
+	 .If our database system gets compromised then the attacker cannot see what the actual data is
+	 .The key used to encrypt the data is also saved wihtin the database storage files which means that the key needs to be secured also
+	  so that the attacker cannot got hold of that key. For that the key is also encrypted and the key used to encrypt that key is stored
+	  at some other location.
+	 .The drawback of TDE is that it does not provide encryption at client level which means that anybody access to the database can see the
+	  data as database engine will provide decrypted data when queried but if there is some confidential data like patient health record which
+	  should only be seen by the patiend and the doctor and not even to the database administrator then TDE will not support it. For that
+	  we go for Client Data Encryption
+	  
+  3) Client Data Encryption
+     .This needs to be done at the service level
+	 .If a user's SSN needs to be encrypted then the service should encrypt the SSN and then flush it to database
+	 .Similarly when retrieveing, the service should first decrypt it and then return the result.
+	 
+The keys for encryption and decryption should be stored in a key storage system and not on local file system so that they can be
+secured.
+Some operating systems offer secure file systems that are designed to encrypt data and protect the keys used for encryption.

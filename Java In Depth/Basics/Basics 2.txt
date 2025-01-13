@@ -1,0 +1,116 @@
+Basics 2
+--
+
+-Strings are special type of object that is immutable and internally stores the text as a unicode array of characters.
+
+String Comparison Methods
+1) equals: compares the content and return boolean
+2) equalsIgnoreCase: compare the content ignoring the case sensitivity and returns boolean
+3) compareTo: from the comparabale interface and is mainly used for sorting. Compares the string in dictionary order
+
+Example of compareTo in String class
+--
+String s1="hello";  
+String s2="hello";  
+String s3="meklo";  
+String s4="hemlo";  
+String s5="flag";
+
+System.out.println(s1.compareTo(s2));//0 because both are equal  
+System.out.println(s1.compareTo(s3));//-5 because "h" is 5 times lower than "m"  
+System.out.println(s1.compareTo(s4));//-1 because "l" is 1 times lower than "m"  
+System.out.println(s1.compareTo(s5));//2 because "h" is 2 times greater than "f" 
+
+
+String Searching Methods
+1) contains: checks if string includes in another string. Case sensitivity matters
+2) startsWith: checks if string starts with particular string
+3) endsWith: checks if string ends with particular string
+4) indexOf: returns the index of matched character
+5) lastIndexOf: returns the index of last matched character
+
+
+
+String Other Methods
+1) replaceAll: replaces characters with other characters
+2) split: splits on the basis of certain character
+3) trim: excludes leading and trailing whitespaces
+4) substring: fetch part of string. First arguement is inclusive and second argument is exclusive.
+
+
+
+String literals vs String new
+--
+-When strings created using string literals, they are stored in a special type of memory called string pool which is also the part of heap 
+memory.
+-String pools are used to save storage
+-When strings created using the new object, they are treated as the regular java object created outside string pool but inside the heap
+memory.
+-Using new keyword with string does not saves storage.
+
+
+Inside Heap and String Pool
+--
+-There is only a single string pool resides in heap memory
+-String pool contains single copy of string literals as string object
+-Also known as string table
+Example
+String s1 = "hello" -> It will create a new object inside string pool that will contain Hello as text and s1 will reference to it
+String s2 = "hello" -> s2 will reference the same object inside string pool
+String s3 = new String("hello") -> It will create a new object outside string pool within the heap that will point to the object inside string
+pool. s3 will point to the object created outside the string pool.
+
+-Consider the case when heap and string pool both are empty. If we do
+String s = new String("hello")
+Then internally, first the string object will be created inside the string pool with text as hello, then another object will be created
+outside string pool within heap memory that will point to the object inside string pool. s will not point to the object which is outside the
+string pool. So there are 2 objects created at once.
+
+-The whole process of string building is known as String Interning
+How JVM does string interning?
+-When JVM sees strings created using string literals, it does 2 things
+1) Create a new string object with the text as string literal provided
+2) Invoke the intern() method on that created string which will check that if the provided text is inside string pool. If it does then return
+   the existing reference of string pool and the created object will be garbage collected. Else the created object will be added to the string
+   pool and returns it reference.
+   Before calling intern method, JVM checks one more thing. After creating the string object it checks whether previously any intern method
+   was invoked on the provided literal or not. Only then the intern method is invoked.
+-The interning is only done when the value is known at the compile time by JVM
+Example
+..
+String s = "Hel" + "lo" -> This will be interned as value is known and the resulting string will be created inside string pool
+
+String s1 = "lo";
+String s2 = "Hel" + s1 -> Here s1 will not be known by JVM at compiled time so resulting string will not be interned and will be created
+                          outside string pool.
+-We can also called intern() explicitly like,
+s2 = s2.intern() -> This will make s2 inside string pool and previous object will be garbage collected as reference is not hold by any variable.
+                    But this should not be done and it must be JVM's responsibility to do it until and unless the application has very large
+                    usage of string manipulation like NLP.
+
+
+
+Why Strings were made immutable?
+1) For Interning purpose
+-If 2 variables sharing same string, then if one changed it other will not expect the desired result
+
+2) Concurrency
+-Same goes with multiple threads running and accessing the string from string pool. If one thread modifies it then other thread without being
+aware of changed string will not get the desired result.
+
+3) Security
+
+
+StringBuilder vs StringBuffer
+-Both are functionality wise same, StringBuilder was introduced with Java 5
+-StringBuilder is not synchronized, which means if one thread modifies it, other thread can get corrupt value
+-StringBuffer is synchronized and that resulted in slow performance. Not many devs used synchronization with StringBuffer so the builders of
+ java thought to have StringBuilder class much faster than StringBuffer.
+
+
+-For String concatenaton, dont use + operator if strings are large or used in a for loop. Because the + operator first copies the 2 string
+values, create a new StringBuilder and appends the value then return the string via StringBuilder object. So there are several operatons
+performed behind the + operator.
+-Use StringBuilder to combine multiple string and use + operator if strings are few.
+-StringBuilder is found 300 times faster than + operator and 2 times faster than StringBuffer.
+

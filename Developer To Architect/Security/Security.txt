@@ -1,0 +1,18 @@
+Security
+--
+
+In our application there are different security concerns.
+In our enterprise level application, we need to make sure that,
+  .We have the identity of the client 
+  .Not everyone should be allowed in our system and only the intended user should be allowed
+  .Clients are connecting to correct server
+  .Data transmission between and client and server should be confidential and no body should access it over the network
+  .Clients should be allowed to do activities for which they have been authorized to
+  .Like clients cannot access everything on server, the services should also not be able to access other services for which they are not
+   authorized to. Example => catalog-service should not access order-service because there is no need to.
+  .Internal data transmission should be secure and should only be accessed by the service for which it is intended to send.
+   Example => catalog-service should not be able to access data relevant to auth-service
+  .How password are stored in the system like service needs to access database that requires password
+  .How does client securely stores tokens that helps accessing the server
+  .Client does not authenticate again and again for accessing different parts of system (single sign on)
+  .Common security vulneberalities are catered (CSRF, Sql Injection, XSS, etc)

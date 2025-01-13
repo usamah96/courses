@@ -1,0 +1,56 @@
+Handling Traffic with Ingress Controller
+--
+
+Now with everything setup, we now want the outside world come into our application and that can happen with LoadBalancer and Ingress.
+
+The LoadBalancer is a legacy wat of getting network traffic into a cluster. With LoadBalancer, we need to create a config for it with type Service and subType 
+LoadBalancer and with it we can only get access to a single pod at a given time. For exposing multiple pods to outside world, we need to setup another LoadBalancer
+config and attach to the pod. Also with LoadBalancer service, Kubernetes does some behnid the scene work and also create a LoadBalancer service into our cloud provider.
+So if we are using AWS as our Cloud Provider, Kubernetes will create a ALB service behind the scenes according to its configuration and then configure it 
+to be used by the cluster.
+This is why we don't use LoadBalancer service now anymore but instead Ingress is sued which is a newer way of exposing set of services to outside world.
+
+There are many implementations of ingress in the world of kubernetes and we will be using the Nginx Ingress implementation.
+This is a project led by kubernetes with name "ingress-nginx". There is also an ingress supported by the nginx community with name "kubernetes-ingress" which is 
+a completely different project but does the same things.
+
+The setup of ingress-nginx changes depending upon the environment we are using like local, Google Cloud, Aws or Azure.
+
+So, we will create an ingress config file which will some set of routing rules between our services and feed it into kubectl. Kubectl will take this config and 
+create an Ingress Controller out of it. The job of Ingress Controller is to create an architecture inside of the cluster that will accept incoming traffic and 
+also check if the traffic is obeying the routing rules defined in the config file.
+
+Deploying ingress controller using docker desktop
+Link => https://kubernetes.github.io/ingress-nginx/deploy/#quick-start
+
+For minikube, we can go to ingress controller for kubernetes documentation and enable the addon using the command.
+Link => https://kubernetes.github.io/ingress-nginx/
+
+Writing the ingress config yaml file,
+..
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+ name: ingress-service
+ annotations:
+  kubernetes.io/ingress.class: nginx
+  nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+ rules:
+  - http:
+     paths:
+	  - path: /
+	    backend:
+		 serviceName: client-cluster-ip-service
+		 servicePort: 3000
+	 - path: /api/
+	   backend:
+	    serviceName: server-cluster-ip-service
+		servicePort: 5000
+..
+The kubernetes.io/ingress.class: nginx refers to the nginx project we want to use
+The nginx.ingress.kubernetes.io/rewrite-target: / refers to that we want to remove anything comes after the base path defined in the rules. So if path comes with 
+/api then route this to multi-server module and also rewrite the path to remove /api and replace with just /
+
+After that we can execute the kubectl apply command and the configuration is done. We can now access localhost or minikub ip to view our complete project
+in dev environment.

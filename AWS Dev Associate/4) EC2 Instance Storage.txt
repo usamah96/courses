@@ -1,0 +1,250 @@
+EC2 Instance Storage
+--
+
+EC2 provides us different options for storages
+
+1) EBS
+    .Elastic Block Store is a network drive (not a physical drive) that is attached to the EC2 instance
+	.This can store data even if the instance is terminated. So the same data can be mounted when the instance is restarted
+	.They can be mounted to one instance at a time
+	.They are bounded by availability zones. So an EBS volume in one zone can not be mounted with instance present in another zone
+	
+	
+In free tier we get 30GB of free EBS storage of type General Purpose (SSD)
+
+Since EBS is a network drive, there might be a bit of latency when connecting EC2 instance to the network drive as it uses the
+network to communicate with the instance. It can also be detached from one EC2 instance and attach into another EC2 instance since
+it is a network drive and can be effectively used for fail-overs.
+
+To move EBS drive from one AZ to another AZ, we have to take the snapshot of it.
+
+By default we get a Root EBS volume when we create an instance and we can attach multiple EBS volume to the same instance
+after creating it manually. By default, the Delete on Termination property is set to true for Root EBS volumne which means that
+the EBS volume will be destroyed once the EC2 instance is terminated. All other volums other than Root will be false by default
+and can be turned on or off based on requirement.
+and can be turned on or off based on requirement.
+
+EBS Snapshots
+..
+We can also backup our EBS data with the help of EBS Snapshots. It is recommended that whenever we do a EBS snapshot, we 
+always detach it from EC2 instance but it is not necessary.
+
+If we want to move data from one AZ to another AZ then we must create EBS Snapshot, copy all the data from source AZ's EBS and 
+then restore all data to destination AZ's EBS.
+
+Features
+  .We can move the snapshot to "archive tier" which is 75% cheaper. It takes around 24 to 72 hours at the time of restoring
+  .We can create a recycle bin for snapshots so at the time of deletion of snapshot, it is not permanently deleted, but is 
+   kept in a recycle bin for later restoration. The time duration is from 1 day till 1 year.
+   
+   
+Hands On
+***
+
+On our EC2 instance, we can go to Storage option where we can see the Root EBS volume attached. We can go to EBS service and
+create multiple EBS drives. To attach volume to the instance we can click on specific EBS volume, click on Actions and click on
+Attach Volume where we can specify the EC2 instance. The EC2 instance dropdown will show all the instance present in that specific
+AZ where the volume is created in.
+
+FOr taking snapshot, we can click on Actions and Create Snapshot which will create a sapshot of it in the snapshots section.
+We can see the snapshots section under EBS section on left sidebar. Once the snapshot is created we can re-create the volume 
+back from snapshot and this time we can choose a different region. This will result in copying EBS drive from one to another.
+Also, we can copy snapshot from one region to another in case if a disaster occurs in one of the AZ so we have the snapshots
+in other AZ.
+
+When we create the snapshots, we can see in the snapshots section a button for Recycle Bin. After clicking on that we are able
+to create a Recycle Bin for our EBS snapshots. Now whenever we delete a snapshot, it will automatically go into the recycle bin.
+To transfer the snapshot into archive tier due to pricing issue, we can click on snapshot, actions and then clicking on 
+archive snapshot.
+***
+
+
+EBS Volume Types
+  1) gp2 / gp3 (SSD), General purpose SSD volumes that balances performance and prices
+  2) io1 / io2 Express (SSD), Highest performance SSD volumes gor high throughput and low latency workloads
+  3) st 1 (HDD), Low cost HDD volumes for frequently accessed, throughput intensive workloads
+  4) sc 1 (HDD), Lowest cost HDD volumes designed for less frequent access workloads.
+  
+  
+EBS volumes are characterized into Size, Throughput and IOPS.
+In our EC2 instances, only gp2/gp3 and io1/io2 volumes can be used as boot volumes where our root OS is running
+
+
+General Purpose SSD
+  .They are cost effective and low latency volumes
+  .Can be used as sytem boot volumes, virtual desktops, dev and test environments
+  .The storage can be scaled from 1 GB till 16 TB
+  The 2 types are 
+    a) gp2
+	    .It can burst IOPS till 3000 and the size of volume and IOPS are linked together
+		.The max IOPS we can get is 16000
+		.So if we get 3 IOPS per GB then we can get max IOPS at approx 5334 GB
+    b) gp3
+	    .It is the newer version of gp2
+		.The baseline is of 3000 IOPS and a throughput of 125 MB/s
+		.The IOPS and throughout are not linked are can be increased independently.
+		
+		
+Provisioned IOPS (PIOPS) SSD
+  .Used for critical business applications with sustained IOPS performance
+  .Can be used for applications that need more than 16000 IOPS
+  .Great for database workloads
+  .The 2 types are
+    a) io1
+	    .Storage can be from 4GB till 16TB
+		.We can get Max IOPS of 64000 for Nitro EC2 instances and 32000 Max IOPS for other types.
+		.IOPS can be increased independently from storage.
+    b) io2 Block Express 
+	    .Storage can be from 4B till 64TB
+		.We can get Max IOPS of 256000 with IOPS:Storage ratio of 1000:1
+		
+		
+Hard Disk Drives (HDD)
+  .Cannot be used for boot volumes
+  .Can get from 125GB till 16TB of storage
+  .The types are
+    a) st 1
+	   .It is a throughput optimized HDD
+	   .Can be used for data warehousing, log processing, big data
+	   .We can get max throughput of 500MB/s and 500 IOPS
+    b) sc 1
+	    .Can be used for data that is not frequently access like data that is archived.
+		.Where low cost is important
+		.We can get max throughput of 250MB/s and 250 IOPS.	
+		
+		
+We have one more additional feature for the io1 and io2 family which is EBS Multi Attach
+We know that we cannot attach an EBS volume to multiple instances but with EBS io1/io2 we can do this
+The instances must be in the same AZ and the max number of instance can be attached with io1/io2 EBS volume are 16
+Each istance has full permission for reading and writing to this volume
+One of the use case can be to achive high application availability in a clustered linux environment.
+
+
+
+AMI
+..
+AMI is Amazon Machine Image. They are the customization of an EC2 instance. We can add our own softwares, configuration, scripts,
+operating system and all these stuff into our EC2 isntance through AMIs. It helps faster booting as all our softwares that we need
+in our instance are pre-packaged into AMI.
+
+AMIs are build for specific regions and can be copied across different regions.
+We can launch EC2 instance from,
+  .A Public AMI, it is provided by AWS which is the default behaviour
+  .Own AMI, it is to be created by the user itself and need to be maintained by the user too
+  .AWS Marketplace, where we can purchase any AMI created by some external organization or user to save time.
+  
+  
+Hands On
+***
+
+We will create an EC2 instance with some initial user data script that contains command to install apache web server and httpd
+server. Once the instance is created we can click on instance and by right clicking on it we chose Create Image button. After
+creating the image it will appear in the AMI section under My Images.
+
+Now we can click on AMI and click on Launch Instance from AMI which will ask everything that it asks to create an EC2 instance.
+We can leave the user data script here and then just type echo hello world that will be served from the httpd server and apache
+web server that will come from the AMI itself.
+
+The booting of EC2 instance will comparitively be fast since apache web server and httpd server was installed and packaged 
+when we created the first EC2 instance.
+
+***
+
+
+
+2) EC2 Instance Store
+    .We know that EBS volumes are network drives and they are good but limited to performance.
+	.For high performance hard disk, we can use EC2 isntance store which is the actual hard drive attached to this virtual server.
+	.It gives better I/O performance
+	.When instance is stopped, all the data is lost
+	.This is good for buffers, cache and temporary content
+	.There is a risk of data loss if hardware fails
+	.It is the user's responsibility to backup and replicate Instance Store time to time.
+	
+EC2 Instance Store gives very high IOPS (Input Output Per Second) compare to EBS volumes. THe maximum IOPS we get is 3.3 million
+read I/O per second and 1.4 million write I/O per second in i3.16xlarge instance type.
+
+
+
+3) EFS 
+    .Elastic File System is a Managed NFS (Network File System) that can be mounted on multiple EC2 isntances inlike EBS
+	.The instances can also exists in multiple AZs.
+	.It is highly available, scalable and expensive. The cost is 3 times than that of EBS gp2 volume.
+	.The use cases can be Content Management, Web Serving, Data Sharing
+	.It is only compatible with Linux AMI and not available for windows
+	
+	
+EFS Performance and Storage Classes
+
+Performance Mode
+We can set performance mode at the EFS creation time
+  .General Purpose. it is enabled by default and is used for latency sensetive use cases (Web Servers, CMS, etc)
+  .Max I/O, used for max throughput and high latency (big data, media processing)
+  
+Throughput Mode
+   .Bursting, in which we get 1TB of storage with 50MB/s. The burst can be done upto 100MBs
+   .Provisioned, when we dont want to link storage with throghput like 1TB of storage data with 1GB/s
+   .Elastic, automatically scale throuput up and down based on workload. A great pck when we have unpredictible workload
+   
+Storage Classes
+  .Storage Tiers, it is a lifecycle management feature we we move files to a different tier after few days. There is a 
+   standard tier for frequently accessed file. Also we have Infrequent Access Tier (EFS-IA) where we define a life cycle policy
+   of files, means that in EFS Standard if we have a file which is not accessed for 60 days then it is moved from EFS standard
+   to EFS-IA. The storing files on EFS-IA is cheaper than that of EFS standard but we want to pay the price if we want to
+   retrieve the filed from EFS-IA.
+  .Availability and Durability, we have 2 options for it
+    a) Standard, where we can set EFS to be multi AZ which is great for production environment. If one AZ is down then it will
+	   not effect the EFS
+	b) One Zone, which is good for Dev and Test environment. The backup is by default enabled 
+	
+	
+	
+HandsOn
+***
+
+FOr creating EFS, we can go to EFS service and create a file system
+Give a name to it and then we can choose following options to configure it
+  .Chose a file system type either regional (standard) or single zone
+  .Add a life cycle policy to transfer the files into archive tier if not accessed for certain period of time
+  .Choose a throuput mode and the recommended approach is to chose elastic so that we can dynamically scale it
+  .Choose a performance mode of general purpose as it is also recommended.
+  
+We only pay for what we store. The more storage we store, the more we pay for it.
+
+Next in the network settings we create a separate security group for EFS and assign to all the availability zones to that group.
+We leave the file system policy and create the EFS.
+
+Next when we launch the EC2 instance, we can attach the EFS to it. In the configure store section we can see 0xFile Systems
+written and we can click on edit button and choose EFS. Now to select specific EFS which we created we need to first edit the
+EC2 network settings by assigning a VPC subnet according to the zone
+After that we are able to choose the EFS and the mount point location in our EC2 instance which can be for example: /mnt/efs/fs1
+
+After launching the instance we can ssh into it and go to location "/mnt/efs/fs1" to create any files for storage.
+
+Similarly we can launch another instance with different VPC subnet according to zone and attach the same EFS to it.
+Now when we create a file lets say test.txt from EC2 Instance 1 in /mnt/efs/fs1 location, we can see the file test.txt from
+EC2 instance too because the instance are in different zones but EFS storage is shared between them.
+
+One more ineteresting point is that,
+When we created instance and assigning EFS into it, AWS created 2 security groups for us. One with name efs-sg-1 which is
+assigned to EFS and one with name instance-sg-1 which is assigned to our EC2 instance. The inbound rule for efs-sg-1 is 
+created to accept the request from instance-sg-1 to tell the group that the EC2 instance can access this EFS storage.
+
+***
+
+
+EBS vs EFS
+..
+For EBS,
+  .We can attach it to one instance except for io1/io2 multi attach case
+  .Are restricted to one AZ
+  .In gp2, the IO increases if the disk size increases
+  .In gp3, IO and disk size can increase separately
+  .For migration we need to take snapshot and restore the snapshot into other AZ. We should not run backups while our application
+   is handling alot of trrafic because backups need more IOs.
+  .Root EBS volumes get terminated when EC2 instance gets terminated and we can disable this default behaviour.
+  
+For EFS,
+  .With one EFS, we can mount multipe targets to different EC2 instances in different AZs
+  .Available only for Linux as it used POSIX system
+  .We can leverage Storage Tiers for cost savings.

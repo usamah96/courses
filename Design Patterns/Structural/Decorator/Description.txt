@@ -1,0 +1,43 @@
+Decorator
+---
+
+Adding the behavior without altering the class itself.
+
+Motivation
+..
+-Want to increase our object with additional functionality
+-Dont want to modify existing classes (break OCP)
+-Want to keep new functionality separate (following SRP)
+
+-Inherting from classes are Ok but some classes are final like String class we cannot inherit and extend our functionality.
+
+Example 1
+..
+For example we want to extend the String class functionality and create a method to calculate the number of vowels in a string
+Since String is a final class, we cannot inherit from it so we have to delegate all calls to string with aggregation and then
+create our own method.
+
+Example 2
+..
+Lets say we have multiple shapes like circle and square and we want to decorate it multiple with colors and transparency
+We will haves simple shape interface that will be implemented by multiple shapes and then to decorate it we will create
+decorators like TransparencyDecorator, ColorDecorator etc ...
+
+In this way we can have multiple examples like
+-In a pizza factory we have 4 to 5 basic pizzas and then we can have decorators for different toppings and calculate cost
+-In an encrption module we want to encrypt data using AES algorithm or DES algorithm or first AES then DES or first DES then
+DES or any other algo combination.
+
+Example 3
+..
+We can also define the types at compile time also by the usage of supplier. (Refer static decorator composition)
+
+
+Example 4
+..
+We can also make adapter-decorator which is the combination of Adapter and Decorator Pattern
+Like so if we are making our own StringBuilder class we can aggregate all methods of StringBuilder since the class is final and
+we cannot extend it and also we want our custom StrinBuilder to perform the regular concat operation also like String does.
+So we can make a function that internally calls String's concat method and return the fluent interface of our custom
+StringBuilder.
+

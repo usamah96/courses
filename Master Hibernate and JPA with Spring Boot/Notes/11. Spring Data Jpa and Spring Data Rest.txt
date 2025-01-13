@@ -1,0 +1,46 @@
+Spring Data Jpa and Spring Data Rest
+--
+
+-Spring Data provides simple abstraction to be able to access any kind of data
+-Spring Data Jpa is a Jpa specific implementation of Spring Data
+
+
+Basic CRUD operations in JpaRepository
+
+
+Sorting
+--
+Sort sort = new Sort(Sort.Direction.DESC, "name")
+repository.findAll(sort);
+
+Adding multiple sorts
+Sort sort = new Sort(Sort.Direction.DESC, "name").and().and()...
+
+
+Pagination
+--
+PageRequest page = PageRequest.of(0,3) -> pageNumber and size
+Page<Course> firstPage = respository.findAll(page);
+
+Get the second page
+Pageable secondPageable = firstPage.nextPageable();
+Page<Course> secondPage = repository.findAll(secondPageable)
+
+
+
+Custom Queries
+--
+Queries using Jpql, native or named query
+
+@Query("Select c From Course c") -> Jpql
+@Query(value = "Select * From course", nativeQuery = true) -> native
+@Query(name = "query_with_like") -> named query
+
+
+
+Spring Data Rest
+--
+-We can directly expose our repository method using spring data rest
+-Add the dependency spring-data-starter-rest in pom
+-Annotate the repositor with @RepositoryRestResoirce(path = "/course")
+-Now we can directly access repo methods using browser as well

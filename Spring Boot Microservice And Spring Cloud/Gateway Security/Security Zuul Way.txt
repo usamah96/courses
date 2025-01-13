@@ -1,0 +1,47 @@
+public class AuthorizationFilter extends BasicAuthenticationFilter {
+
+    AuthorizationFilter(AuthenticationManager authenticationManager){
+        super(authenticationManager);
+    }
+
+    @Override
+    public void doFilterInternal(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws IOException, ServletException {
+
+        String token = req.getHeader("Authorization");
+        if(token == null) chain.doFilter(req, res);
+
+        UsernamePasswordAuthenticationToken authenticationToken = getAuthentication(req);
+        SecurityContextHolder.getContext().setAuthentication(authenticationToken);
+        chain.doFilter(req, res);
+    }
+
+    private UsernamePasswordAuthenticationToken getAuthentication(HttpServletRequest req){
+        String token = req.getHeader("Authorization");
+        if(token != null){
+            String userId = Jwts.parser().setSigningKey("abc123def456").parseClaimsJwt(token).getBody().getSubject();
+            if(userId != null) return new UsernamePasswordAuthenticationToken(userId, null, new ArrayList<>());
+            else return null;
+        } else return null;
+    }
+}
+
+
+@Configuration
+@EnableWebSecurity
+public class WebSecurity extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity httpSecurity) throws Exception {
+        httpSecurity.csrf().disable();
+        httpSecurity.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+
+        httpSecurity.authorizeRequests().antMatchers("user-service/h2-console").permitAll()
+        .antMatchers("user-service/user/save").permitAll()
+        .antMatchers("user-service/login").permitAll()
+        .anyRequest().authenticated()
+        .and()
+        .addFilter(new AuthorizationFilter(authenticationManager()));
+
+        httpSecurity.headers().frameOptions().disable();
+    }
+}

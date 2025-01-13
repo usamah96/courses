@@ -1,0 +1,51 @@
+import java.util.*;
+import java.util.function.Consumer;
+
+interface ValueContainer extends Iterable<Integer> {}
+
+class SingleValue implements ValueContainer
+{
+    public int value;
+
+    public SingleValue(int value)
+    {
+        this.value = value;
+    }
+
+    @Override
+    public Iterator<Integer> iterator() {
+        return Collections.singleton(value).iterator();
+    }
+
+    @Override
+    public void forEach(Consumer<? super Integer> action) {
+        action.accept(value);
+    }
+
+    @Override
+    public Spliterator<Integer> spliterator() {
+        return Collections.singleton(value).spliterator();
+    }
+}
+
+class ManyValues extends ArrayList<Integer> implements ValueContainer {
+}
+
+
+class MyList extends ArrayList<ValueContainer>
+{
+    private static int sum = 0;
+    public MyList(Collection<? extends ValueContainer> c)
+    {
+        super(c);
+    }
+
+    public int sum()
+    {
+        sum = 0;
+        forEach(c -> {
+            c.forEach(v -> sum += v);
+        });
+        return sum;
+    }
+}

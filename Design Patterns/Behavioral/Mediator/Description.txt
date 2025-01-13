@@ -1,0 +1,38 @@
+Mediator
+---
+
+Facilitates (enable) communication between components by letting the components be un aware of each others presence
+
+Motivation
+--
+-Component may go in and out of a system at any time
+Example of chat room participants where users can be online and offline at any time so there is no point of
+making direct reference of user to one another. We can have a central component (mediator) that enables 
+communcation to all of them.
+
+-So a mediator is a component that facilitates communication between other components withour them necessarily
+being aware of each other or having direct access to each other.
+-The intent of the Mediator Pattern is to reduce the complexity and dependencies between tightly coupled 
+objects communicating directly with one another.
+
+-Example of a Chat Room
+
+-Example of Reactive Extension where we make observables and its subscription through mediator.
+
+-The control tower at a controlled airport demonstrates this pattern very well. The pilots of the planes 
+approaching or departing the terminal area communicate with the tower rather than explicitly communicating with 
+one another. The constraints on who can take off or land are enforced by the tower.
+
+-In Unix, permission to access system resources is managed at three levels of granularity: world, group, and owner.
+A group is a collection of users intended to model some functional affiliation. Each user on the system can be a 
+member of one or more groups, and each group can have zero or more users assigned to it. If we were to model this 
+in software, we could decide to have User objects coupled to Group objects, and Group objects coupled to User 
+objects. Then when changes occur, both classes and all their instances would be affected.
+An alternate approach would be to introduce "an additional level of indirection" - take the mapping of users to 
+groups and groups to users, and make it an abstraction unto itself. This offers several advantages: Users and 
+Groups are decoupled from one another, many mappings can easily be maintained and manipulated simultaneously, 
+and the mapping abstraction can be extended in the future by defining derived classes.  
+
+Mediator vs Observer
+-If we have relationship many to many then use mediator
+-If we have relationship one to many then use observer.

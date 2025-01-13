@@ -1,0 +1,118 @@
+Security
+--
+
+Authentication vs Authorization
+ .Authentication refers to 'Who You Are'
+ .Proves one's identity and that identity can be in the form of id, name, organization, etc
+ .Authorization refers to 'What You Can Do'
+ .It ensures what services one can perform inside the system 
+ 
+ 
+About Authentication
+..
+In authentication, there are several features that are important like,
+  .What is stateless and stateful authentication
+  .How credentials are transfered
+  .How credentials are verified
+  .How credentials are saved
+  .etc
+  ..
+  ..
+  ..
+  
+Regarding credentials transferring, there are mainly 4 ways how a credential can be transfered.
+  1) HTML Form
+     .It is directly communicated with the client and a user is presented with a form to input username and password.
+	 .These information is transferred to server using the POST method
+	 .In most cases, this approach is used using secure connection over SSL/TLS like an ecommerce system.
+	 
+  2) HTTP Basic
+     .It can be used directly by the client/browser and also programmatically also.
+	 .The username and password is encoded with base64 string separated by colon in this format => base64(username:password) and is sent
+	  in reuqest header with 'Authorization' key
+	 .If a user request for some resource to server and is not authenticated, the server will respond back with 403 forbidden error along
+	  with 'WWW-Authenticated: Basic' header which means that basic authentication is required to access this resource.
+	 .This approach should also be used using SSL/TLS
+	 
+  3) Digest Based
+     .This is similar to HTTP Basic but the only difference is how the credentials are hashed.
+	 .Instead of a base64 string, the username, password and other important piece of information like realm are being hashed using any
+	  hash algorithm like MD5 and transferred using HTTP POST method
+	 .If using SSL/TLS, then there is no difference between HTTP Basic and Digest Bsed.
+	  
+  4) Certificate Based
+     .In this, the certificates are being transferred by client and server instead of actual credentials
+	 .This approach is not that much practical and not used in application such as ecommere because client can be anybody.
+	 .The approach is same as discussed in digital certificate but the flow is reversed. Here client generate certificate using trusted
+	  CA and sent to server and then server will verify the certificate in order to authenticate the client.
+	 .It provides a higher level of security than other authentication methods because it relies on the use of public-key cryptography to 
+	  authenticate clients.
+	 .It is commonly used in enterprise environments, such as VPNs and web applications that require strong authentication, as well as in 
+	  government and military applications where security is paramount. It can be used in conjunction with other authentication methods, such as 
+	  username and password or multi-factor authentication, to provide an additional layer of security.
+	 
+	 
+The user authorization related information can be user_id, name, roles, groups, etc
+Other information could be user_organization, address, contact, etc
+These credentials and these types of data can be stored in many ways
+  1) File Storage
+     .This approach not scalable and can only be used if the application is very simple
+
+  2) Databases
+     .This is the best approach when developing an application which will face external clients.
+	 .We can use RDBMS or NoSql database
+	 .NoSql can scale easily and provide the best performance.
+
+  3) LDAP/Directory Server
+     .This is a complex approach and is ususally preferred when the application developed does not face external client
+     .The users are for a specific company belonging to a specific department
+     .Major use case is when there are heavy read loads. The database is designed in a hierarhical fashion according to the organization
+      hierarchy	 
+	  
+	  
+Stateful Authentication
+..
+In stateful authenticaion, the user is authenticated and is remembered using the session id.
+The flow is,
+  When the user wants to authenticate, he will provide credentials to the web applications
+  The Web App will communicate with backend server to authenticate.
+  One the user is successfuly authenticated, the backend service will respond back with OK response
+  The Web App will now generate a session_id and provide it to the client using response header
+  The Web App will also store the session id in its memory to verify the user for the next incoming requests
+  The client/browser will store that session id in cookies so that the session id is automatically sent to the Web App the next time user
+  request for something
+  
+This flow has few limitations related to scalability
+  1) The Web Application cannot be scaled because all the session ids are stored in its memory. At one point in time the memory will be full
+     due to many number of authenticated users will be there which means that horizontal scaling should be there to distribute the load.
+	 But as discussed in scalability section, if a particular user is authenticated by instance 1 of Web App and next time the same user 
+	 requests comes at instance 4, then the session will not be recognized. The solution for that is to use a common session cache installed
+	 as a separate component where all Web App instances will verify the sessions. It will introduce a new costly component which will also
+	 need to be managed and monitored.
+  2) All the authentication related stuff is being centralized. All the requests will have to go via Web App to verify the sessions. If able
+     particular client/service needs to communicate directly to the service for any purpose then it will not be possible.
+	 
+However one advantage is that if the session_id is compromised in someway that it can be directly revoked from the backend.
+Another advantage is that, it provide a more seamless user experience because the server can maintain information about the user's 
+preferences, settings, and activity history. This can enable the server to personalize the user's experience, provide relevant 
+recommendations, and maintain the user's context across multiple requests.
+
+
+
+Stateless Authentication
+..
+In this approach, the flow is similar and the only difference is that when the user is successfuly authenticated, the backend server
+generates a token which is sent to Web Application which sends back to the client. This token has all the neccessary user information 
+like id, name, roles, groups, etc. The token can be stored in a browser cookie for future requests.
+Next time the user wants to communicate, it can directly send the request to any business service which can verify the token and forward
+the request. If we provide the token verification at a place like Gateway Service then it will be a centralized approach. Decentralized
+Authentication leads to better scalability.
+
+With this approach, we have removed the centralized authentication and also the costly session cache is also removed as these were the 
+limitations in stateful authentication.
+
+The issue will be related to token revokation if the token is compromised. For that we can make a list of revoked token that can be accessed
+by the gateway service before forwarding the request but that will make it a centralized store which is not that bad.
+
+Stateless Authentication also helps in Single Sign on Feature as with the Bearer token, we can connect to any business service or
+application within an organization that will validate the token on their behalf and forward the request.

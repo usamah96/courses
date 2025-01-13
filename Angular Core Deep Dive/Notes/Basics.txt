@@ -1,0 +1,115 @@
+NgFor All features
+
+*ngFor="let course in courses; index as i; first as isFirst; last as isLast; even as isEven; odd as isOdd"
+use trackby for optimization when needed
+
+
+
+
+NgIf All Features
+
+<img [src]="course.imageUrl" *ngIf="course.imageUrl else #noImage" />
+<ng-template #noImage> <p> No Image </p> </ng-template>
+
+Using ngIf with an alias
+let arrayObj = [ {"id": "1", "name": "Usama"}, {"id": "2", "name": "Abubakar"} ]
+<div *ngIf="arrayObj[0] as firstObj"> {{ firstObj.name }} </div>
+
+
+
+
+NgClass All Features
+-3 ways to apply ngClass
+  .By String
+  .Array
+  .Configuration Object
+-Classes which are fixed should stick with 'class' property
+-Classes which are dynamic should be used woth ngClass directive
+
+Consider the class
+.begginer{ background: lightsalmon }
+
+By String
+  [ngClass] = "'beginner otherClass'"
+By Array
+  [ngClass] = "['beginner', 'otherClass']"
+By Configuration Object
+  [ngClass] = {'beginner': true, 'otherClass': true}
+
+It is recommended to use ngClass with a function like,
+[ngClass] = "applyClasses()"
+applyClasses(){
+  //Eg1 if(this.course.category == "BEGINNER") return 'beginner'
+  //Eg2 if(this.course.category == "BEGINNER") return ['beginner']
+  //Eg3 if(this.course.category == "BEGINNER") return {'beginner': true}
+}
+
+
+
+
+
+NgStyle All Features
+-Takes a configuration object
+..
+Without angular approach
+  [style.text-decoration] = "'underline'"
+With angular approach
+  [ngStyle] = "{'text-decoration': 'underline'}"
+
+*Use ngClass more often than ngStyle
+
+
+
+
+NgSwitch All Features
+<div [ngSwitch]="course.category">
+  <div *ngSwitchCase="'BEGINNER'"> Beginner </div>
+  <div *ngSwitchCase="'INTERMEDIATE'"> Intermediate </div>
+  <div *ngSwitchCase="'ADVANCED'"> Advanced </div>
+  <div *ngSwitchDefault> All levels </div>
+</div>
+
+
+
+
+NgContainer All Features
+-Consider it as a wrapper for applying structural directive
+-If you find yourself to wrap DOM elements under a certain condition than use ng-container because it prevents
+creating extra DOM element to which the structura directive is applied
+..
+Instead of this,
+<div *ngIf="course">
+  ...
+  ...
+  ...
+</div>
+Use this,
+<ng-container *ngIf="course">
+  ...
+  ...
+  ...
+</ng-container>
+
+
+
+
+Angular Pipes
+-date
+-uppercase
+-lowercase
+-titlecase
+-number
+-number: '3.3-5' (3 integer digits, fractional digits -> min 3 and max 5 ) eg: 9.99 -> 099.990
+-currency -> $ by default
+-currency: 'EUR'
+-percent -> Converts the number into percentage eg: 0.63 -> 63%
+-slice -> Slices the array eg: ngFor="let course of courses | slice:0:2" -> will only display 0th and 1st element
+-json
+-keyvalue -> Used to iterate through key value pairs of object
+  eg: let obj = {"name": "Usama", "age": 24}
+  <div *ngFor="let pair of course | keyvalue">
+    {{ pair.key + ': ' + pair.value }}
+  </div>
+  Output: 
+    name: Usama
+    age: 24

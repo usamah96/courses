@@ -1,0 +1,46 @@
+Lazy Initialization And Thread Safety
+----------
+
+class LazySingleton{
+  private static LazySingleton instance;
+
+  private LazySingleton(){}
+  private static LazySingleton getInstance(){
+    if(instance == null) instance = new LazySingleton();
+    return instance;
+  }
+}
+
+-This is not thread safe
+
+Using the synchronized keyword
+..
+class LazySingleton{
+  private static LazySingleton instance;
+
+  private LazySingleton(){}
+  private static synchronized LazySingleton getInstance(){
+    if(instance == null) instance = new LazySingleton();
+    return instance;
+  }
+}
+
+-Thread safe but have to compromise performance
+
+Using double check locking
+..
+class LazySingleton{
+  private static LazySingleton instance;
+
+  private LazySingleton(){}
+  private static LazySingleton getInstance(){
+    if(instance == null){
+      synchronized(LazySingleton.class){
+        if(instance == null) instance = new LazySingleton()
+      }
+    }
+    return instance;
+  }
+}
+
+-Not recommended as it is outdated

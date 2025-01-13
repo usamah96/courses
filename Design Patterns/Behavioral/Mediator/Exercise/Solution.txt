@@ -1,0 +1,33 @@
+class Participant
+{
+    public int value = 0;
+    private Mediator mediator;
+    public Participant(Mediator mediator)
+    {
+        this.mediator = mediator;
+        this.mediator.addParticipant(this);
+    }
+
+    public void say(int n)
+    {
+        this.mediator.broadcast(n, this);
+    }
+    public void increaseValue(int n){
+        this.value += n;
+    }
+}
+
+class Mediator
+{
+    private List<Participant> people = new ArrayList<>();
+
+    public void broadcast(int value, Participant p){
+        for(Participant part : people){
+            if(part != p) part.increaseValue(value);
+        }
+    }
+
+    public void addParticipant(Participant p){
+        this.people.add(p);
+    }
+}

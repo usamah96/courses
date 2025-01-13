@@ -1,0 +1,138 @@
+Onwards to Kubernetes
+---
+
+What is Kubernetes and Why we need it?
+
+Consider the docker multi container application which is deployed over aws elastic beanstalk with client, server and worker. If in future we receive a lot of traffic and we need 
+to scale the application. Typically what we need to scale is the worker module because all the load will be on that container. Without kubernetes what elastic beanstalk 
+autoscaling will do is that look into Dockerrun.aws.json file and launch another piece of multi containers and there can be multiple multi-containers environment running 
+with a Load Balancer behind them. That is what we dont need because it will create another client and server module too.
+
+Here Kubernetes comes into action when we need different sets of containers running on different machines, like machine 1 is running 3 worker containers, machine 2 is running 
+client and server containers. All these machines are call Nodes and these Nodes are managed by one Master nodes. If more worker containers are needed, we just send a instruction
+to master node and it will launch just worker container in node 1. All these nodes/machines are backed by load balancer which receive request from actual client.
+
+All those nodes and with master node form a Kubernetes Cluster.
+
+So in short, kubernetes is a system for running many different containers over multiple different machines and it is needed when you need to run many different containers with different 
+images.
+
+Now, in development mode, we usually use a kubernetes command line tool which is called Minikube which helps running kubernetes cluster in our local system. For production env,
+we usually make use of any 3rd party service like Amazon Elastic Kubernetes Service (EKS) or Google Cloud Kubernetes Engine (GKE) and also we can do it ourselves too.
+
+So what minikube does is that it will create a node (a virtual machine) that will run containers inside of it. TO interact with this node we will use kubectl program which is used
+to manage containers in the node.
+So minikube only runs in local environment and not in production while kubectl will be used in production env too when creating clusters in aws or google cloud. We can also use 
+Docker Desktop's Kubernetes client too which is used to manage the VM itself just like minikube.
+
+We can simply enable kubernetes from docker desktop and it will install all the relevant stuff for us. After the installation, we can open terminal and run kubectl command 
+"kubectl version" and "kubectl cluster-info" to check for successful installation
+
+Comparing docker-compose.yml file with Kubernetes
+  - With docker compose, each entry optionally get docker-compose to build an image just like the worker and server module where we specify a build path, context and reference to 
+    Dockerfile.dev to create an image. With kubernetes, it expects that all of the image will already be build. So there is no build phase or build image step inside kubernetes.
+	We have to maike sure that our images are hosted on docker hub 
+  - Each entry inside a docker-compose file represents a single container we want to create. With kubernetes there is only one config file per object and an object does not need to 
+    be a container (discussed afterwards). So we end up creating multiple different config files when working with kubernetes.
+  - With docker-compose each entry defines the networking requirement like which container is linked with with container and what are the port mappings. With kubernetes, we have to 
+    manually set up all the networkings. We will create one config file to set up the networking.
+	
+
+Now looking at the different config file examples with each config file will represent a object. These config files will then be provided as in input to kubectl command to create 
+different type objects. These objects serve different purposes like running a container, monitoring a container, setting up networking, etc.
+Some of the object types are:
+ - Pod
+ - Service
+ - StatefulSet
+ - ReplicaController
+ 
+Example config files
+..
+apiVersion: v1
+kind: Pod
+metadata:
+ name: client-pod
+ labels:
+  component: web
+spec:
+ containers:
+  - name: client
+    image: usamaa96/multi-client
+	ports:
+	 - containerPort: 3000
+..
+
+..
+apiVersion: v1
+kind: Service
+metadata:
+ name: client-node-port
+spec:
+ type: NodePort
+ ports:
+  - port: 3050
+    targetport: 3000
+	nodePort: 31515
+ selector:
+  component: web
+..
+
+Here the kind value represents an object type
+The apiVersion defines which set of objects we can use. So different apiVersion defines different set of objects like with apiVersion v1 we can define objects of type Pod, Service,
+componentStatus, configMap, Endpoints, Event, Namespace. With apiVersion apps/v1 we can define objects of type ControllerRevision, StatefulSet, etc.
+
+
+Understanding the Pod object,
+ .The pod is the smallest kind of thing we can create in kubernetes. Previously we were running isolated naked containers in elastic beanstalk for production and using docker-compose 
+  for our local system. In the world of kubernetes the containers cannot run alone. For container to be run, we have to create a wrapper around it which is called Pod. This pod is 
+  nothing but contains a group of tightly coupled containers running. This means that all the containers that are dependent upon each other in a tightly coupled fashion should run 
+  withing a single Pod.
+ .With our multi-container project, we can say that the front end application is dependent upon api server and server is dependent upon worker module so we can group all 3 containers 
+  in a Pod. But this is the wrong scenario because of server goes down, the front end tends to work on its own and if server goes down the worker tends to work on its own. So 
+  technically we cannot group them in a single Pod.
+ .A good example of where multiple containers can be grouped is when we are running a postgres container with 2 more containers which are logging-container and backup container. The 
+  responsibility of logging container is to connect to postgres container and log all the database logs/queries/errors . The backup container's responsibility is to connect to 
+  postgres container and backup data time to time. If for some reason postgres container goes down, the logging container and backup container will be useless because there will 
+  not be any logging nor there will be any backup. So here we need to group all the 3 containers together.  
+ .We can define multiple containers configuration inside the containers property that are tightly coupled together with the port that is needed to be exposed. Now this exposed port 
+  is not the actual port that the client will use but this is the port which will be used in the service object config file to be referenced.
+  
+Understanding the Service object,
+ .The service is created in order to set up networking in a kubernetes cluster.
+ .With service object type, we have 4 more sub-types as well with name NodePort, ClusterIp, Ingress and LoadBalancer. With Pod object type, we didn't have any sub-type.
+ .The NodePort is the sub-type which allows to expose the container to the outside world. This is only used in development purposes and not in production environment.
+ .In service config file, we need to specify which pod to connect to and for this we use a label selector mechanism. Inside pod we define a label key value pair which should be 
+  identical to service selector key value pair. For example inside pod label we define a key value pair of "component": "web" and insite service we define a selector key value pair 
+  as selector -> "component": "web". We can define any key value pair names but that should be identical in both for proper connection.
+ .The ports array define multiple different ports which contains multiple purposes.
+    a) The port element defines the port which can be used to be accessed with other pods. It means that if some other pod needs to connect to this pod then the other pod will use 
+	   this port to access to this pod's container.
+	b) The targetPort element is the port which is exposed by the container in the pod object config file.
+	c) The nodePort element is the port which will be exposed to the client to be used. The range of this nodePort is between 30000 - 32767. This is one of the reason why NodePort 
+	   sub-type is not used in production because we cannot use these long ports in our url like google.com:31515. Nobody does that!.
+	   
+
+
+Now our config file is ready for the client front end application and we can issue kubectl command to create objects
+"kubectl apply -f client-pod.yaml" and "kubectl apply -f client-node-port.yaml"
+These command will print out that objects have been configured and we can issue one more command to check if configuration has been successful or not.
+"kubectl get pods" Or "kubectl get services" to check what pods and services are runnin.
+In case of pods, we will see 1/1 in Ready column which means 1 pod is running with 1 copy of it. If we create multiple copies of the pod then we will see something like 1/3 or 1/4
+
+After applying it to kubectl, we can now access localhost:31515 to access our client container running inside a pod. This is only applicable when kubernetes is running via 
+Docker Desktop. If kubernetes is running using minikube then localhost will not work. We will have to fetch the VM Ip address which is created by minikube. For this we need to execute 
+the command "minikube ip" to get the VM's ip.
+
+So what is happening behind the scenes?
+There is always a Master node running in between us and the actual node (VM). We cannot directly interact with the VM but instead when we issue kubectl apply command, we are behind 
+the scenes instructing the Master node that we need to run a container. The master node runs kube-apiserver which takes the command and does the job for us.
+So lets say if we have 3 nodes running and we ue kubectl command to create 4 copies of client front end application, it will instruct master node to create 4 copies of the Pod 
+inside the VM. So master will create 4 copies by selecting the node lets say node 1 will run 1 copy, node 2 will run 1 copy and node 3 will run two copies.
+After that the master node will continuously looking after the nodes and containers for monitoring. A good example of this is if we issue "docker ps" command we will see container 
+running with its id. If we take the container id and issue command "docker kill <container-id>", it will kill the container inside the VM which was running it. But if we again run 
+docker ps command we would see that container up and running again. It is because master node was keeping an eye and as soon as it sees that one container goes away, it took the 
+client front end image again and started the container back. If we issue command "kubectl get pods" we would see the killed container back up again 2 seconds ago with Restart Counter 
+set to 1. It is because we initially instructed master node to have 4 copies and if one container will go down, the counter of copies will be reduced to 3 and master node will get a 
+notification about it.
+We can also control that on which node we want the container to be running but if we donot specify then master node will do it by itself.
+

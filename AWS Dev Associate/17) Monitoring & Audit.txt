@@ -1,0 +1,287 @@
+Monitoring & Audit: CloudWatch, XRay and CloudTrail
+--
+
+In aws, we can monitor using CloudWatch, XRay or CloudTrail
+
+
+1) CloudWatch
+..
+Where we can collect and track key metrics, analyze and store log files, send notification when a certain event happens or generate an 
+alaram to react in real time.
+   
+It provide metrics for every instance which is a variable to monitor cpu utlization, storage space, networking, etc. Metric has an attribute 
+called dimension i.e instance id, environment, etc and we can set upto 30 dimension per metric. Based on these metrics we can create 
+CloudWatch dashboard.
+
+In EC2 Detailed monitoring, we get metric for our instance every 5 mins by default and we can enable detailed monitoring for every 1 mins
+but need to pay some cost. The quicker the metric response, the faster ASG can respond for scale in and out. With aws free tier we can 
+get 10 detailed monitoring metrics.
+There are also custom metrics which need to get pushed manually like EC2 memory usage.
+
+For custom metric, we can define our own metric with some data under a unique namespace like we need to push memory or RAM used, total 
+number of logged in users, disk space utilized, etc. For this we need to call the PutMetricData api call with some dimensions attached 
+to it. We can upload the metric data for past dates within 2 weeks and future date withing 2 hours
+The command to upload custom metric is, 
+"aws cloudwatch put-metric-data --metric-name Buffers --namespace MyNameSpace --unit Bytes --value 23143433 --dimensions InstanctID=1,
+InstanceType=m1.small"
+
+
+
+Logs
+..
+In CloudWatch logs, we create a Log Group which is an arbritrary name to represent our application and inside this group we create multiple 
+log streams which represent our instances/containers.
+
+We can set up the log expiration policy from 1 day to 10 years or never. These logs can be sent to,
+  AWS S3, Kinesis Data Stream, Kinesis Data Firehos, OpenSearch, Lambda
+  
+The logs are encrypted by default and we can also use KMS based encryption with personal keys.
+
+We can collect logs from SDK or CloudWatch Log Agent. Also many aws resources can be the sources of CloudWatch logs like,
+ - Elastic Beanstalk: collection of logs from application
+ - ECS: collection of logs from containers
+ - Lambda: collection of logs from functions
+ - VPC Flow Logs: VPC metadata network traffic
+ - Api Gateway: collection of logs related to all the requests made to the gateway
+ - Rout53: collection of all the DNS queries
+ 
+ 
+With CloudWatch Log Insights, we can search and analyze the logs within aws like finding a specific ip or finding string count "ERROR" in 
+logs. We can export this logs data into S3 but it can take upto 12 hours. The api call is CreateExportTask.
+
+With CloudWatch Log Subscriptions, we get a real time log events for processing and analysis. We can send this data to Kinesis Data Stream, 
+Kinesis Data Firehose or Lambda and can add a Subscription Filter to filter which logs can go to which destination.
+With subscription filter we can do log aggregation like we have multiple CloudWatch logs with separate subscription filter. All the data 
+from subscription filter can be send to single Kinesis Data Stream which can further be sent to Kinesis Data Firehose.
+If we want to send the CloudWatch logs to different account, we can set up Subscription Filter in source account from where the data 
+can be transferred to Subscription Destincation in target account and from there it can be sent to Kinesis Data Stream.
+
+CloudWatch Log Agent and CloudWatch Unified Agent is used to collect the metric and send to to CloudWatch service. For virtual servers 
+like EC2 or on-permises server we need to install CloudWatch Agent which will collect EC2 instance logs and push it to CloudWatch.
+With CloudWatch Unified Agent, we can collect system level metrics like CPU info, Disk metrics (free, used, total), RAM (free, used, total),
+Netstat (number of TCP and UDP connections), processes (total, dead, blocked, etc), etc... For more granuality, we need to use the Unified 
+Agent instad of normal Agent.
+
+We can filter our log data using CloudWatch Log Metric Filter using the filter expression lke finding specific IP, counting the occurrence 
+of string "ERROR" and these filter can then be used to trigger the alarm.
+Example can be to create a CloudWatch Log Metric Filter to search for word "ERROR: 400" and if found then generate the value 1. After 
+creating the filter, we can click on this filter and Create Alarm. While creating alarm we can select the threshold value like 50 and when 
+this value is reached, an alarm will be generated. We can send a SNS notification to the topic also for generated alarm.
+
+
+Alarms
+..
+They are used to trigger notifications for any metric with various options like samplying, percentage, min, max, etc. It has many states
+i/e: OK, Insufficient Data, Alarm
+
+When an alaram is triggered we can do either of 3 things,
+  - Stop, Terminate, Reboot or Recover EC2 instance
+  - Trigger ASG
+  - Send notification to SNS from which we can do anything we want
+  
+We can also create Compoiste Alarms where multiple alarms are taken into consideration before triggering anything. We can use AND/OR 
+opearator for this like we want to trigger a SNS notification when the alarm that is watching CPU Utilization is greater than 70% and 
+alarm that is watching disk storage is greater than 85%. So different alarm can be created with different metrics to be watched by single
+composite alarm.
+
+We can test the alarm by triggering it using the CLI even though the alarm metric is not breached. So we can do this by,
+"aws cloudwatch set-alarm-state --alarm-name 'myalarm' --state-value ALARM --state-reason 'testing purposes'"
+
+
+
+
+Synthetic Canary
+..
+It is a configurable script that monitors our urls, apis or any action done in the website. It is very helpful to find issues in our 
+application before our customers do.
+
+We can set up Heart Bean monitoring by creating a canary and selecting heart bean blue print canary and specify the url of our website.
+This service will monitor our website and take screenshots of what the customer will see.
+
+Similarly we can create a whole bunch of actions like going to the home page, searching for a product, adding product to card, proceeding 
+towards checkout, adding credit card details and buying the product. We can generate script from our actions and reproduce this after 
+every 5 minutes or 10 minutes to monitor our whole flow is working or not. In case of any failure, we can generate a CloudWatch alarm to 
+do something with it.
+
+We have multiple blue prints available that are,
+  - Hearbean Monitor: Load the url and store the screenshots
+  - API Canary: Test basic read and write function of our REST Apis
+  - Broken Link Checker: Check all the link inside a provided url are working correctly
+  - Canary Recorder: To record all the actions and product a script out of it
+  - GUI Workflow Builder: Verifies that a certain actions can be taken like Testing our login form workflow.
+  
+  
+  
+EventBridge
+..
+It was formerly known as CloudWatch Events and we can do multiple things out of it like,
+  - Scheduler Cron Jobs like to define a scheduler that run a lambda function periodically
+  - Event Pattern, to define a rule to react to a service like whenever someone logins with root account then send a notification to SNS 
+    topic to send an email.
+Simialarly we have multiple destinations.
+
+
+There are multiple sources and destinations for EventBridge.
+The sources include,
+  - EC2 Instance like when the instance starts, stops, terminated, etc
+  - CodeBuild like when the build fails
+  - S3 Event like when a new object is uploaded
+  - CloudTrail like to intercept every api call made withing the aws.
+  
+The destinations can be,
+  - Trigger a Lambda function to run some script
+  - Send the event so SQS, SNS or Kinesis Data Stream
+  - Perform any actions on EC2 instance
+  
+EventBridge prepares a JSON document contain all the information about the event like from where it is generated what is the detail of 
+event and then it sends to the destination
+
+
+With AWS, we get a default Event called the Default Event Bus when we create the event but also we have a PArtner Event Bus which helps 
+us to receive events from services outside AWS like Zendesk, DataDog, etc. There are limited list of partners that we can integrate using the 
+partner event bus. Also we can create our own event bus to integrate and receive events from our custom applications.
+Since we have events receiving from many places, we need to define a Schema in Schema Registery to tell how our event will look like.
+
+
+Hands On
+***
+
+By default we get a default event bridge which we can use but also we can create our own event bridge
+We can create an event bridge with a name and specify if this is our custom event or a centralized event
+(capturing event from multiple cross accounts)
+After creating an event we need to create some rules
+In rule we create either a scheduler or rule with some event pattern.
+By creating rule using event pattern we first need to specify the source from where the event will be triggered like some AWS Service, 
+3rd party service or any other place like from other aws account.
+If we select AWS service as our source, then after that we can select our Event Pattern.
+In Event Pattern we can specify that the source service is EC2 and the event type is EC2 Instance State-change-notification which means that 
+whenever the state is changed for our EC2 instance then an event will be triggered
+We then specify what state we want to select like starting, stopping, stopped, terminating, etc and also specify whether we want to 
+select a specific instance using the instance id or all the availabe isntance.
+Before selecting Event Pattern we can select the Sample event and the data format and using this we can test our selected pattern from 
+Test Pattern button to check if the event matches our pattern or not.
+After that we select our Event target and that can be SNS topic from where the subscriber can be our email 
+***
+
+Under the schema registery section, we can check out the Schema for AWS EC2 Instance State Change Notification under AWS event schema 
+register tab.
+
+
+
+2) X-Ray
+..
+It is a new service where we can troubleshoot performance and errors and is quiet good is distributed tracing of microservices like what 
+api call took what time, etc.
+
+The old way of debugging application on production is test the application locally, add log statements and redepoly it and check the 
+logs. This is not the recommended approach. When there is monolith application, then it is comparitively easy in term of microservices 
+because services talk to each other.
+
+With the help of XRay, we can visualize our application like if we have a FE application that calls other services like DynamoDB, SNS,
+other services running on EC2 then we can visualize and check from where the error is coming from
+
+We can,
+  - Troubleshoot performance to check for bottlenecks
+  - See microservices dependencies on one other i the visualization
+  - Check which service is causing the issues
+  - Review the request behaviour and find errors in them
+  - CHeck which users are impacted for these errors
+  
+We can also leverage tracing and tracing helps us to follow a request end to end. Each component dealing with the request like ALB, 
+EC2 instance add their own trace in the request which is made of segment and sub-segments
+
+We can enable XRay in 2 ways,
+  1) Using our code written in Java, Python, Go, .Net or NodeJS and we must import the AWS XRay SDK. This SDK will then capture the 
+     request calls to AWS services
+  2) Install the XRay daemon if working on on-permises server
+  
+A typical flow can be that we have EC2 instance that is running our application code and we need to import the XRay SDK in our code to 
+send the traces to XRay daemon which is also running in our EC2 machine. This daemon will then send the batch every 1 second to AWS XRay
+Service. XRay will then collect all the data in simialr way from other servces and then will create a service map in a graphical fashion to 
+help troubleshoot the services. Since it is graphical, a non technical person can also troubleshoot it.
+
+
+When using Elastic Beanstalk we get the X-Ray daemon by default and we just have to enable it in .ebextensions and the yml configuration is 
+as follows,
+ option_settings:
+   aws:elasticbeanstalk:xray:
+     XRayEnabled: true
+We have to make sure that our application code is isntrumented with XRay SDK also
+Also we have to make sure that our EC2 instance profile has correct IAM Permission to be able to Get and Put traces on XRay. Some of those
+permissions are,
+  - GetSamplingRules
+  - GetSamplingStatisticsSummaries
+  - GetSamplingTargets
+  - PutTelemetryRecords
+  - PutTraceSegments
+  
+
+When using ECS, we can enable XRay in 2 ways,
+  - XRay Container as Daemon: Creating an ECS Cluster and inside it running multiple EC2 instance. Each EC2 instance can run multiple 
+    containers and one of the containers will be for XRay daemon
+  - XRay Container as SideCar: Inside our ECS Instance, each application container will be attached with XRay as a SideCar so if we have 
+    10 application container then 10 XRay SideCars will be there.
+	
+In our Task Definition, we define the xray daemon configuration as follows,
+{
+  "name": "xray-daemon",
+  ...
+  ...
+  ...
+  "portMappings": {
+    "hostPort": 0,
+	"containerPort": 2000,
+	"protocol": "udp"
+  }
+}
+
+Now we can attach this daemon with our application container as follows,
+{
+  "name": "test",
+  ...
+  ...
+  ...
+  "environment": {
+    ...
+	...
+	{"name": "AWS_XRAY_DAEMON_ADDRESS", "value": "xray-daemon:2000"}
+  },
+  ...
+  ...
+  "links": ["xray-daemon"]
+}
+
+In this way we attach xray daemon with our app container in a sidecar pattern. The links property helps the app container resolves the 
+hostname we define in the environment
+
+
+
+3) CloudTrail
+..
+We can monitor internal api calls, its histories and audit changes to aws resources by users. It provide goverance, compliance and audits 
+for our aws accounts. It is enabled by default
+
+We have multiple type of events that are
+  - Management Events. It is enabled by default we get the logs for every event that are performed on our aws services and account like,
+      .Configuring security. If someone has attach some policy then there will be api call IAM AttachPolicy
+	  .Configuring rules for routing like attaching subnets to EC2 instance.
+	  .Setting up logging
+	  ...
+	  .etc
+	  
+  - Data Events. They are high volume operations so they are not enabled by default. It contains object level activity like S3 GetObject,
+    PutObject, etc or how many time a lambda function is invoked and by whome.
+	
+There is also one more type of event which is CloudTrail Insidht events which help us manage Management and Data Events. There are many 
+operations going on, the resources are being changed, the apis are being called and it becomes very difficult to inspect and monitor 
+all these events. SO with the help of Insight Events, we can detect unsual activity in our aws accounts like unsual resource provisioning,
+hitting the service limits, etc. It conitnuously analyses the write events to detec unsual patterns and can be sent to CloudTrail cosole,
+S3 Bucket or event to EventBridge to maybe send an email to do some other operations.
+
+By default, we can store the events in CloudTrail for 90 days and after that the events are deleted. For storing to longer period of time
+then we need to send these events to S3 bucket and later in point in time we can analyze these events using AWS Athena Service.
+
+We can integrate CloudTrail with EventBridge to intercept the api calls like if we have a DynamoDB with multiple tables and whenever 
+someone tries to delete a table using the DeleteTable api call, this api will be logged into CloudTrail and by the integration of EventBride
+we get this event into AWS Event Bridge service from where we can send the notification to SNS topic and subscribe our email to this topic
+to get email about something being deleted.

@@ -1,0 +1,29 @@
+Distributed Tracing with Slueth and Zepkin
+---
+
+These are 2 differenct projects allow us to trace our http requests that takes place between our services
+   .Using slueth, we add trace and span id to our log file in our micro services
+   .We sent these 2 ids to zipkin server for the representation of information in a GUI
+   
+When ever the microservice creates a new http request to other microservice, slueth will generate a new span id everytime that will label that
+particular request.
+Trace Id will be the same in the whole flow until and unless the micro service that initiated the flow gets back the response.
+
+Add the new dependency in user micro service of spring-cloud-sleuth-zipkin and spring-cloud-starter-sleuth
+Add following properties in properties file
+a) spring.zipkin.base-url=http://localhost:9411
+	.Tell where zipkin server is running. 9411 is the default port for zipkin server
+b) spring.zipkin.sender.type=web
+	.Tell the sender type of the information. Can be Http, Rabbit, Apache kafka. Http
+c) spring.sleuth.sampler.probablity=1
+	.Tell how much information to be sent over zipkin. 1 is for 100%. If it is not provided then the information 
+	 will be visible in the log file but not send over)
+
+Download Zipkin jar with
+curl -sSL https://zipkin.io/quickstart.sh | bash -s
+
+Run zipkin server with
+java -jar zipkin.jar
+
+Head over to localhost:9411/zipkin to see the dashboard and all the requests for the micro services
+Check the logs it will also show [trace_id, span_id, true]

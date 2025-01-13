@@ -1,0 +1,85 @@
+Manipulating Containers with Docker Client
+--
+
+We can override the default execution command for an using,
+  "docker run <image-name> <overriding-command>"
+  
+We know that when we run "docker run hello-world", it checks for the image in local cache and runs the default image command. The image 
+comes with 2 parts.
+   a) File System Snapshot, the file system that image contains
+   b) Startup Command, command to execute the process
+   
+If we dont provide any command, then default command will get executed and in case of hello-world it just prints some text
+
+To see the effect, we can use another image which is busybox
+We can run the command "docker run busybox echo Hello". This will download the busybox image, create a container and instead of running
+the default startup command, it will execute "echo Hello" which will just print Hello onto command line.
+Similarly. if we execute "docker run busybox ls", it will execute 'ls' command which is to list the files in linux. This will print 
+out all the files present in the current directory but this directory is not the one with our Linux environment, but it is related to 
+the busybox file system which comes with the image.
+
+If we run 'ls' or 'echo' with hello-world image, we will get error because with hello-world image inside its file system we dont 
+get the executable command for 'ls' and echo', however with busybox we get this and that is why those can be executed.
+   
+
+With "docker" ps" command, we get the list of containers currently running into our machine. There are some containers that starts 
+and stops immediately which cannot be seen in the list like hello-world image or busybox image. To make it run for a longer time we 
+can execute any default command like "ping google.com" which will ping google for some time -> "docker run busybox ping google.com"
+Other than than, if we want to see all the list of containers ever created on this machine then we can use "docker ps --all" command.
+
+
+When we use "docker run" command, behind the scenes it executes 2 command which are "docker create" and "docker start. The create 
+command creates a container and returns back container id which then we use inside docker start command to tell docker which container 
+to run,
+  docker create hello-world -> return abc1234
+  docker start abc1234 -> will execute the startup command of image.
+  docker start -a abc1234 -> same as start command but -a means to watch out the container and output everything on the terminal which 
+  the container prints. SO with start command, we will not see hello-world container priting something but with -a we will see printing.
+  
+If we have a container that takes many minutes to execute and we have initially run it with docker start without the -a flag, we would
+not see the logs printed out. After the container has finished starting up, we can either stop the container, and re-execute it with
+-a flag to see the output, or run the command "docker logs <container-id>" to see what logs are printed by this container. This command 
+will just print the logs uptil current time and not start the container again.
+  
+  
+When a container is stopped, it still exists in our system and we can see the status as EXIT when we run docker ps --all command.
+We can restart this container by executing "docker start -a <container-id>" and this container-id can be seen when the list appears using 
+ps --all command
+To remove all the containers which are used and never wanted again to free up some space we can execute "docker system prune" command.
+This will also delete all the images from local cache also and will be downloaded again when used with docker create or run command.
+
+
+
+When a container is running, we have 2 options to stop a container
+  1) By using "docker stop <container-id>" command, and this will send a SIGTERM signal to the process which is running. This will allow 
+     the container some grace time to cleanup things, saving some stuff and then shutdown. This grace time is about 10seconds.
+  2) By using "docker kill <container-id>" command, this will send SIGKILL signal to the process and will immediately kill the 
+     container and no grace time is given for cleanup.
+  
+When the grace time is over for stop command, docker automatically kills the container by issuing a kill command.
+Lets say we execute a container by "docker run busybox ping google.com", now this ping command will go on forever until we stop. To 
+stop this we can execute docker stop command but the ping process does not have any criteria to listen to SIGTERM signal and then stop 
+executing, so a docker kill command will eventually stop this process.
+
+
+We can execute multiple commands inside a container. Lets take an example that we want to use redis and for that we first need to start the redis server and then from the 
+redis cli, we can issue command to redis server to store and retrieve data.
+To start redis server we can download its image from docker hub and run it using command "docker run redis-server"
+But, how to use redis-cli to store and retrieve data into this server? For this we need to execute another command in another command line which is,
+"docker exec -it <container_id> <command>" which will be "docker exec -it 0123abc redis-cli".
+
+The exec means execute and -it is a combinaton of 2 separate flags (-i and -t). To understand this we must know that every process running in the form of container in docker has 3
+communication channels which are 
+  1) STDIN -> used to communicate things into the process
+  2) STDOUT -> used to covery information coming out from the process
+  3) STDERR -> same as STDOUT but used in case of any errors.
+  
+So, when we run with -it flag, the -i flag means whatever i write into my terminal, that needs to get attached with redis-cli process through the STDIN channels. The -t flag,
+s just for text formatting purpose.
+
+Now, we know that if we want to execute any command inside our container, we can make use of docker exec -it command. But what if we want to do multiple things and its 
+not a good idea to run docker exec -it everytime. It will be better that if we can get full access to our running container and go into its file system. For this, we can 
+execute "docker exec -it <contanier_id> sh" The sh means shell and we get the container access where we can do anything like we do in a typical linux env.
+
+The containers are runnng in isolation, so if we start 2 containers with same process and inside one container we create a file, then it will not be visible to the other 
+container.

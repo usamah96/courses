@@ -1,0 +1,180 @@
+Change Detection
+---
+
+Whenever any event takes place in our angular application like the click event, keydown event,
+keyup event, settimeout event etc that eventually modifies the objects in our model, angular
+will compare all the expressions in out template with the previous values and identifies if
+the view needs to be updated or not.
+
+Angular analysis all the expressions used in our template like when using,
+-{{ course.description }}
+-[value]="course.description"
+-[ngSwitch]="course.category"
+etc
+It will compare it with the previous stored values. Angular will do this comparison checks
+on all expressions throught the component tree in a very optimal way under the hood. We just
+need to know that the view is kept sync by angular by comparison it with the previous values.
+
+
+
+
+
+
+OnPush Change Detection
+
+-Faster than default change detection mechanism, but trickier to use
+-Works in a similar way as the default change detection but there is a major difference
+-It works with immutable objects
+..
+
+Using default change detection mechanism
+
+Inside app.component.html
+<button (click)="onEditObj()">Edit</button>
+<comp-one [obj]="obj"></comp-one>
+
+Inside app.component.ts
+
+obj:any = { id: "1", name: "Usama" }
+onEditObj(){ this.obj.name = "Usama Abubakar"; }
+
+Inside comp-one.component.ts
+@Input() obj:any;
+
+Inside comp-one.component.html
+{{ obj.name }}
+
+-At first the obj.name in comp-one will display Usama
+-On clicking the edit button on root level, it will change the name and in comp-one it will
+display Usama Abubakar because in default mechanism, angular will identify changes down the
+whole component tree.
+
+Now using OnPush change detection mechanism.
+
+Inside comp-one.component.ts
+@Component({
+  ..
+  ..
+  chandeDetection: ChangeDetection.OnPush
+})
+
+-Considering the same example, when editing the button it will not change the name of obj
+in comp-one because in OnPush change detection strategy we will have to pass the whole new
+object to @Input rather than just changing its value. 
+-By doing this the reference of the object will be changed and in OnPush strategy angular 
+compares the references rather than the actual object values that is why it is faster.
+-For simple values rather than objects, it will work as before.
+
+
+
+OnPush with Observable Data Streams
+
+-When using OnPush change detection strategy, we need to notify our component to be re-rendered
+and we can do so in 3 ways
+
+1) By triggering of some event
+2) Passing new value to @Input()
+3) Using async pipe for Observables that anytime it emits the value the change detection
+mechanism is triggered
+
+Inside app.component.ts
+
+Fetching data from backend
+
+actualObj: any;
+constructor(private tService: TestService){
+   this.tService.loadData().subscribe(data => this.actualObj = data;)
+}
+
+Inside app.component.html
+<div *ngFor="let v of actualObj">
+  {{ v.title }}
+</div>
+
+-With OnPush change detection strategy, this will not display any data because initially the
+actualObj will be undefined and when the data is fetched from the backend we are neither using
+async pipe, nor triggering any event nor modifying our @Input() so change detection will not
+be triggered and we will see empty screen.
+-We have to modify it as
+
+actualObj: Observable<any>;
+constructor(private tService: TestService){
+   this.actualObj = this.tService.loadData();
+}
+
+Inside app.component.html
+<div *ngFor="let v of (actualObj | async)">
+  {{ v.title }}
+</div>
+
+-Now we are using async pipe so data will be correctly displayed.
+-For previous example we can modify it as
+..
+
+actualObj: any;
+constructor(private tService: TestService){
+   this.tService.loadData().subscribe(data => this.actualObj = data;)
+}
+trigger(){
+  console.log("Click Event Triggered");
+}
+
+Inside app.component.html
+<div *ngFor="let v of actualObj">
+  {{ v.title }}
+</div>
+<button (click)="trigger()"> Trigger Click Event </button>
+
+-When we press the button, the data will be displayed as we have triggered an event and
+change detection will now work as per OnPush strategy
+
+
+
+
+
+
+
+
+
+Attribute Decorator
+
+-An alterantive way of passing the values from parent to child without using @Input
+-If the value is not meant to be changed and is fixed then we can use @Attribute decorator
+for passing values as angular will not continuesly check it for the change detection unlike
+@Input()
+-We can receive the value at both the contructor level and by the use of @Input()
+-The usage of @Attribute() decorator will allow some performance optimization
+
+Usage
+
+<comp-one type="Test"></comp-one>
+
+Inside  comp-one.component.ts
+constructor(@Attribute() private type: string){}
+Or we can also receive as,
+@Input() type: string;
+
+
+
+
+
+
+
+
+
+Custom Change Detection
+
+-Manually telling angular to trigger change detection for some use cases
+-We can use ChangeDetectionRef
+-For example if we are receving data from backend and we are not using the async pipe we
+can use ChangeDetectionRef to tell angular for changes
+..
+
+constructor(private s:TestService, private cd: ChangeDetectionRef){
+   this.s.loadData().subscribe(data => {
+      this.values = data; 
+      this.cd.makeForChange();
+   })
+}
+
+-The best way to use ChangeDetectionRef is in the ngDoCheck lifecycle hook

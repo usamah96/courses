@@ -1,0 +1,51 @@
+Visitor
+---
+
+Allow adding extra behaviors to entire hierarchies of classes
+
+Motivation
+--
+-Need to define a new operation on an enitre class hierarchy and not just individual class
+Example, if we have a whole document model with html, paragraphs, list and in future we want to make it printable in
+several different formats.
+-Do not want to keep modifying every class in the hierarchy
+-Create an external component to handle the rendering
+
+Visitor pattern is where a component is allowed to atraverse the entire inheritance hierarchy. Implemented by propagating a
+single visit() method throughout the entire hierarchy.
+
+
+Intrusive Visitr
+-It violates the open close principle and the single responsibility principle as we have to modify our classes whenever
+new functionality gets added to the interface or abstract class. Also in this example we have a print method in Expresiion
+class so print is not the method to be implemented by Expression sub-classes because its not their responsibility.
+
+Reflective Visitor
+-Instead of creating an abstract method in Expression class to be implemented by every single sub-class, we will create a
+separate class called ExpressionPrinter in which its print method will take the Expression and inside it we have to check
+what type of Expression we get using getClass or instanceof and then implement the functionality accordingly
+-One problem is that we have to check for every single class and implement the functionality accordingly.
+-Another problem is thatwhat if we forget one of the if-else check of the class in the ExpressionPrinter. It will
+work in the normal way but will not cover one of its branch. We have to verify that every element in the hierarchy gets 
+implemented. We have to force it to implement every single element in the hierarchy.
+
+Double Dispatch (Classic Visitor)
+-Classic approach of visitor pattern used by most in the industry.
+-We will create an interface for our Expression which will contain all the abtract methods that will take sub-class type as
+an arguement
+-We will create a single method in our abstract Expression class called accept that will take ExpressionVisitor.
+-All our sub-class will override this method which will do the same thing which is to pass the current reference of the Expression.
+-Now our Visitor will implement our Expression interface and now we are forced to implement all the visit methods for our
+sub-classes
+-If we implement any new sub-class for our Expression then we need to forcefully add its relevant visit method into our
+Expression interface also.
+-This implementation is way better then all previos ones but one problem still exists is that what if one of the sub-class want
+to avoid using the visitor's functionality.
+
+Acyclic Visitor
+-Uses the interface segregation principle
+-Instead of putting all abstract method to single interface, we create a marker interface and then we create separate interfaces
+for our sub-classes that extends our marker interface to be passed into arguements.
+-Now our ExpressionPrinter will implement all those interfaces for which we want the functionality to implement. If we dont
+want some classes to extend our visitor's functionality we simply remove the implementation from the ExpressionPrinter.
+-Now in the accept method we just check the instance and call the relevant method.

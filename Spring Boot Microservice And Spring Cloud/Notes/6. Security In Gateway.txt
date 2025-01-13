@@ -1,0 +1,33 @@
+Security In Gateway (Authorization)
+---
+
+
+1) Zuul Gateway
+..
+-Add the dependency for spring security and jwt token
+-Make the APi Stateless with
+   http.sessionManagement().sessionCreationPolicy(SessionCreationPolicy.STATELESS);
+-This means not to cache httpSession at the back end level. When multiple client application interacts with the backend api a session is
+created and the relevant information related to user is being cached. So next time if a user requests an endpoint even without the use of token
+it will still be authorized and we dont want that. So we have to make our API stateless
+-To allow certain urls not to be authenticated (For example user signup and user login. Also access to the h2 console database)
+  http.authorizeRequests().andMatchers(HttpMethod.POST, "user-service/user/login").permitAll()
+  .andMatchers(HttpMethod.POST, "user-service/user/save").permitAll()
+  .andMatchers("user-service/h2-console").permitAll()
+  .anyRequest().authenticated(); 
+
+-Create a new class AuthorizationFilter that will extend from BasicAuthenticatonFilter.
+-Override the doFilterInternal method that will receive the HttpServletRequest.
+-In this method we will read the token, validate it, get the subject, get the relevant roles of user if they exist and return back the User.
+-The chain.doFilter specify to execute the next filter in operation.
+
+-Refer To Security in Zuul Gateway file
+
+2) Spring Cloud Gateway
+..
+-Create AuthorizationHeaderFilter file that will extend from AbstractGatewayFilterFactory
+-Add the inner static class for custom configuration properties if required.
+-Override the apply method that will return a lambda expression which will be executed when any request is applied the filter.
+-Here we can handle our custom security logic. We are verifying jwt token here at the moment.
+
+-Refer to Security In Spring CLoud Gateway Way file

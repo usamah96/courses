@@ -1,0 +1,28 @@
+Iterator
+---
+
+-How traversal of data structure happens and who makes it happen
+-A helper object that knows how to traverse a particular data structure
+
+Motivation
+--
+-Iteration is a core functinality of various data structures like binary tree that can be traversed in many ways like pre order,
+post order and inorder so we can make separate iterators for it
+-Iterator is a class that facilitates the traversal
+
+
+-Iterator cannot be recursive which is a bad sign of this pattern so tree traversals which are farely easy to implement like
+preorder inorder and postorder cannot be done recursively.
+
+-The iterator itself implements Iterator<T> which has hasNext and next method to be overriden
+-The object itself implements Iterable where we can override the iterator, spliterator and forEach method
+
+
+Example of Tree Traversal (In Order)
+
+Example of Array Backed properties where we want to perform some operations on all properties like taking sum, average or
+finding the maximum values. Creating simple functions with properties will do the work but in future if more properties are
+added then we have to re calculate sum, average and max.
+So we can store our properties in an array.
+
+**Read about Iterator<T> and Iterable<T> java support**

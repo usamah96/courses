@@ -1,0 +1,223 @@
+Multi-Container App with Kubernetes
+---
+
+Taking a copy of the multi container docker project and then moving it forward using the kubernetes workflow for the deployment.
+
+Doing some cleanup and removing the Dockerrun.aws.json, .travis.yaml and docker-compose.yaml file because they are not needed for 
+kubernetes version of this project. Also we will remove nginx folder also which was used to route to our different containers. In 
+kubernetes we will use Ingress Service.
+We still need .travis.yaml file but it will be created again from scratch with different configurations.
+
+Creating a new folder with name k8s which will hold config files for each and every setup like Ingress Service, Deployment, ClusterIp, etc
+
+At first, we will create a deployment config file for client front end. So the config file will create a pod with 1 single container 
+running with image usamaa96/multi-client and with 3 replicas of it.
+
+After that, we need to setup the ClusterIP service. This comes under Service object type and we know that service object type is used 
+for networking purposes. Just like NodePort, ClusterIP is used to expose our container to other services. Without NodePort or ClusterIP,
+our container running inside cluster will not be reachable.
+
+Both the ClusterIP and NodePort are used to expose the container for accessibility. 
+With NodePort, the containers are exposed and can be used by any one from any world using the NodeIP:NodePort like (192.168.1.2:31515)
+
+With ClusterIP, our container are only accessible within the cluster. So any pod/container running inside of our k8s cluster can access our 
+container exposed by ClusterIP but it cannot be accessed by outside world. For that we need to setup Ingress Service because when we setup 
+Ingress Service it will be created inside of our cluster and our containers will now be accessible via ClusterIP.
+
+Creating ClusterIP service to link it with multi client pod
+..
+apiVersion: v1
+kind: Service
+metadata:
+ name: client-cluster-ip-service
+spec:
+ type: ClusterIP
+ selector:
+  component: web
+ ports:
+  - port: 3000
+    targetPort: 3000
+..
+
+Here,
+ The spec -> selector -> component:web determines which pod to target.
+ The port is the exposed port for the ClusterIP and targetPort is the port on which the container is running. Here there is no nodePort 
+ value like in NodePort service because with ClusterIP, the outside world cannot access it.
+ 
+
+Now after that we can simply deploy this to check if everything is running and to execute multiple config files using kubectl we can 
+simply tell the folder name where our config files are and all the .yaml files will be picked and applied
+  "kubectl apply -f k8s"
+  .Here k8s is the folder name
+  
+After that, we cannot verify it from the browser because there is no way of accessing our pod/containers from outside but we can verify 
+the deployment using commands,
+  kubectl get deployments
+  kubectl get pods
+  kubectl get services
+These should list containers and services we created.
+
+
+Now we can start writing the config yaml file for the api which is the server module. The config file will be more or less the same like the client module config 
+file with modified image name, selector and container port. For this our server api is running on port 5000 so we will expose port 5000 as well from our pod.
+Similarly we can now create a ClusterIP config file with the same selector and port mapping of 5000 so that the server module can be accessible within the cluster.
+
+Upto this point we know that we were creating a separate config file for each and every module. If we have a lot of different modules then each will have its own
+config file and we will end up in a lot files which can be hard to manage.
+There is one way we can combine every config or some of the config in a single file with a '---' tag in between configurations.
+This will help merging but still we will have to lookup and scroll if we want to modify things. The separate file strategy is a better option since we can name 
+our files in a way that is self explanatory of what it is for like 'client-deployment.yaml, server-cluster-ip-service.yaml, etc'
+
+For the worker module, we can write a deployment config file similar to that of client and server with modified selector and image. Here there will be no containerPort
+assigned because in our application nobody access the worker module, instead worker connects to redis instance and pull for data for fibonacci calculation. So no 
+port and no ClusterIp service is needed for worker pod.
+
+After that we can provide all the config files to kubectl to create the cluster.
+ "kubectl apply -f k8s"
+All the pods will be configured but we know that our server and worker module will throw error because there is no connection to redis and postgres instance for now
+and this is we need to setup. We can check the logs to see the error using,
+  "kubectl get pods"
+  This will return list of pods running and then copy the name of the pod which is running the server container
+  "kubectl logs <server-pod-name>"
+  It will log the error thrown at application startup
+  
+
+Now, we can create a config file for redis and postgres with image being used as global from docker hub. Also we need to assign a ClusterIP service to both these 
+pods for accessibility.
+
+
+PVC and Volumes
+..
+
+When working with databases and datastores, we need to also set up volumes also because without the volumes, whenever we request any write data to postgres, 
+postgres will write this data on its own filesystem which comes when the container is launched. So it means that whenever a container is deleted, all the data will 
+be lost and it is seen that when we deploy our changes again with slight modification, the master node can delete the pod again and then create the pod again. So 
+when the pod is deleted, all data will be gone and new pod will be running postgres container with no data inside of it.
+Here, PVC (Persistence Volume Claim) will help and assist us setting up the volumes on our actual host machine instead of container's file system so every data 
+written to the database is saved on the host machine and the container will use volumes to access this data.
+We have to note that currently this is applciable when running one replica of postgres pod. If we increase the replica to 2 then it means 2 pods running a postgres 
+container accessing same location on host machine to write the data which can be disaster. So we have to do some additional configuration beside just incrementing the 
+replica value in order to scale-up postgres.
+
+So, in short a volume is a type of mechanism that allows a container to access a filesystem outside of itselt
+In a world of kubernetes, volume, persistence volume and persistence volume claim are different things
+  - The volume refers to an object (just like Deployment object, ClusterIP object, etc) that allows a container to store data at the pod level. It means that if a 
+    pod running multiple containers can access the data because data is stored at pod level. So no matter how many times container restarted or deleted and created again,
+	the data will remain save. But if the pod dies, deleted or crashed, then all the data will be lost as well. For this reason, we donot use Kubernetes Volumes for 
+	those kind of data that need to last forever or very long time.
+  - In persistent volume, the data is not stored on the pod level, in fact it is stored outside the pod so the issue with volume then if pod is deleted will not 
+    occur here since data is not stored at the pod level.
+  - In persistent volume claim, it is not the actual volume but is just an advertisement of the volumes it can provide us. So we have to write the config files 
+    for the claim that can be offered and while configuring the pod we can ask kubernetes for the persistence volume we need. Some of the persistence volume will
+	be created ahead of time known as statisccally provisioned persistent volume and the volume created on the fly upon request known as dynamically persistent 
+    volume.
+	
+	
+The PVC config file looks like this,
+..
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+ name: db-pvc
+ 
+spec:
+ accessModes:
+  - ReadWriteOnce
+ resources:
+  requests:
+   storage: 2Gi
+..
+
+We have 3 kind of modes,
+ 1) ReadWriteOnce, where reading and writing on the storage can be done by a single node at time.
+ 2) ReadOnlyMany, where multiple nodes can read from te storage
+ 3) ReadWriteMany, where many nodes can read and write on the storage.
+ 
+When we assign a PVC to pod config, the pod config will handover this pcv config to kubernetes and the responsibility of kubernetes is to create a volume which 
+can be either statisccally provisioned or dynamically provisioned.
+
+Now when we defined a PVC, it will assign a storage from our local hard drive and assign it to be used. It is applicable when kubernetes cluster is on local system
+When it is deployed on production like Azure, Google Cloud or AWS, then default option will be used or we have to specify what option need to be used for storage.
+In Azure we have Azure File or Azure Disk. In Aws we have Block Store, etc..
+
+Now after defining the PVC config, we now can update the postgres deployment config file to assign the pvc to the pod with the following changes
+..
+---
+---
+---
+spec:
+ volumes:
+  - name: pg-storage
+    persistenctVolumeClaim:
+	 claimName: db-pvc
+ constainers:
+  - name: postgres
+    image: postgres
+	ports:
+	 - containerPort: 5432
+	volumeMounts:
+	 - name: pg-storage
+	   mountPath: /var/lib/postgresql/data
+	   subPath: postgres
+..
+
+Here we define under spec about the volume to be used. The calimName should be same as we defined in the pvc config file
+Under the containers, we now define where to store the data. The mountPath is the path location where data will get stored. It is the default location where postgres
+stores the data.
+The subPath is the directory name where the data will be visibile when we wish to view inside of PVC. So whatever data stoed in mountPath will be stored in postgres/
+directory under PVC.
+
+Now we can apply the config files using kubectl apply -f k8s and then run "kubectl get pv" Or "kubectl get pvc" to get our claims created.
+
+After that, we know that our multi-worker and multi-server module required redis and postgres to be able to work so we need to define environment variables 
+in our deployment config file for both of these to indicate how to connect to our redis and postgres deployments.
+So inside our multi-worker module, it required redis connection so we can set up env variables as
+..
+env:
+ - name: REDIS_HOST
+   value: redis-cluster-ip-service
+ - name: REDIS_PORT
+   value: 6379
+..
+This env section will come within the indendation level of "ports" in the deployment config file.
+The redis host value is the name of the cluster ip service for redis since we knw that cluster ip is used to expose the deployment withing the cluster.
+
+Similarly we can do it in our multi-server module to define env variables foe redis and postgres both.
+Here for defining postgres password, it is not recommended to store passwords in raw format rather we can make use of encoded secrets inside the cluster
+
+For handling secrets inside kubernetes cluster, there is another kind of object called 'Secret' which can be created just like other config files. But here, 
+we should not create a config file as declarative approach but rather we should take imperative approach to create our secret. The reason is that if we create a 
+config file then we will have to provide the raw password and tell encode this value. By this, we are still exposing our raw password in the file which should 
+not be the case. Rather we should use kubectl to create secret and then reference it inside our deployment config file. This should be done for both dev and production
+environment
+The command to gnerate secret is,
+  "kubectl create secret generic pgpassword --from-literal PGPASSWORD=12345asdf"
+   - Here generic means type of secret. It means that we will use arbitrary number of key value pairs together. The other 2 values are docker-registry which can be 
+     used if we are using custom authentication and authorization and tls for https (used later on)
+   - The secret-name "pgpassword" is just a name we can give anything to it to reference it later on
+   - The --from-literal means that we are providing the key value pair in the command line. The other approach is that we can provide it using a file.
+   
+Now we can attach our secret to our server module to use environment variable for postgres password
+For that wen can apply,
+..
+env:
+ - name: PGPASSWORD (this is the name which will be referenced by the container in the code)
+   valueFrom:
+    secretKeyRef:
+	 name: pgpassword (this is the name for our secret key name given)
+	 key: PGPASSWORD (this is the name of key property for our encoded value)
+..
+
+Similarly we also need to override the default password used by postgres image because we have defined '12345asdf' as our postgres encoded password but postgres image 
+uses some other default password. So we can go into postgres deployment file and then withing our container configuration we can define the same set of env 
+config as before
+..
+env:
+ - name: POSTGRES_PASSWORD (this is the name which will be referenced by the container in the postgres image)
+   valueFrom:
+    secretKeyRef:
+	 name: pgpassword 
+	 key: PGPASSWORD
+..
+
+After that there is one last configuration left which is the Ingress Controller to handle the incoming traffic

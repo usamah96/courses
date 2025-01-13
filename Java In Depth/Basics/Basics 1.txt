@@ -1,0 +1,216 @@
+JDK
+-A software development environment used for developing Java applications
+-It includes JRE
+-Consists of tools,executable and binaries required to compile, debug and execute java applications
+
+JRE
+-Provides the minimum requirements for executing a Java application. 
+-It consists of the JVM, core classes, and supporting files.
+-Loads class files and ensures there is access to memory and other system resources to run them.
+
+JVM
+-Provides a environment in which Java byte code can be executed.
+-Responsible for converting Byte code to the machine specific code.
+-It Loads, Verifies and Executes the code
+----------------------------------------------
+
+Basics 1
+--
+
+*Class Level variables gets the default value if not initialized when declaring
+*Variables cannot be reinitialized at the class level
+*Variables declared at the method level dont get the default value. It must be assigned a value before accessing
+
+
+Primitive Types
+-----------------------
+1) Integers
+-Data represenation is a Signed two's complement scheme
+
+*byte
+-8 bits -> Range varies from -2^7 to 2^7 - 1 and default value is 0
+
+*short
+-16 bits -> Range varies from -2^15 to 2^15 - 1 and default value is 0
+
+*int
+-32 bits -> Range varies from -2^31 to 2^31 - 1 and default value is 0
+
+*long
+-64 bits -> Range varies from -2^63 to 2^63 - 1 and default value is 0
+
+
+2) Floating Point
+-Data representation is a IEEE 754 floating point scheme
+
+*float
+-32 bits -> Range varies from -3.4E38 to 3.4E38 and default value is 0.0f
+
+*double
+-32 bits -> Range varies from -1.7E308 to 1.7E308 and default value is 0.0d
+
+
+3) Character
+-Data representation is 16-bit Unicode UTF-16 scheme
+
+*char
+-16 bit -> Range varies from 0 to 2^16 - 1 and default value is '\u0000' (Null character)
+-Represented by 16bit unsigned integer.
+
+Example
+..
+'A' -> 0041 in UTF-16 -> 00000000 01000001 (65 ASCII) In Binary stored in memory
+
+
+Type Casting
+-----------------------
+
+-Assigning one type of variable to another type of variable
+-Can be done only numeric to numeric
+-Cannot cast into boolean or vice cersa
+
+Implicit Casting
+*Required if we want to assigning smaller to larger type. (Widening Conversion)
+
+byte(8) -> short(16) -> int(32) -> long(64) -> float(32) -> double(64)
+           char(16)  -> int(32) /  long(64) /  float(32) /  double (64)
+
+*Integer to floating is implicit too as range of values of float is larger than long. So range of values is what is dictating this order.
+
+
+Explicit Casting (Narrowing Conversion)
+*Required if we want to assigning larger to smaller type.
+
+byte(8) <- short(16) <- int(32) <- long(64) <- float(32) <- double(64)
+byte(8) <-> char(16)   (char to byte is explicit as range of char can be out of order. byte to char can also be explicit because byte ranges from -2^7 which is out of range of char)
+short(16) <-> char(16) (char to short is explicit despite same number of bits because char's max value is 2^16-1 where as short's max is 2^15-1 which can be below char's range. short to char can also be explicit because short's range start from -2^15 which is out of range of char.)
+char(16) <- int(32)
+
+Information Loss In Explicit Casting
+1) Out of range
+Example
+..
+byte a = (byte) 123456
+a wil get the value wierd value 64 because 123456 does not fall under byte's range
+64 is assigned because JVM will calulate the binary value of 123456 and will only consider the lower 8 bits of this binary because byte has
+a capacity of 8 bits only.
+
+2) Truncation
+It happens when casting floating point (float, double) to integers (byte, short, int, long, char)
+int a = (int) 3.14f
+a will get 3 as a value
+
+
+Information Loss In Implicit Casting
+-Information loss in this is very rare and does not happen frequently except few cases
+-Loss can happen if we are casting from int to float or long to float or long to double. Notice that int to double is fine.
+Example
+..
+int a = 1234567890;
+float f = a;
+int b = (int) f // 12345678936
+b will be with the value greater than older int value as implicit cas from int to float rounded the value.
+
+
+
+Variable Object References
+-----------------------
+
+Student s = new Student()
+-This statement has 3 parts
+1) Student s (which allocates space for the reference variable)
+2) new Student() (which allocates space for the new student object)
+3) = (assignes the memory address to the student variable or reference)
+
+When JVM starts up, it gets assigned a chunk of memory spaced from the operating system to run the program and one area of these memory spaces
+is heap. All objects live in heap
+
+-Like primitives, we also have bit depth of object references that are specific to JVM in the operating system.
+-Bit depth of object references in one JVM might be smaller or larger than another JVM
+
+
+Java is always Pass By Value
+--
+In case of Primitive:
+*int a = 100;
+-This statement has 3 parts (logical name, memory address and actual value)
+-Logical name a will be pointing to a memory address in a memory (85122) that will hold the actual value (100)
+-Passing the value to a method means the method will make a copy of that value which will be stored in a different memory address (85133) pointed
+by another logical name (a1)
+-Chaning a1 will not effect a because both the variables hold their own copy.
+
+In case of Non Primitive
+*Student s = new Student()
+-The logical name s will be pointing to a memory address (85122) in a memory that will hold another memory address (85133) of memory that 
+stores the actual student object.
+-Passing the logical name s to a method means that method will make a new copy of value that s is pointing to (85133). Now s1 is sotred in
+another memory address (85144) that holds the memory address (85133) that stores the actual student object.
+-Changing anything in s1 will also effect s because both points to the same memory address where the student object resides.
+
+
+
+
+
+
+Operators
+-----------------------
+
+Operator Types
+1) Assignment
+2) Arithematic (+, -, *, /, ++, --)
+3) Comparison / Relational (<, <=, >, >=, ==, !=)
+4) Logical / Conditional / Short Circuit (&&, ||, !)
+
+5) Bitwise (&, |, ^, ~)
+-Operators used where performance is critical and things have to be managed very effeciently. Coding is done on very low level.
+-Works on individual bits of operands (integer operands or boolean)
+-Used heavily in embedded systems, HashTables and HashMap, Data Compression and Encryption
+Examples
+..
+Bitwise And (&): Returns 1 if both the bits are 1
+Bitwise Or (|): Returns 1 if one of the bits are 1
+Bitwise XOR (^): Returns 1 if Only one bit is 1
+Bitwise NOT (~): Inverts the bits
+
+6) Bitshift (<<, >>, >>>)
+-Shifts the Bits
+-Operands must be Integer Types
+-Used in compiler optimizations that replaces multiplications and divisions with bitshift operations, HashMap Data Structure, Embedded 
+and Games Programming, Systems with no floating point support
+Examples
+..
+Left Shift (<<): Left shifts the binary bits. Same as multiplying with power of 2
+                 6 in binary: 0000 0000 0000 0110
+                 6 << 1: 0000 0000 0000 1100 Results in 12 as 6*2^1 is also 12
+                 6 << 3: 0000 0000 0011 0000 Results in 48 as 6*2^3 is also 48
+
+Unsigned Right Shift (>>>): Right shifts the binary bits. Same as dividing with power of 2
+Signed Right Shift (>>): Right shifts the binary bits with preserving the MSB
+
+7) instance of
+
+
+
+
+
+Switch Cases
+--
+-We can use Integers (byte, short, char, long), Strings and Enums in switch case expressions
+-With case labels we have some restrictions
+   *Must be within the range of expression specified
+   *Must be constant expression and can be known at compile time (final local variable, integer or string literals only)
+   *Must be unique
+   *Cannot be null
+
+When Switch Case is infeasible?
+-When you dont want to have equality checks. Like x > 3;
+-When you want to compare multiple operands; Like x > 3 && y < 6
+-When switch expression is other than Integer, String or Enum
+
+When to use Switch Case?
+-Readibility
+-Intent
+  *It deliberatel tells that only one variable is involved that is at the expression level. With if, the variables can be changed
+-Speed
+  *Faster than if since one condition and constant expressions are involved
+  *If there are multiple if conditions say 100, then all conditions will be evaluated and can take O(N) time. Switch will take O(1) time

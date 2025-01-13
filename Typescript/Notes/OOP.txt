@@ -1,0 +1,29 @@
+OOP
+--------
+
+All Basics
+..
+Classes
+Objects
+Interfaces (How Objects should look like || Description of Objects)
+Abstract Classes
+Inheritance
+Access Modifiers
+Readonly Interfaces Properties
+Shorthand Initialization (Properties inside Constructor)
+Getters and Setters
+Private Constructor (Singleton Pattern)
+
+
+Interface as Function Types
+interface AddFn {
+  (n1: number, n2: number): number
+}
+
+let add: AddFn = function(n1: number, n2: number){ return n1 + n2; }
+
+-Using types as function types are most common and recommended but there is an
+alternative to types which we should be aware of
+..
+type AddFn = (n1: number: n2: number) => number
+let add: AddFn = function(n1: number, n2: number){ return n1 + n2; }

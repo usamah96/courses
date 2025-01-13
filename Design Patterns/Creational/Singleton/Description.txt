@@ -1,0 +1,64 @@
+Singleton
+---
+
+A component which is instantiated only once.
+
+Motivation
+..
+-For some components it only makes sense to have one in the system like Database repository or an Object factory which creates
+different components on condition basis. So the factory doesn't need to get initialized.
+-The constructor call is expensive and we want to do the operation only once. We want to provide everyone with the same instance.
+-Want to prevent additional copies
+-Need to take care of lazy instantiation and thread safety.
+
+The Basic Singleton
+..
+-Create a simple instance (private static final) that is exposed to all the clients.
+-Create a getter that returns this instance.
+
+-There is one problem with the basic implementation because singleton can be broken through serialization
+-JVM doesn't care if our constructor is private or public. If we serialize our object and deserialize it, then JVM will create
+a new instance of it when deserializing so here we will get a brand new object
+-To overcome this problem we have to add a readResolve protected method in our class that will return the singleton object.
+-The readResolve method is a hint to JVM to use the singleton instance when deserializing ab object.
+
+-The problem also occurs when our constructor throws an exception
+-We cannot simply just initialize our object at the time of declaration with private static final because it needs to be in 
+a try catch block or inside a function that handles exception
+-A simple solution is to put it inside a static block
+
+
+Lazy Initialization
+..
+-The lazy initialization refers to create the singleton instance when its needed and not create at the time of creation of the
+class either at the declaration time or in a static block.
+-In the getInstance method check for null and create the instance if its still null.
+-This works fine until and unless we are dealing with multiple threads in our application
+-If there are multiple threads and by some chance 2 or 3 threads fall to the null check at the same time, all the threads will
+get true result when checking if the instance is null. So 3 instance will be created of that singleton class
+-This is not thread safe. We have to make it thread safe if we are dealing with lazy initialization
+-One solution is to make the static method synchronized but obv the synchronized lead to some performance compromise.
+-Another solution is to create double-check locking which is not recommended as it is outdated but this is something to be 
+aware of.
+
+Now to avoid the performance compromize of the synchronized keyword, one solution is to make the inner class and it will be the
+inner class's responsibility to create the singleton instance. We dont have to care about thread safety because no matter what
+happens we will always get the singleton intance.
+
+
+
+Enum Based Singleton
+..
+-Considers to be the best solution to implement singleton in java
+-JVM guarentees thread-safety of creation of enums 
+-Only one instance of enum is created and it cannot be broken even without serialization or reflection
+-When serializing the enums, the values are not serialized. Only the enum type is serialized.
+-Enum constructors are by default private
+-Enum by default supports serialization and we dont have to implement it with Serializable interface.
+-The disadvantage of this approach is that
+   a) Enum are special type of classes. They cannot be inherited by other classes
+   b) Lazy initialization cannot be supported
+   c) If someone created a function to perform lazy initialization, then make sure to handle thread safety also because enum
+      are thread safe by default and lazy initialization code will break this default behavior, and its a programmers 
+      responsibility to handle thread-safety 
+

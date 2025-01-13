@@ -1,0 +1,14 @@
+Fluent Builder
+---
+
+-In the StringBuilder example we have seen that we can chain the append method to create our String
+-The append method returns the reference of the StringBuilder itself.
+-This is something we can call the Fluent Interface that allows us create very long chains for building things up
+
+
+
+Faceted Builder
+--
+
+-Combination Of Facade and Builder
+-If we have a complex object that we have to combine multiple builders for it.

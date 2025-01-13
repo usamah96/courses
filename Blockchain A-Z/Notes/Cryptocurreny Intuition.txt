@@ -1,0 +1,257 @@
+Cryptocurreny Intuition
+--
+
+1) Bitcoin
+2) Bitcoin Policy
+3) Mining Pools
+4) Nonce Range
+5) Miners Picking Transactions
+6) Hardware for Crypto Mining
+7) Mempools
+8) Orphaned Blocks
+9) 51% Attack
+
+
+Bitcoin
+
+In crypto world, there are 3 important layers
+
+1) Technology, where blockchain resides
+2) Protocol / Coin, where bitcoin resides
+3) Token, rely on smart contracts built on different protocols
+
+We need to understand the concept that bitcoin is not just a coin or a currency. It is a protocol which contains a set of rules that guides how
+participants over network communicate with each other like TCP, UDP, HTTP, IP
+Similarly bitcoin contains set of rules how participants in a bitcoin network will communicate with each other, make an agreement and have a 
+consensus. This protocol guides how public priate keys should be used for authentication
+
+Other procools include
+  *Ethereum *Waves *New *Ripple
+All rely on the same technology which is blockchain
+
+All these protocols contain an important feature which is Coin and every protocol has a coin attached to it which is named after the protocol. The
+coin is a protocol asset which facilitates the interaction of players which is used to reward people through mining, purchasing things from each
+other
+
+For tokens
+  *Ethereum is the most popular protocol for creating smart contracts and tokens and there are hundreds and thousands of tokens
+  *Bitcoin has no token as it does not facilitates us for creating smart contracts. Nobody creates tokens on bitcoin
+  *Ripple also has no tokens
+  *Neo has quiet a lot of token and is said to be the challenger of Ethereum
+  *Waves also has a few tokens
+  
+  
+What is bitcoin all about?
+Bitcoin is taking the blockchain technology from theory and making it into practice where people are connected and transact with each other using
+this technology. All people trust each other because they trust the technology and there are no intermediate layers between them like bank
+
+The layer 2 is about helping people transact without any layer
+
+The bitcoin echosystem consists of following things
+  *Nodes, which are devices used by people in the network
+  *Miners who helps the blockchain grow by mining
+  *Large Miners, who have lots of lots of devices and equipments to make large contribution in growing the blockchain
+  *Mining Pool where miners get together and work on mining process
+  
+  
+  
+  
+  
+Bitcoin Monetary Policy
+
+Just like a government bank has a policy, bitcoin also has a policy
+It consists of 2 main parts
+  
+1) Halving
+
+This principal states that, number of bitcoins released in the system is halved every single 4 years per block
+This policy is entirely controlled by its software
+
+The bitcoin reward is getting low every 4 years so what is the point of mining then for the miners?
+More and more people are joining the network and trasnactions are increasing every now and then. Hence the transaction fees is getting increased
+exponentially so besides bitcoin mining reward, the miners also gets the transaction fees payed by the user
+
+For this reason, bitcoin is said to be deflation type of currency
+
+2) Block Frequency
+
+It is referred to how often blocks are coming in that is breaking the reward
+The average time per block is coming in
+  *Bitcoin -> 10 mins
+  *Litecoin -> 2.5 min
+  *Ethereum -> 15 sec
+  *Ripple -> 3.5 sec
+
+It is dependent upon the design of the system
+
+
+
+
+
+Mining Pool
+
+Beside regular miners, there are also large and huge industrial size mines with lots of employees that come joins the network which contain lots of 
+computation power.
+Now what about regular miners which has a very small computation power? Their mining effort will be in vain. This is not the case as with these
+industrial size mines, another thing was invented which is called mining pools.
+
+Mining pool provides a service in which it combines several miners, combine their hashing powers to solve the cryptographic puzzle
+The way it combines is that lets say node 1 to node 4 are part of mining pool. So node 1 is given the responsibility to check for the nonce from
+0 to 1 billion, node 2 to check from 1 billion to 2 billion and so on. And as soon as one of the node find the golden nonce, that mining pool wins.
+The reward is distributed among the miners according to the contribution they have made and according to the hashing power they preserve.
+
+Mining pool is basically a website or an organization which you can download into your device
+Anybody can join the mining pool and since there are multiple mining pools in a network, we can also switch between them
+
+
+
+
+
+Nonce Range
+
+We know that nonce is a filed inside a block which can vary and helps solving cryptographic puzzle
+Some additional info about nonce is that the nonce is not infinite
+
+It is a 32 bit number
+It is an integer which can range from 0 to approximately 4 Billion
+
+Some estimation on this range
+
+Total 64 hexadecimal character could be: 16^64 approximately =  10^77
+Total valid hexadecimal character could be: 16^(64 - 18) approximately =  2x10^55
+
+Probablity that a valid hash is picked = 2x10^55 / 10^77 = 2x10^-22 = 0.000000000000000000000002%
+
+Nonce is a 32 bit number so total possible hashes = 2^32 = 4,294,967,296 approximately 4x10^9 (4 Billion)
+If we assume there are no collision we get 4 Billion unique hashes
+
+Probablity that one of the hash will be valid = 4x10^9 x 2x10^-22 = 8x10^-13 approximately 10^-12 = 0.0000000000001%
+
+The probablity is very much small that one nonce range is not enough to find the golden nonce
+Then how will the cryptographic puzzle be solved?
+
+A modest miner does 100 million hashes per second so if there are 4 billion hashes. It would take around 40 seconds to calculate all the hashes
+for all the nonce and if the golden nonce is not found then what? Miner has nothing to do
+
+But that is not the case. There is another field in the block which is the "timestamp" which is automatically updating every second during the
+mining process. So by the combination of nonce and timestamp, we get infinite amount of hash to be calculated because the timestamp gets updated
+every second. If a miner calculates certain number of hash lets say from (0 to 100 million) in 1 second, then the timestamp will get updated and
+now those 100 million hash can be re-calculated because those now can be different.
+So in this way miner keeps on calculating with the updation of timestamp till it finds the golden nonce
+
+But this however is not the solution for the mining pool. The mining pool as we know combines the computation power and it can go upto 4 billion
+hashes in a tiny little part of a second. So the pool then needs to wait until the timestamp gets updated and then re-calculate those 4 billion
+hashes. But this is not the case. The solution is discussed in the next section.
+
+
+
+
+
+
+
+How Miners Pick Transaction?
+
+In reality, where do the transactions comes from which is the actual data of the block?
+The transactions comes from the Mempool which is attached to every miner. These are all the unconfirmed transactions which gets stored here 
+before it gets mined and turns into a block in a blockchain
+
+Blocks are added every 10 minutes (For Bitcoin) but transaction happened all the time
+
+The mempool contains the transaction id with the transaction fees which the miner will get if he adds it into his block
+A normal blockchain allows 1Mb of data to be added into the block but we can assume that a miner is allowed to add 5 transactions from the mempools
+
+The transaction fees associated with the transaction is applied by the user. It can be 0BTC or anything 
+The miners will however will try to pick transactions which has the highest fees because they will be getting paid
+
+Lets say they have picked 5 transactions with the highest fees from the mempool. For a single miner, it is alright to now check for the nonce
+until the timestamp gets updated
+But what is the solution for the mining pool? The pool can check all 4 billion nonce in less than a second (0.3 second) and they will sit idle
+for the rest of 0.7 second until the timestamp gets updated. The soluton is simple and that is to Change The Block Configuration. The pool will
+remove one transaction from the block with the lowest fees and will fetch one transaction with the next highest fees from the mempool and add it
+to the block and now re-calculate the hash because the data is changed.
+
+This technique is built into the algorithm and miners or the pool dont have to do this manually. If a miner become part of the pool, the pool
+itself will assign the transaction and it is not miner's headache to what is going on. They just provide computation power
+
+
+
+
+
+
+
+How Mempool Works?
+
+The mempool is attached to each participant whether it is a miner or user as a distributed peer to peer network
+Mempool is not a blockchain itself, it is just the staging area for transaction where all the transactions go before adding it into the block via
+mining
+
+Lets say User has to do the transaction. It will add that transaction into his mempool and broadcast it to the network. All the closest nodes
+will listen to this message, perform some checks (validate the transaction by checking signatures, etc) and then those nodes broadcast further
+down the network to their closest node and throughout the network it is spread
+
+In this way mempool is filled up and aroung 5 to 10 thousands records are there inside a mempool
+
+Now we know how miners pick transaction, they pick the transaction, mines the block, adds the block to their blockchain and spread down the
+information. As soon as the validation check passes for the block, all the participants remove those mined transactions from their respective mempools
+
+
+
+
+
+
+
+
+
+CPUs vs GPUs vs ASICs
+
+Hardware that miners use to solve the cryptographic puzzle
+
+CPU
+  .General in its nature
+  .Can do about 10 million hashes per second
+
+GPU
+  .Specialized in its nature
+  .Does not have many tasks that a CPU has
+  .Designed to solve complex problems like matrix calculations for the graphics and videos to appear
+  .Can do about 1 billion hashes per second
+  
+ASIC
+  .Totally Specialized in its nature
+  .Designed just for the purpose of mining bitcoin or any other cryptocurrency
+  .Can do more than 1 trillion hashes per second
+
+
+
+
+
+
+
+51% Attack
+
+A 51% attack happens when a malicious user in a network acquires control of a given blockchain’s mining capabilities. It implies that the attackers 
+will have more than 50% mining power and can mine faster than everyone else. This group uses that power to create invalid transactions or deny 
+legitimate ones
+
+This attack is not designed to attack an individual selected block
+Just like an example that to hack the blockchain, the hacker just not need to attach single node blockchain but it will need to at-least hack
+more than 50% of the nodes in the blockchain including simple users and miners
+
+What 51% really is that suppose there is small network or 8 miners and is happily going with few blocks in a block chain. A group of miners (more than
+8 miners) from outside requested to join the network to mine the block and increase the blockchain. So those malicious miners will get the same
+copy of the blockchain and mempool to mine the block from now on. What those miners will do is that whenever they mine any block, they dont broadcast
+it to the other 8 loyal miners. The malicious miners keep secretly building their own chain and since these miners are more than 8, their rate of
+increasing blocks will be higher than those of 8 miners. After some time when the malicious chain become large enough than the loyal chain, at some
+point those malicious miners will broadcast the chain to the miners and that is from where the problem begans. We know that golden rule of
+competing chain is that the longest chain wins, so the malicious chain will discard the loyal chain since it is larger than that. All those mined
+blocks which was done by the 8 loyal miners will be discarded and sent back to the mempool and malicious block will replace them in the blockchain
+
+Now here the attack is not ended. The blocks which was cancelled and sent back to the mempool can be mined again and added to the blockchain. Here
+the malicious miners will try to stop these transactions getting added to the blockchain again. Since the miners are more than 8, they have the more
+hashing power, they will prevent picking these transactions and instead can mine empty blocks. After sometime these blocks will be discarded from
+the mempool because it is a rool of thumb that any transaction stuck in the mempool for 72 hours will be discarded and returned back to the user.
+
+Example 
+I spend 10 Bitcoin on a luxurious car. The car gets delivered a few days later, and my Bitcoins are transferred from me to the car company. 
+By performing a 51% attack on the Bitcoin blockchain, I can now try to reverse this Bitcoin transfer. If I succeed, I will possess both the 
+luxurious car and my Bitcoins, allowing me to spend those Bitcoins again.

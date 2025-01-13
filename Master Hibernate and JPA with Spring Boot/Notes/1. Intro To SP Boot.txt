@@ -1,0 +1,116 @@
+Introduction To Spring Boot
+---
+
+What Spring Boot can do?
+-It enables building production ready application really quickyl
+-It provides common non-functional features (discussed later in this course) like
+   .embedded servers
+   .metrics
+   .health checks
+   .externalized configuration
+
+
+What Spring Boot is NOT!
+-Spring boot is neither an application or web server. It provides great integration with embedded servers like Tomcat, Jetty etc
+-Spring boot provides ZERO code generation. It is not a code generation framework.
+
+
+Spring Boot Auto Configuration
+..
+The @SpringBootApplication annotation in the main file indicates that,
+  1) This is a Spring context
+  2) It enables Auto Configuration
+  3) It enables Component Scan to all the annotations present inside this package and sub-packages.
+
+-SpringApplication.run method returns an ApplicationContext which stores all the beans that are being configured at the application
+startup. We can see all those with context.getBeanDefinitionNames() method which return List<String>.
+-There is a dependency named as autoconfigure which is a very big jar file that holds all the classes for auto configuration. These
+auto configuration classes are what creating all the beans.
+-At startup, spring boot trigger the autoconfigure jar file and look through classes present in the classpath and load the
+dependency or create the bean accordingly.
+
+Example of Auto Configuration
+..
+-There is a annotation called @ConditionalOnClass which stores the class names. So the bean is only created if the classes
+present in this annotation are pesent in the classpath also.
+
+@ConditionalOnClass({DataSource.class, EmbeddedDatabaseType.class})
+public class DataSourceAutoConfiguration{}
+
+-So if these 2 classes are present in the classpath then only the bean of DataSourceAutoConfiguration will be created by 
+spring boot.
+
+-We can turn on the logging for auto configuration to see which beans are loaded and which are not loaded by the auto configuration.
+It also tells us the bean that being loaded by which classes on the classpath.
+-For turning on Logging
+..
+In the application.properties file
+logging.level.org.springframework: DEBUG
+
+
+
+Spring vs Spring Mvc vs Spring Boot
+..
+Spring Framework solves the problem of the dependency injection so that we can build our application lossely coupled. Loosely
+coupled application can be easily tested. The responsibility of creation of beans is in the hand of spring which is the Inversion
+of Control. We dont directly instantiate other services inside our controller, but instead we Autowire it so that spring
+privides us the dependencies. Another problem Spring solves is that it has good integration with other frameworks as well like
+Hibernate for ORM, Junit and Mockito for Unit Testing, etc...
+
+Spring MVC is more concerned with developing web application easily. It follows separation of concernes like Dispatcher Servlet
+concerns only with the front controller. Similarly ModelAndView and View Resolver solves single problem withing the
+framework.
+
+The problem Spring Boot solves is that we dont want to configure all the dependencies by our selves. Spring boot says if a
+spring mvc jar is added into the application, can we auto configure some of the beans automatically. Spring Boot says how
+about auto configuring a Data Source if hibernate jar is on the classpath, or how about auto configure Dispatcher Servlet if
+Spring Mvc jar is on the classpath. Spring boot also provied us starters like starter-actuator for monitoring our application
+out of the box, starter-logging for logging in our application, etc...
+
+
+
+Starter Web and Starter JPA
+..
+-With Spring boot start-web dependency we get a lot of dependencies along with it like starter-json that converts our response
+to json automatically when returning from @RestController, hibernate-validator for validations, starter-tomcat for the server
+on which our application will run, starter-web which loads further dependencies like logging dependecies yaml dependency etc, 
+start-test which loads assetj dependency, mockito-core for writing unit testing, spring mvc for dispatcher servler and view 
+resolver etc...
+
+-JPA is an interface for hibernate that defines how ORM should work. With starter-data-jpa dependency, it will dependencies
+related to hibernate, transaction api, aop, etc.
+
+
+Other starters
+..
+1) starter-web-services : For SOAP Web Services
+2) starter-web: RESTful applications
+3) starter-test: For Unit and Integration Testing
+4) starter-jdbc: For Traditional JDBC
+5) starter-security: For Spring Security
+6) starter-data-jpa: For Data JPA with Hibernate
+7) starter-cache: Enabling Spring Framework's caching support
+
+
+
+Spring Boot Actuator
+..
+-To use it add the dependency of starter-actuator
+-Brings monitoring around application
+-We want to know how many beans are configured, how many services are called or how many services are failed
+-Go to localhost:8080/actuator or localhost:8080/application that will show links which will provide information realted to
+the information.
+-Initially the links will be limited. To enable all the links we need to configure this in our app-properties
+management.endpoints.web.exposure.include=*
+-We can see how many users are authenticated successfully and how many failed with audit link, how many requests are generated 
+and what are the responses sent by the application in what time with httptrace link.
+-One thing to keep in mind is that enabling all these actuators are performance compromise and we dont want to do this on
+production enviroment.
+
+
+
+Spring Boot Dev Tools
+-When we make a change to our code, we need to restart the server that will load all the dependencies again and start the server.
+-Spring Boot Dev Tools is a dependency that will detect the change in our code and restart the server without loading all the
+dependencies again which are loaded earlier.
+-To use it add the dependency of starter-devtools

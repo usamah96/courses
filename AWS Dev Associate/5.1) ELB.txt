@@ -1,0 +1,260 @@
+ELB
+--
+
+We know that what is load balancer and how it works
+
+Why use Load Balancer?
+  .To spread the load across multiple downstream instances
+  .Expose a single entry point into our application
+  .Sealmessly handle failuresof downstream instances
+  .Do regular health checks for instances and does not send the traffic if some instance is unhealthy
+  .Provide SSL termination (Https) for our website
+  .Enforce stickiness with cookies
+  .Separate public traffic from private traffic.
+  
+AWS Elastic Load Balancer is a managed load balancer service where AWS guarentees that it will always be working. AWS take care
+of its maintainance, upgrades, high availability and failures and also provides some configuration knobs to tweek it according 
+to our requirements.
+We can also set up our own load balancer but it will cost us more and also a headache to manage it all by ourself.
+
+
+Health Checks are cruicial for load balancers. It is constantly done to check whether the instance is healthy enough to take 
+up the traffic. It is done with a port number a route.
+For example we can configure a /health endpoint at 1234 port of our EC2 instance and the load balancer will use this endpoint
+to check whether it responds a 200 OK response or not.
+
+AWS provides us with 4 kinds of managed Load Balancers
+  1) Classic Load Balancer (CLB)
+      .It is the old generation load balancer which is deprecated and AWS does not recommend to use this anymore
+	  .It supports http, https, tcp, ssl
+  2) Application Load Balancer (ALB)
+      .It is the new generation load balancer and supports http, https and web sockets.
+  3) Network Load Balancer (NLB)
+      .It is the new generation load balancer and supports tcp, udp and tls
+  4) Gateway Load Balancer (GWLB)
+      .It is the new generation load balancer and operates at network layer - the ip protocol.
+	  
+Some of the load balancers can be set up as internal (private) and external (public)
+
+For Load Balancer security, we define the security group with inbound rules of http and https from anywhere in the world and 
+attach it to our load balancer because users from anywhere in the world should access our website. For our downstream EC2 
+instances, we should define a security group with inbound rule to accept the traffic from another security group which is attached
+to the load balancer. So only traffic from load balancr is accepted.
+
+
+
+Application Load Balancer
+..
+It is a layer 7 (Application Layer) load balancer and helps balance the load between multiple target groups (different machines)
+It can also load balance to multiple applications running on a single machine (ex: containers)
+It has a support for Https, Websockets and redirection for example from http to https
+It supports multiple types of routing,
+   .Routing based on url path (example.com/users, example.com/posts)
+   .Route based on hostname (one.example.com, two.example.com)
+   .Route based on query strings, headers (example.com/users?id=123&order=false)
+   
+ALBs are great fit for microservices and container based applications (Docker and Amazon ECS). It has a port mapping feature for
+dynamic ports in ECS.
+
+The target group for ALBs can be,
+  .EC2 instances that can be managed by Auto Scaling Groups
+  .ECS tasks managed by ECS itself
+  .Lambda functions
+  .Private IP Addresses
+  
+  
+Hands On
+***
+
+Creating 2 instances with some default user data script, security group and not giving it a private key as we can also connect it via ec2 connect.
+After launcing the instance, create a load balancer and select application load balancer as its type.
+Upon creating a load balancer, we will select all availablity zones (us-east-1a, us-east-1b, us-east-1c, etc...) so that it it accessible from
+everywhere inside an AZ.
+We will create a new security group for it and assign to it
+We will then create a target group. The target group type will be instance and on that we will select our 2 instances that we launched before. We will 
+select include as pending below before creating the target group button. This target group means that the load balancer will balance the load among 
+these 2 instances.
+After that we will assign this target group to our ALB and then finally creating the load balancer
+AWS will by default assign the DNS name to it and we can now access our ALB with that hostname.
+
+Now we can privately access our instances separately with the ip and through load balancer too. We want to restrict our instance access privately
+and only allow traffic from our ALB. For that we will go to the security group assigned to our instances and edit the inbound rule. We will remove
+the inbound rule that says to allow incoming traffic from anywhere and will add a new rule that will allow traffic only from the security group 
+assigned to our load balancer.
+
+We can also add Load Balancer Listener Rules
+..
+Listener rules are the rules we can customize it to tell load balancer what to do in case of something happens.
+We can do three things after defining a rule
+  a) Route the request to a specific target group which can contain a set of different instances
+  b) Route the request to a specific URL
+  c) Return a fixe response either plain text, html, json, etc...
+  
+The rules can be
+  a) Define a path lets say we can add rule for path /error to route the request when this path is accessd
+  b) Define a request method (GET, POST, PUT, etc) to route the request based on it
+  c) Define a source IP and route the request based on it
+  d) Define http header name and its value to route the request based on it
+  e) Define a query string key and value to route the request based on it
+  
+We also set the rule priority as if multiple rule falls under same condition then highest priority rule will be executed.
+***
+
+When you create an ALB, AWS allocates one or more elastic network interfaces (ENIs) per subnet in each Availability Zone (AZ) you enable for the ALB. 
+These ENIs are attached to the ALB and receive dynamic private IP addresses within the VPC subnets.
+When you create an ALB, you specify the subnets in which you want the ALB to be available. Each subnet corresponds to an AZ. For example, 
+if you select subnets in us-east-1a, us-east-1b, and us-east-1c, the ALB will be deployed in those three AZs.
+The DNS name of the ALB is associated with multiple IP addresses corresponding to the ENIs across the different AZs. When a client requests the DNS 
+name, Route 53 returns the IP addresses of the ENIs.
+
+
+
+
+
+Network Load Balancer
+..
+It is a layer 4 (Transport Layer) low level load balancer that deals with TCP and UDP traffic and can route incoming traffic based on IP protocol data
+It is very high performance load balancer that can manage million of requests per second with comparitively less latency with ALB.
+
+NLB has one static ip per AZ and also supports assiging Elastic IP
+
+Private IP vs Public IP vs Elastic IP
+--
+Private IPs: These are used within the VPC for communication between resources. They do not change as long as the instance or resource 
+remains the same.
+Public IPs: When you launch an EC2 instance or create an AWS service (like an NLB), AWS can assign a public IP from a pool of addresses. However, 
+these public IPs are not guaranteed to remain the same if the instance or service is stopped and started again.
+Elastic IPs: They are a type of static public IP address provided by AWS that you can associate with your resources, such as EC2 instances or Network 
+Load Balancers. They remain the same until you explicitly release them
+
+
+
+In the case of an AWS Network Load Balancer (NLB), the handling of IP addresses and DNS routing is different from that of an Application 
+Load Balancer (ALB).
+Each NLB can have a static IP address per Availability Zone (AZ). These IP addresses are automatically assigned by AWS when you create the NLB.
+Alternative to static ip assignment, If you need a fixed IP address for your NLB that doesn't change, you can associate an Elastic IP address with 
+each subnet in which the NLB is deployed. This is especially useful for scenarios where IP whitelisting is required.
+When a client makes a request to the DNS name of the NLB, Route 53 resolves the DNS name to the static IP addresses of the NLB in each AZ.
+
+
+The Hands On demo is much similar to that of ALB. We just select NLB instead of ALB when creating Load Balancer.
+
+
+
+Gateway Load Balancer
+..
+It is a much lower level load balancer which operates at Layer 3 (Network Layer) and is used if we want all our internet facing traffic to go 
+through a set of inspection first. It means that a certain request will first be inspected for example firewall, intrusion detection, prevention
+system, deep packet inspection or modification but at the layer 3 level (IP Packets), etc
+
+There is single entry and exit point for the traffic which is the GWLB and it distributes the traffic to our 3rd party virtual appliances combined
+in a target group. The target group can consist of EC2 instances, any private ips
+
+If we see GENEV protocol on port 6081 then it is the GWLB.
+
+Geneve (Generic Network Virtualization Encapsulation) is a network encapsulation protocol that is used to carry Layer 2 Ethernet packets over 
+Layer 3 IP networks.
+The AWS Gateway Load Balancer (GWLB) uses the Geneve protocol on port 6081 for encapsulating traffic between the GWLB and virtual appliances or 
+instances that are acting as network function services (e.g., firewalls, intrusion detection systems, or custom network appliances).
+
+When a client sends traffic that needs to be processed by a virtual appliance, the GWLB encapsulates the original network packets using the Geneve
+protocol.
+The encapsulated packets are sent over the network to the virtual appliance instances on port 6081.
+The virtual appliances receive the encapsulated packets, decapsulate them to access the original payload, process the packets according to their 
+function, and then re-encapsulate the packets if necessary.
+After processing, the virtual appliances send the packets back to the GWLB using the same Geneve encapsulation on port 6081.
+The GWLB then decapsulates the packets and forwards them to their final destination.
+
+
+Sticky Sessions
+..
+We can implement sticky sessions with ALB and NLB which means that if user A has requests to load balancer and the load balancer redirected the 
+request to instance A, then user A requesting in the future will be redirected to instance A everytime.
+
+The load balancer uses the cookie information for this purpose and once the cookie expires, then the user may be redirected to some other instance
+The use case is that to make sure user does not lose its session data but it will imbalance the load between ec2 instances.
+
+The cookie can be generated in 2 ways
+1) Application Based Cookies
+     a) Custom Cookie  
+          .It is generated by the application itself and can set any custom attributes in it
+		  .The cookie name must be specified for each target group
+		  .The name of the cookie can be anything other that reserve words i.e: AWSALB, AWSALBAPP, AWSALBTG
+	 b) Application Cookie
+	      .It is generated by the load balancer
+		  .The cookie name is AWSALBAPP
+2) Duration Based Cookie
+    .Cookie is generated by the load balancer
+	.The cookie name is AWSALB or AWSELB
+	.The duration can be specified by the load balancer itself
+	
+	
+To create it we go to the created target group, click on actions and edit attributes
+We can tick the checkbox for Turn on stickeness and select the stickeness type (either load balancer generated or applicaton generated)
+For application generated, we need to specify the name of the cookie our application will send.	
+
+
+
+Cross Zone Load Balancing
+..
+The cross zone load balancing means that if we have imbalance amount of ec2 instances in multiple availability zones, then the load balancer will
+balance the load among all the instances combine we have in all the availability zones.
+
+If we have 10 instances, 2 in us-east-1a and 8 in us-east-1b and each AZ has a load balancer, then us-east-1a load balancer will route the request
+to us-east-1b target group instances if us-east-1a target group is overloaded.
+
+For ALB, cross zone load balancing is turned on by default and to disable it, we have to do this on target group level. Usually, data transfer 
+between different zone costs us some money but in this case there are no extra charges.
+For NLB and GWLB, cross zone load balancing is turned off by default.
+
+We can go to load balancer -> attributes and check th cross zone load balancing for NLB and GWLB
+For ALB, we need to go to the target group -> attributes and can turn on or off
+
+
+
+SSL/TLS for Load Balancers
+..
+We know that what SSL/TLS is and what it does,
+
+The load balancer uses X.509 certificates and we can manage them in AWS Certificate Manager (ACM)
+There are many Public CAs like GoDaddy, Letsencrypt, Comodo, Symantec, Digicert, etc.
+
+The load balancer can contain multiple certificates as there can be a webserver hosting multiple websites. The client will specify the SNI (Server 
+Name Indication) to specify the hostname they are trying to reach in the initial handshaking with the server. The server will then fulfil the request
+by checking the relevant certificate.
+
+SNI solves the problem of loading multiple SSL certificates onto single web server serving multiple websites.
+It only works for ALB and NLB and CloudFront. It does not work for CLB (old generation load balancer)
+
+If we want to support multiple certificate in case of CLB, then we will have to add multiple CLB and each CLB will support 1 certificate.
+
+Hands On
+***
+
+For adding a certificate, we just need to go the Load Balancer settings and add a new listener
+Here we select protocol as https in listener configuration with port 443
+Then we specify where the traffic need to be routed for incoming users and select the target group of it created before.
+Then in the security policy settings we define from where we want to import the certificate. Either we can import it from ACM if we have created any,
+From IAM (Not recommended), or we can also import the certificate by defining the certificate private key and body and that will automatically be 
+imported to ACM.
+
+***
+
+
+
+Connection Draining
+..
+The naming convention for CLB is Connection Draining and for ALB, NLB is Deregistration Delay
+
+The concept is that, when the instance is about to get drained or get unhealthy, it will give time to complete the in-flight requests which means
+that if certain requests are still in process and in the meantime instance is about to get unhealthy, it will allow those requests to get completed
+and wait for certain period of time before it gets unavailable.
+
+If any new user tries to make a request, the load balancer is smart enough as it knows that a particular instance is draining out so it will not 
+route the reuqest to that instance.
+
+We can set the draining time duration between 1second to 3600second and can be disabled also and set it to 0. So if our requests are long lived like
+file uplaoding and downlaoding then we can set a large number otherwise a short number.
+
+
+

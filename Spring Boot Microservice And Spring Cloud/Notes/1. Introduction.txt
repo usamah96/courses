@@ -1,0 +1,16 @@
+Introduction
+--
+
+Microservices are a software development technique - a variant of the service oriented archiecture style that structures an application as a
+collection of lossely coupled services. The services are fine-grained
+
+
+-We mostly use 2 types of headers when sending requests to our microservices
+1) Content-Type (What type of data you are sending as a boduy)
+2) Accept (What type of data you want to receive from the service)
+
+-By default behavios is in JSON format but if you want to change to other formats we need to change Accept as application/xml
+-In our Spring Boot Controller we need to add
+   .produces = MediaType.APPLICATION_XML
+   .For multiple -> produces = {MediaType.APPLICATION_XML, MediaType.APPLICATION_JSON}
+-We need to add the dependencies in pom for ther format of data other than json. (jackson-dataformat-xml for xml data)

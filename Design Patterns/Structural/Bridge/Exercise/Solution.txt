@@ -1,0 +1,59 @@
+abstract class Shape
+{
+  public abstract String getName();
+}
+
+class Triangle extends Shape
+{
+  private Renderer rend;
+  
+  public Triangle(Renderer rend){
+      this.rend = rend;
+  }
+  @Override
+  public String getName()
+  {
+    return "Triangle";
+  }
+  @Override
+  public String toString()
+  {
+    return String.format("Drawing Triangle as %s", this.rend.whatToRenderAs());
+  }
+}
+
+class Square extends Shape
+{
+  private Renderer rend;
+  public Square(Renderer rend){
+      this.rend = rend;
+  }
+  @Override
+  public String getName()
+  {
+    return "Square";
+  }
+  @Override
+  public String toString()
+  {
+    return String.format("Drawing Square as %s", this.rend.whatToRenderAs());
+  }
+}
+
+interface Renderer{
+    public String whatToRenderAs();
+}
+
+class VectorRenderer implements Renderer
+{
+  public String whatToRenderAs(){
+      return "lines";
+  }
+}
+
+class RasterRenderer implements Renderer
+{
+  public String whatToRenderAs(){
+      return "pixels";
+  }
+}

@@ -1,0 +1,137 @@
+Enums
+---
+
+Enum is a class which holds a fixed set of constants
+The JVM loads the enum when it is use for the very first time
+
+Thinking it like a class
+int enum pattern
+
+public class Genre{
+   // For Movie
+   public static final int MOVIE_GENRE_HORROR = 0;
+   public static final int MOVIE_GENERE_DRAMA = 1;
+   
+   //For Book
+   public static final BOOK_GENRE_HORROR = 10;
+   public static final BOOK_GENRE_BIOGRAPHY = 11;
+}
+
+Enums comes into play when we face some deficiency in creating some classes
+These Defeciency are
+1) No type safety
+     .If a method takes int as an argument and expects MOVIE_GENRE_HORROR to be the value for suppose then the client code by mistakenly input
+      BOOK_GENRE_HORROR which can result in serious issue.
+2) Brittle Code
+     .We know that these constants are compile time constants and it does not get updated when the code is re-compiled.
+     .If a value is set and the constant value is changed without re-compiling so it will use the old value
+3) No Namespace Protection
+     .In our example, to distinguish between HORROR, we are using the MOVIE and BOOK as a prefix which is a bit clumbsy 
+4) No easy printing
+     .If we want to print the name of the constant then it is not easy to do
+5) Cannot iterate
+     .If we want to iterate over a group of constant then we cannot do until and unless we have write some ugly reflection code.
+     
+We can make separate classes for compile time constants but still it will only resolve the name space problem issue and other problem will still
+be there
+
+Another solution to avoid type safety and brittlness is
+public final class MovieGenre{
+
+  public static final MovieGenre HORROR = new MovieGenre("Horror", 1);
+  public static final MovieGenre DRAMA = new MovieGenre("Drama", 2);
+
+  private String name;
+  private int ordinal;
+  
+  private MovieGenre(String name, int ordinal){
+     this.name = name;
+     this.ordinal = ordinal;
+  }
+}
+
+In this way we reolsve the issue but still there is a lot to write code and its cumbersome. It will go ugly as it goes large
+
+Finally in Java 5 enums were introduced
+enum MovieGenre {HORROR, DRAMA}
+   .MovieGenre is the enum type
+   .HORROR, DRAMA are the enum constants
+   
+Under the hood, a much similar class is created by JVM to handle the enums
+The enum class under the hood is final so it is not extendible and also it is not instantiable since ctor is private
+2 static methods are created inside this class which is values() and valueOf()
+
+Enums Can contain
+1) Instance variables
+2) Methods
+3) Private ctors
+     .Cannot be public since enum is not instantiable, cannot be protected since enum is not extendible
+     .If no modifier is given then by default the modifer will be private and not default
+4) Static members
+
+
+
+
+Nested Enums
+..
+Enums can be nested inside a class and since enums are classes so they will be implicitly static nested classes
+   .No access to instance memebers of enclosing class
+
+Is there any difference between nested enums and static member class?
+Nested enums are not instantiable where as static class are
+
+Enums can be nested within enum and also within static class
+Enums can be nested within non static class
+   .Valid for Java 17 but not for Java 8 and Java 11
+   
+Associating constant specific behaviour to Enums via
+1) Switch Statements
+Example
+class Book{
+  enum BookGenre{
+    
+    HORROR(12),
+    DRAMA(10)
+    
+    private int age;
+    private BookGenre(int minAge){ this.age = minAge; }
+    public int getMinAge(){ return this.age; }
+    
+    public boolean isKidFriendly(int age){
+       switch(this){
+          case HORROR: return age >= this.age;
+          case DRAMA: return false;
+          default: return false;
+       }
+    }
+  }
+}
+One limitation is there, whenever a new constant is introduced inside the enum, the developer will need to add a case block in the switch statement.
+TO avoid this limitation we have the 2nd approach above.
+
+2) Constant specific methods
+     .We define the constant methods as we define our constants.
+Example
+class Book{
+  enum BookGenre{
+    
+    HORROR(12){
+      public boolean isKidFriendly(int age){ return age >= this.age; }
+    },
+    DRAMA(10){
+      public boolean isKidFriendly(int age){ return false; }
+    };
+    abstract boolean isKidFriendly(int age);
+    
+    protected int age;
+    private BookGenre(int minAge){ this.age = minAge; }
+    public int getMinAge(){ return this.age; }
+   
+  }
+}
+Things to Notice here
+a) The constant specific method defines here, under the hood they will be created anonymous class that will extend our enum BookGenre
+b) Since we know that enum are transalted into static final classes that are not extensible, in this case it will no longer be final so that they
+   can be inherited by the anonymous class
+c) The age property is now made protected so that the anonymous class can access it.
+d) No hidden reference is managed by the anonymous class since the class is under the static class so no need of it.

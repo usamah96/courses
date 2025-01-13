@@ -1,0 +1,75 @@
+Caching with hibernate and Jpa
+--
+
+Why do we need cache?
+-To avoid the network roundtrip from the Data layer to the database layer
+-The data layer is the layer that talks with the database
+-Every time we query the data layer, the data layer hits the database that can be placed on a different server and returns the result
+-We can avoid such round trips for the data that is not often or changes frequently by the use of caching mechanism
+
+** The Web  ->  Service   ->  Data   ->  Database ** 
+
+When it comes to hibernate, there are 2 levels of cache
+1) First level cache
+2) Second level cache
+
+
+First Level Cache
+..
+-In a application, there are multiple transactions running in parallel
+-Each transaction has its own persistence context where the changes in the entites are tracked down time to time.
+-The first level cache is specific to a particular transaction
+
+Example
+..
+We have deployed a single instance of our application to a server. There are multiple users running this application. If a user retrieves
+list of courses adopted by him 3 times or 4 times at a particular time, the first level cache comes into picture. Transaction for this user
+will maintain the cache and only the first time it will retrieve list of courses for that particular user. After evey time the user
+retrieves the courses, hibernate will return back the result from the persistence context because the persistence context cached the
+result in the first level cache.
+
+Implementation
+..
+-Hibernate does it by itself if there is a @Transactional annotation placed before a method
+-If we dont put transactional annotation, every repository hit will open a new transaction and after the fetching of result the persistence
+context will be closed so no cache will be maintained at that point. 
+
+@Transactional
+public void fetchCourse(){
+    Course c1 = repo.findCourseById(1001);
+    Course c2 = repo.findCourseById(1001);  // Hibernate will not go to the database. Notice that no query will be fired into the logs
+}
+
+
+Second Level Cache
+..
+-This type of cache is around every transactions running in parallel in a single instance of an application
+
+Example
+..
+If there are 4 to 5 users using the application there can be 4 to 5 transactions running in parallel. If user 1 retrieves list of cities
+of list of countries, then first time hibernate will retrieve from the database and stores inside the second level cache. Now whenever
+any user tries to retries the same data hibernate will return back the result from the cache without going into the database.
+We can implement second level cache at a point where the data is common around all the transactions.
+
+Implementation 
+..
+-Use of second level cache by the caching framework EhCache
+-Add the dependency in the pom for hibernate-ehcache
+-Add some properties to enable the mechanism
+
+#1 enable second level cache
+spring.jpa.properties.hibernate.cache.user_second_level_cache=true
+
+#2 specify the caching framework - EhCache
+spring.jpa.properties.hibernate.cache.region.factory_class=org.hibernate.cache.ehcache.EhCacheRegionFactory
+(Go to EhCacheRegionFactory class and copy the qualified name)
+
+#3 Only cache what I tell to cache
+spring.jpa.properties.javax.persistence.sharedCache.mode=ENABLE_SELECTIVE
+(Other modes are ALL, DISABLE_SELECTIVE, NONE. Refer to SharedCache enum class)
+
+#4 Enable Logging
+logging.level.net.sf.ehcache=debug
+
+-Now decide which entity will not change frequently and simple put @Cacheable annotation on the class level

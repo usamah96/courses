@@ -1,0 +1,170 @@
+Elastic Beanstalk
+--
+
+Elastic Beanstalk is a scalable way of deploying our applications
+
+We know that a typical infrastructure of an application is that we have Route53 which resolves the DNS name and from that the request 
+comes into our ALB. Under the hood, we have an Autoscaling Group consists of multiple Ec2 instances and ALB balances the load between 
+these instances. The EC2 instance queries for data from either ElastiCache or RDS/DynamoDB to complete the user request.
+
+From a develper's perspective, I will only be looking after my code and if I want to deploy many applications then I will have to 
+follow this infra everytime including to manage all these services on top of it. 
+So here Elastic Beanstalk comes into play which provides a developer centric view of deploying an application on Aws. It uses all the 
+components which we have used or seen before like EC2, ASG, ALB, RDS, etc... It is a managed service so all the capacity provisioning, 
+load balancing, scaling in and out, health monitoring and configuration is managed by the service itself. The developer is just 
+responsible to look after his code.
+We still have all the control over the configurations for all the services used.
+
+The components of elastic beanstalk includes,
+  -Application, which is a collection of elastic beanstalk components like versions, environments, configuration, etc
+  -Version, which is a specific iteration of application code
+  -Environments, which is a collection of aws resources used to run a specific application version. Multiple environments can be created 
+   like dev, test, prod, etc
+So the flow will be like,
+  We create an application -> We upload the version -> We launch the environment -> We manage the environment
+To update the application stack or anything, we then repeat step 2 and 4 which is,
+  Upload version -> Manage environment
+  
+
+When defining the environment, we can select the tier for example the Web Server Tier or the Worker Tier
+The web server tier is the typical infra where we have ELB routing traffic to EC2 instances in different AZs which are backed by the
+ASG.
+In worker tier, we dont have client requesting any ELB, infact we have SQS Queue and our EC2 isntances act like a worker which polls 
+for new messages to be operational. Here the scaling is based upon number of SQS messages. If we have more number of msgs then we will
+need more number of instances. Also we can combine the web server tier with worker tier in such a way that from web server tier, we 
+can push a msg to worker tier by pushing a message to the SQS queue.
+
+We have 2 deployment modes
+  -One is Single Instane that is great for dev environment. We get one EC2 instance with Elastic IP with RDS Master database
+  -Other is High Availability with Load Balancer that is great for prod environment. We get 2 EC2 instances in 2 AZs with ALB balancing
+   the load between it. Also we get RDS Multi AZ databae with one Master and one Standby in different AZs.
+   
+   
+HandsOn
+***
+
+In Elastic Beanstalk service we first choose the Environment Tier either web server or worker.
+We define the name of our application
+Inside environment info, we spceify the name and we get the auto generated domain name also.
+Inside platfor, we specify the techology stack and the version
+Inside application code, we specify either we will upload our code, or sample application. The code must match the version we have selected
+before
+Inside Presets, we specify either we want single instance, high availability with ALB or custom configuration
+After that we create IAM role and also EC2 instance role for roles of our instances to have.
+We can leave all the other configuration defaut like networking, databases, and logging & monitoring
+***
+
+When we start creating the beanstack application, we can see a lot of events created under the Events table. These events are coming 
+from AWS CloudFormation service where all the resources are created needed by the Elastic Beanstalk like ASG, Elastic IP, Security Group,
+EC2 Instances, etc. The CloudFormation has its own template where it is all defined what to create and how to create.
+
+After the application is created, we get the auto generated domain name and by clicking on it we will see our application deployed
+with the tech stack we have chosen.
+
+After creating a simple One AZ, single instance application for dev environment, we can create an highly available application for 
+prod environment. For this, we can go to our Elastic Beanstalk application and create a new environment.
+We can choose the same settings for basic env and service access as before
+For Networking, we can choose our VPC and subnets where we want to deploy our instances. Also we can deactivate the 
+assiging or public ip to the instances as instances will be routed to using the ALB
+For Load Balancer settings, we can specify to create it on all our subnets and assign the type either we want ALB or NLB.
+For ASG, we can define the max and desired instances
+There are alot of ther configurations as well and we can leave it default.
+
+
+We have several Deployment options when we want to update to newer version of application
+  1) All at Once, where if our instances are running the v1 of our application then all the instances will first stopped and then 
+     started with new version of application. This is the fastest but contains some downtime as well. It is great for quick iterations
+	 and has no additional cost
+  2) Rolling, where we set the maximum and desired capacity instances. It has no additional cost but if we set the desired instance to 
+     be very low and have large number of instances then the deployment will be very long
+  3) Immutable, where the new version of our application/code is deployed to newly created ASG on newly created instances. Previously, 
+     the new version is deployed on already created instances but here a temporary ASG is created that contains new instances that 
+	 contain new version of our code. So when all the instances are created in temporary ASG, aws will merge temporary ASG with current
+	 active ASG. So our active ASG now will contain 3 instances with old version and 3 instances with new version. When all works good,
+	 the old version instances will then be terminated. It is costly with double capacity, has the longest deployment time but has zero 
+	 downtime and great for production releases. We can also do a quick rollback in case of any failures before the instances are 
+	 terminated.
+  4) Blue/Green, where we create a whole new environment known as a Green environment which contains our new release. The already 
+     active running environment is knows as the Blue environment. In Route53 we create a weighted polcy to redirect 10% of the 
+     traffic to the new green environment to test out users are not facing any issue, all things are working fine. After all the 
+     testing and validation checks, we can shut down blue environment and swap the url for green to be the new blue.
+  5) Traffic Splitting, it is an enhancement to the Blue/Green deployment where new version is deployed over a temporary ASG with the 
+     same capacity. A small percentage of the traffic is sent to the temporary ASG for configurable amount of time. The deployment 
+     health is monitored, and if there is a failure then an automatic rollback occurs to stop sending a percentage of traffic to 
+     temporary ASG. Once everything is stable, then the instances launched in temporary ASG are migrated to current active ASG and 
+     old instances are terminated. In this way there is no need to swap urls as there is no dns change.	 
+	 
+To see and set the deployment options, under our application we can go to configurations tab and under the section Updates, Monitoring 
+and Logging we can see Rolling Updates and Deployments section.
+
+
+With ElasticBeanstalk CLI, we can automate our deployment process and deployment pipelines using the command line with the commands 
+like,
+eb create
+eb status
+eb health
+eb events
+eb logs
+eb open
+...
+...
+...
+
+With ElasticBeanstalk Lifecycle policy, we can control the number of versions of an application because we can have atmost 1000 version
+of our application. For more versions, we will have to delete old versions.
+As we know that, when uploading our application code and versions, the referenced files are uploaded to s3 bucket and the bundel is then
+referenced from beanstalk. So we can define a lifecycle polciy by going into our application, click on settings button and activate 
+the lifecycle policy. Then we define the rule that after how many days we want version to be deleted. Also we can specify if 
+we want the source folder to be deleted from s3 or not.
+
+With ElasticBeanstalk extensions, we can set all the parameters set in the UI console from code using the config files.
+The requirement is that inside our root directory, we must have a folder with name ".ebextentions". Inside this folder we can have 
+a file with .config extension that can be in JSON or YAML format where we define the properties.
+One such property is to define our environment variables for our application.
+The configuration is as follows in YAML format,
+   open_settings:
+	aws:elasticbeanstalk:application:environment:
+	  DB_URL: "jdbc:postgres://rds-url"
+	  DB_PASSWORD: "test"
+	  
+We can see multiple extension config settings from elastic beanstalk documentation.
+When we deploy the new version and after the deployment, we can see in the console that the env variables are auto picked without needed
+to be specified from the console.
+As we know that behind the scenes, Elastic Beanstalk uses CloudFormation to provision other AWS services. With .ebextensions we can 
+provision any AWS service like ElastiCache, S3 Bucket, EBS, anything we want. We can modify settings from the console but using the 
+extensions .config file we have more control over these stuff.
+
+
+Cloning and Migration
+..
+We can clone an existing elastic beanstalk application environment with all the settings and configuration. So if we have a production
+env ready and running, we can clone it to have a test environment to test the new version of our application
+
+For migration, we will have to perform some steps
+
+Lets say we have an environment with network load balancer and we want to change it to application load balancer. We cannot do the 
+type change, we can only modify the configuration. We also cannot clone the env because cloning will copy the old load balacer type
+and we will not be able to change it either. For load balancer migration, we will have to create a brand new copy of old environment 
+manually with load balancer type to be application load balancer and after creating the new environment, we can update Route53 to 
+resolve the DNS query to return the IP of new environment rather than old environment.
+
+Similarly, if we have an environment where we have RDS database and we want to make RDS database separate from the environment, we will 
+first have to take a snapshot of database for backup to make sure nothing goes wrong so that we can restore immediately. We can then
+go to RDS console and protect RDS from deletion. After that we create a new environment manually with all the settings as old env 
+but with no RDS. From our application code, we reference an RDS via connection string that is not tied with Elastic Beanstalk env.
+After the successful launching of new env, we can perform blue green deployment or Route53 update and then terminate our old elastic
+beanstalk environment which will delete everything other than the RDS database which is being referenced by new environment.
+
+For Dev and QA environment, it is acceptable that we have created RDS tied with elastic beanstalk env but production env it is not 
+recommended as database lifecycle will be tied with beanstalk lifecycle
+
+
+
+Q: To improve your application performance, you want to add an ElastiCache cluster to your application hosted on Elastic Beanstalk. 
+What should you do?
+A: Create an elasticache.config file in the .ebextensions folder which is at the root of the code zip file and provide appropriate
+   configuration
+   
+Q: Due to compliance regulations, you have been tasked to enable HTTPS for your application hosted on Elastic Beanstalk. 
+This allows in-flight encryption between your clients and web servers. What must be done to set up HTTPS on Elastic Beanstalk?
+A: Create an .ebextensions/securelistener-alb.config file to confugre ALB https settings

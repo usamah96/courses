@@ -1,0 +1,77 @@
+Old implementation (Serialization Problem)
+..
+
+class Test implements Serializable {
+  private String a;
+  private static final INSTANCE = new Test();
+
+  private Test(){}
+  public void setA(String a){
+    this.a = a;
+  }
+  public String getA(){
+    return this.a;
+  }
+  public Test getInstance(){
+    return INSTANCE;
+  }
+}
+
+class Main{
+
+  public static void saveToFile(Test t, String filename) throws Exception{
+    try(FileOutputStream fileOut = new FileOutputStream(); ObjectOutputStream out = new ObjectOutputStream(fileOut)){
+      fileOut.writeToObject(t);
+    }
+  }
+  public static Test readFromFile(String filename) throws Exception{
+    try(FileInputStream fileIn = new FileInputStream(); ObjectInputStream in = new ObjectInputStream(fileIn)){
+      return (Test) in.readObject();
+    }
+  }
+  public static void main(String[] args){
+    Test singleton = Test.getInstance();
+    singleton.setA("Test One");
+
+    saveToFile(singleton, "test.bin");
+    singleton.setA("Test Two");
+    Test singleton2 = readFromFile("test.bin");
+
+    sout(singleton == singleton2);  //false
+    sout(singleton.getA()); //Test Two
+    sout(singleton2.getA()); //Test One
+  }
+}
+
+
+
+
+
+
+New Implementation (Fixed Serialization Problem)
+..
+class Test implements Serializable {
+  private String a;
+  private static final INSTANCE = new Test();
+
+  private Test(){}
+  public void setA(String a){
+    this.a = a;
+  }
+  public String getA(){
+    return this.a;
+  }
+  public Test getInstance(){
+    return INSTANCE;
+  }
+  protected Object readResolve(){
+    return INSTANCE;
+  }
+}
+
+-Main class will reamin save
+
+Output:
+true
+Test One
+Test One

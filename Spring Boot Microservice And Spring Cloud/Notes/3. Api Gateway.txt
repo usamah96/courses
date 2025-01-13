@@ -1,0 +1,189 @@
+API Gateway
+--
+
+We will follow 2 things.
+  *Zuul api gateway
+  *Spring cloud api gateway
+
+-THe difference is of the version only (Zuul not supported with spring 2.4.1 because of under maintainance. Possible in future)
+-If the version of gateway and spring boot is different, try spring cloud instead of zuul
+
+1) Zuul Api Gateway
+-Single entry point to our multiple microservices running
+-Consist of built-int Ribbon Load balancer
+-Zuul gets all available instances running from eureka
+
+-Create a new microservice project with dependencies of spring-web, discovery-client and zuul
+-Annotate the main application with @EnableEurekaClient and @EnableZuulProxy
+-Configure the following properties
+    *server.port=8500
+    *spring.application.name=zuul-gateway
+    *eureka.client.service-url.defaultZone=http://localhost:8010/eureka
+
+
+Running Multiple Instances of a service
+--
+-If we specify the following configuration in our properties
+   *server.port=0
+-Spring Boot will generate a random port whenever a new instance gets run. But there is a problem as eureka will only registers the last
+running instance.
+-There are 2 options to handle this. Either we specify port by ourself our give every instance a unique identifier
+
+1) Specfying separate ports
+-Add the following configuration
+   *server.port=${PORT:8510}  ->  If a port is specified then it will start on that port else it will start on 8510
+-To run a new instance, either create a new configuration properties and give VmArguments as "-Dserver.port={any_port}". Select that
+configuration and run the application
+-From terminal type this command to start a new instance
+   *mvnw spring-boot:run -Dspring-boot.run.arguments=--server.port={any_port}
+
+
+2) Specifying unique spring boot id
+-Add the following confguration
+   *eureka.instance.instance-id=${spring.application.name}:${spring.application.instance_id:${random.value}}
+   When a application instance id is provided then it will use that else will generate a random value for it.
+-To run a new instance, either create a new configuration properties and give VmArguments as "-Dspring.application.instance_id={any_name}". 
+Select that configuration and run the application
+-From terminal type this command to start a new instance
+   *mvnw spring-boot:run -Dspring-boot.run.arguments=--spring.application.instance_id={any_name}
+
+
+For multiple arguement,
+-In the Vm options provide with space separator
+  *Dserver.port={any_port} -Dspring.application.instance_id={any_name}
+-In the terminal provide with space separator
+  *mvnw spring-boot:run -Dspring-boot.run.arguments=--spring.application.instance_id={any_name} --server.port={any_port}
+
+
+
+Balancing The Load
+--
+-Run the micorservice on different ports.
+-To get the port number on which the service is running, use the following code
+..
+@Autowired
+private Enviroment env;
+String port = env.getProperty("local.server.port");
+
+-Just the print the port number and hit specific endpoint through Zuul we will get to see port number chaning as Zuul balances the load
+automatically.
+
+------------------------
+
+
+2) Spring Cloud Api Gateway
+
+-Create a new project with the following dependencies
+  *Eureka Client
+  *Spring Routing (search Gateway)
+  *Web Flux (required for spring cloud)
+
+-To enable spring cloud routing we need to enable discovery locator feature. This will automatically route and map to destination
+microservice
+   *spring.cloud.gateway.discovery.locator.enabled=true
+
+
+Auto Mapping Of Routes
+..
+-Add the following configuration line
+   *spring.cloud.gateway.discovery.locator.lower-case-service-id=true
+
+
+Manual Mapping Of Routes
+..
+-Now we have to configure the routes for our every service and specify each controller routes in predicates
+   *spring.cloud.gateway.routes[0].id=account-service
+   *spring.cloud.gateway.routes[0].uri=lb://account-service
+   *spring.cloud.gateway.routes[0].predicates[0]=Path=/accounts/**, /account/**
+-Spring cloud routing will combine the uri and the incoming url to navigate to a particular microservice
+
+-We can allow all specific routing by simply using
+   *spring.cloud.gateway.routes[0].predicates[0]=Path=/**
+
+-All the predicates should be matched in order to route the url
+-There are other predicates also like,
+   *spring.cloud.gateway.routes[0].predicates[1]=Method=GET (If the method is Get then only route the url. We can allow multiple http verbs using comma separated)
+   *spring.cloud.gateway.routes[0].filters[0]=RemoveRequestHeader=Cookie (This filter will remove cookie from the request)
+
+-We can add the filter to tell our route to navigate to a different url. Like if we want to add a prefix in our url
+    *spring.cloud.gateway.routes[0].predicates[0]=Path=/account-service/**
+    *spring.cloud.gateway.routes[0].filters[0]=RewritePath=/account-service/(?<segment>.*), /$\\{segment}
+-The RewritePath filter takes 2 arguments. One is external url and other is internal url. The external url will contain url with a prefix
+of account-service and the internal url is a regex that says to ignore what is before the segment and only consider the segment value which
+can be account/list/all or any other value. Then it will combine it with the uri value which account-service and navigate to the microservice.
+
+
+
+Predicate Factories
+--
+1. The After Route Predicate Factory
+..
+-The After route predicate factory takes one parameter, a datetime (which is a java ZonedDateTime). This predicate matches requests that 
+happen after the specified datetime.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = After=2017-01-20T17:42:47.789-07:00[America/Denver]
+-This route matches any request made after Jan 20, 2017 17:42 Mountain Time (Denver).
+
+
+2. The Before Route Predicate Factory
+..
+-The Before route predicate factory takes one parameter, a datetime (which is a java ZonedDateTime). This predicate matches requests that 
+happen before the specified datetime.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Before=2017-01-20T17:42:47.789-07:00[America/Denver]
+-This route matches any request made before Jan 20, 2017 17:42 Mountain Time (Denver).
+
+
+3. The Between Route Predicate Factory
+..
+-The Between route predicate factory takes two parameters, datetime1 and datetime2 which are java ZonedDateTimeobjects. This predicate matches 
+requests that happen after datetime1 and before datetime2. The datetime2 parameter must be after datetime1.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Between=2017-01-20T17:42:47.789-07:00[America/Denver], 2017-01-21T17:42:47.789-07:00[America/Denver]
+-This route matches any request made after Jan 20, 2017 17:42 Mountain Time (Denver) and before Jan 21, 2017 17:42 Mountain Time (Denver). 
+This could be useful for maintenance windows.
+
+
+4. The Cookie Route Predicate Factory
+..
+-The Cookie route predicate factory takes two parameters, the cookie name and a regexp (which is a Java regular expression). 
+This predicate matches cookies that have the given name and whose values match the regular expression.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Cookie=chocolate, ch.p
+-This route matches requests that have a cookie named chocolate whose value matches the ch.p regular expression.
+
+
+5. The Header Route Predicate Factory
+..
+-The Header route predicate factory takes two parameters, the header name and a regexp (which is a Java regular expression). 
+This predicate matches with a header that has the given name whose value matches the regular expression.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Header=X-Request-Id, \d+
+-This route matches if the request has a header named X-Request-Id whose value matches the \d+ regular expression (that is, it has a value 
+of one or more digits).
+
+
+6. The Host Route Predicate Factory
+..
+-The Host route predicate factory takes one parameter: a list of host name patterns. The pattern is an Ant-style pattern with . as the separator. 
+This predicates matches the Host header that matches the pattern.
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Host=**.somehost.org,**.anotherhost.org
+-URI template variables (such as {sub}.myhost.org) are supported as well. This route matches if the request has a Host header with a value of 
+www.somehost.org or beta.somehost.org or www.anotherhost.org.
+
+
+7. The Query Route Predicate Factory
+..
+-The Query route predicate factory takes two parameters: a required param and an optional regexp (which is a Java regular expression).
+Example
+   *spring.cloud.gateway.routes[0].predicates[0] = Query=green
+-The preceding route matches if the request contained a green query parameter.
+
+
+
+Gateway Filters
+--
+1) GatewayFilter Factories (https://cloud.spring.io/spring-cloud-gateway/reference/html/#gatewayfilter-factories)
+2) Global Filters (https://cloud.spring.io/spring-cloud-gateway/reference/html/#global-filters)
+3) HTTPHeadersFilter (https://cloud.spring.io/spring-cloud-gateway/reference/html/#httpheadersfilters)

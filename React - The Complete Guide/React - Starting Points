@@ -1,0 +1,150 @@
+React - Starting Points
+--
+
+
+React is all about Components and it allows us to create re-usable and reactive components
+
+Why Components?
+For
+  .Resusibility -> Dont repeat yourself
+  .Separation Of Concerns -> Keeping the code base small and dont do many things at a single place
+
+
+React uses Declarative apporach in building components. We dont tell react that a specific html elements should be created, inserted or updated at
+a specific place as we do this in vanilla javascript
+We just tell the final and the target state and it will be React's responsibility to detect which element to be removed, inserted or updated
+
+
+Create React App With
+  npx create-react-app demo-app
+  
+The very first file to be loaded is the index.js file under src folder
+In this javascript file there are few things which in ordinary JS file would not accept to run but here it is acceptable
+   .import './index.css file'
+   .ReactDOM.render(<App />, ...);
+   
+Here css file is imported and <App /> some html tags are being used. Features such as these are first transformed and then given to the browser
+to interpret.
+
+We have the App component in which there is a simple function that is returning html code which is also not valid for vanilla javascript. It is 
+basically referring to the JSX syntax which is built by the react team and set it uo for us in the project
+
+JSX stands for JavaScript XML. XML because html in the end is XML. It looks like html but there are some of the syntax different from html like
+we dont use "class" to add class but instead use "className" because "class" is a reserved keyword in javascript. In the end JSX is transformed into
+Javascript to be rendered into browser
+
+In our project, React dont go through all our files and import it. As we create our files, we have to tell when we want to use it using the import and
+export. If we add a css file then we will have to import that file into javascript file which is using that css file.
+
+We pass props as an argument to the component to pass the values
+
+We use props.children property which is by default in react to use all the JSX code written between opening and closing tags of the component
+
+
+In older versions of React, we have to import Reacr from 'react' in every file to use JSX Code
+Example
+
+Current JSX code
+  return <div>
+    <h2> Hello React </h2>
+    <Expenses items={expenses} />
+  </div>
+  
+Older Version
+  return React.createElement(
+   'div', {}, 
+   React.createElement('h2', {}, 'Hello React'), 
+   React.createElement(Expenses, {items: expenses})
+  );
+  
+We have to manually create react elements
+The current code is also transformed into this code before renderring into browser and that is why we need a parent wrapping <div> for rendering the
+JSX code because
+
+  return React.createElement('h2', {}, 'Hello React'), 
+         React.createElement(Expenses, {items: expenses})
+         
+This does not make sense and will not work
+
+
+
+
+
+
+Css Styling
+--
+
+If we use the css file and just import it in our js file then the css is not scoped to that js file only. THe styles will be applied globally and
+we need to scope it to restrict styles to only that js file
+
+There are 2 approaches of doing this
+
+1) Using Styled Components
+
+By Styled components, we need to import a new package styled-comp by
+   npm install --save styled-comp
+   
+Then import it like
+  import styled from 'styled-components'
+  
+Now from styled we can create all html elements with all the styles like
+    const Button = styled.button`
+    
+    `
+    
+The double ticks means that whatever styles we put in there these styles will be considered to this button element only. We use pseudo selectors
+to target any element inside the button element
+
+Example
+
+const Button = styled.button`
+
+margin: 0 auto;
+
+& label {
+...
+...
+}
+
+&.form-control.invalid label {
+...
+...
+}
+
+`
+
+And then use this button as
+   <Button /> in the JSX
+   
+We can also add dynamic classes by
+   <Button className={!isValid && 'invalid'} />
+   
+But styled components provide us the feature with the props to add dynamic classes. We inject values in our elements and use them in our styles like
+   <Button invalid={!isValid} />
+Now inside styles
+   const Button = styled.button`
+     & label {
+       color: {props => props.invalid ? 'red' : 'black'}
+     }
+   `
+
+
+
+2) Using CSS Modules
+
+With CSS Modules we change our css file name to module.css and then import it like
+  import styles from './Button.module.css';
+  
+The name is upto us whether we use styles or any other name.
+
+Using it like
+<button className={styles['button']}></button>
+
+FOr Dynamic styling we would use
+
+<button className={`${styles['button']} ${!isValid && styles['invalid']}}`}> Button </button>
+
+The probable class react will dynamically add will be
+  <component-name>-<element-name>-<hash-value>
+  Example
+  Button-button-28ah7

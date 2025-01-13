@@ -1,0 +1,53 @@
+Collections Framework
+--
+
+Collection Interface
+-Root of the collection hierarchy
+-Collections of object
+-Some allow duplicates and some does not like ArrayList does and Set implementatins does npt
+-Some allow ordered and some does not like ArrayList are ordered and HashSet is not
+-Collection interface has many sub-interfaces but it has only 1 direct subclass which is AbstractCollection which is the skeleton implementation
+of Collection interface which helps in minimizing the effort in implementing the Collection interface
+
+public interface Collection<E> implements Iterable<E>{}
+
+-It implements Iterable interface which has one abstract method interator
+-If we want to use our object to be used inside foreach statement then we need to implement it with iterable interface
+
+Collection interface has several methods common to all collections
+..
+1) Basic Operatons
+*add -> returns true or false whether element is added or not. false in terms if collection does not support duplicate
+*remove -> removes the element from collection. Receives Object as an argument.
+*contains -> check if element exists in collection
+*size -> returns size of collection
+*isEmpty -> return true or false whether collection is empt or not
+*iterator -> returns instance of iterator to be used to iterate through elements of collection
+
+2) Bulk Operations
+*addAll -> adds all element in the input collection
+*removeAll -> removes all elemen in the input collection
+*retainAll -> opposite to removeAll, will retain input collection and removes that are not present
+*containsAll -> check if all element matches with input collection
+*clear -> clears the collection
+
+
+3) Array Operations
+*toArray
+It has 2 overloads. 
+  -One that return Object[] we have to downcast it to our specific type
+  Example
+  Object[] a = c.toArray();
+
+  -Other revieves the type arguement as an array and returns that type. If the input array is of size less than collection size then new
+   array is created and elements are copied to new array. If input array is of size greater than equals to collection size then the same
+   array is returned and remaining spaces are filled will null elements.
+  Example
+  String[] a = c.toArray(new String[0]);
+
+
+-Besides Collection interface we have some skeletal implementations also in the form of abstract class. We have a base abstract class
+AbstractCollection which has 3 sub-classes
+   *AbstractList -> Extended by List interface implementation ArrayList
+   *AbstractSet -> Extended by Set interface implementation HashSet, TreeSet
+   *AbstractQueue -> Extended by PriorityQueue.

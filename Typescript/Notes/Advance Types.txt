@@ -1,0 +1,146 @@
+Advance Types
+--------
+
+1) Intersection Types
+-We can combine the types
+
+type A = { firstName:string, lastName:string }
+type B = { age:number }
+type AB = A & B;
+
+-Now any variable with AB type should contain all keys from A and B
+let variable: AB = { firsName: "Usama", lastName: "Abubakar", age: 24 }
+
+-We can do this with general types also
+..
+type A = number | string
+type B = boolean | number
+type AB = A & B
+
+-Now ant variable with type AB will contain type number because number is common
+between the two types
+let myVar: Ab = 5;
+
+
+
+2) Discriminated Unions
+-We can add a specific literal type in our objects to identify particular objects
+in our checks
+..
+interface Bird {
+  type: 'bird',
+  flyingSpeed: number
+}
+
+interface Horse {
+  type: 'horse',
+  runningSpeed: number
+}
+
+type Animal = Bird | Horse
+
+function displaySpeed(animal: Animal){
+  switch(animal.type){
+    case 'bird':
+      console.log(animal.flyingSpeed);
+      break;
+    case 'horse':
+     console.log(animal.runningSpeed);
+     break;
+  }
+}
+
+-If we were using classes instead of interfaces, we could have used instanceof
+like
+if(animal instance of Bird) console.log(animal.flyingSpeed)
+But javascript dont know what interfaces are and completely ignores it when
+compiled from typescript.
+
+
+
+
+3) Typecasting
+-Suppose we have a paragraph in our DOM
+<p></p>
+-If we grab this in our TS like,
+let pElement = document.querySelector("p");
+-pElement will be of type HtmlParagraphElement or null because the paragraph could
+exist of not
+
+-Typescript only knows about the particular element in our dom and it doesnt scan
+our whole html. So if we have a div or a p tag or input with the id
+<p id="user-input"></p>
+-And when we do
+let userInput = document.getElementById("user-input")
+-userInput will be of type HtmlElement which is generic for all Html Element.
+If we want access the input element's value we cannot do this
+userInput.value because value is not a property on HtmlElement. We have to type cast
+it.
+-Two ways of typecasting
+  a) angle brackets
+  let userInput = <HtmlInputElement> document.getElementById("user-input")
+  b) as keyword
+  let userInput = document.getElementById("user-input") as HtmlInputElement
+
+-The as keyword is prefered because angle brackets means something different in
+libraries like ReactJs
+
+
+
+
+4) Index Properties
+-If we have multiple forms in our webpage and we want to show a descriptive 
+validations for each of the field in the forms, we can make use of the index
+properties. We can create a container of errors that will hold the field name
+and corresponding errors.
+-Index properties allow us to add as many key value pairs as we want depending
+upon our form size
+..
+interface ErrorContainer = {
+  [prop:string]: string
+}
+-It says that the property name should be of type string and the value should also
+be of type string;
+-Now we can add our error types as our form holds
+..
+let errorBad: ErrorContainer = {
+  email: "Not a valid Email",
+  username: "Username must start with Capital Letter"
+}
+
+
+
+
+
+5) Optional Chaining
+-There is a possibility that we get the data from the server and we try access
+some of the properties that might not exist
+-Optional chaining we can use to verify
+..
+let userData = getDataFromServer();
+
+-In javascript we can do the check in this way
+if(userData.job && userData.job.title){ console.log(userData.job.title) }
+
+-With typescript we can use the optional chaining feature
+console.log(userData?.job?.title);
+-Check if userData is not undefined
+-Check if userData.job is not undefined
+-Prints userData.job.title
+
+
+
+
+6) Nullish Coalescing
+-We can deal with null and undefined values with nullish coalescing
+
+let userData = '';
+let output = userData || "Default";
+-The problem here is that || operator treats empty string as false and hence
+it will store the Default string
+
+-To only deal with null and undefined we can use
+let userData = '';
+let outpput = userData ?? "Default";
+-Here output will contain empty string
+-If userData is null or undefined only then output will carry Default string

@@ -1,0 +1,134 @@
+Local Template Querying
+------
+
+Using @ViewChild
+-Template querying mechanism which we can use to get the reference of any element in the template
+
+Consider course-card component as
+..
+course-card.ts
+@Output() courseSelected = new EventEmitter<COURSE>();
+@Input() course: COURSE;
+
+emitCourse(){
+  this.courseSelected.emit(course);
+}
+
+course-card.html
+<button (click)="emitCourse()">View Course</button>
+
+
+Eg1
+app.html
+<course-card (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+
+app.ts
+courses: COURSES;
+@ViewChild(CourseCardComponent)
+card: CourseCardComponent
+
+displayCard(ev){
+  console.log(this.card) //Outputs the course card component reference
+}
+
+
+Eg2
+app.html
+<course-card #cardRef1 (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+
+app.ts
+courses: COURSES;
+@ViewChild("cardRef1")
+card: CourseCardComponent
+
+displayCard(ev){
+  console.log(this.card) //Outputs the course card component reference for the first course card only
+}
+
+
+Eg3
+We can also get reference to the plain old html elements
+ElementRef helps us to get the reference of DOM elements
+..
+app.html file
+<div class="courses" #container>
+  <course-card (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+</div>
+
+app.ts
+@ViewChild("container")
+containerDiv: ElementRef
+
+
+
+Eg4
+course-card also acts as a html tag if we inspect it in the dev tools
+-So ff we have a use case to get the reference of the html of course-card and not its component
+-We can set the ViewChild options "read" property to ElementRef.
+..
+app.html file
+<course-card #cardRef1 (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+
+app.ts
+@ViewChild("cardRef1", {read: ElementRef})
+card: ElementRef
+
+
+
+
+
+
+
+Using AfterViewInit Life cycle hook
+-When is the time after component is loaded, our @ViewChild is filled in?
+-The values are undefined in the contructor
+-So AfterViewInit is the earliest place our ViewChild will be available
+-It is called by angular as soon as our ViewChild referenced are filled in
+..
+app.html file
+<course-card #cardRef1 (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+
+app.ts
+@ViewChild("cardRef1", {read: ElementRef})
+card: ElementRef
+
+constructor(){
+  console.log(this.card) // undefined
+}
+
+ngAfterVieewInit(){
+  console.log(this.card) // ElementRef reference to course-card
+}
+
+-Try to avoid any modification of data inside AfterViewInit because it will throw an error. Angular dont know
+what to display whether previous data or the changed data.
+
+
+
+
+
+
+
+Using @ViewChildren
+-Similar to @ViewChild
+-Only difference is that we can get all the references in out template in a QueryList
+-We have multiple operations in QueryList similar to an array like first, last, map, filter etc...
+
+Eg
+app.html
+<course-card (courseSelected)="displayCard($event)" [course]="courses[0]"></course-card>
+<course-card (courseSelected)="displayCard($event)" [course]="courses[1]"></course-card>
+
+app.ts
+courses: COURSES;
+@ViewChildren(CourseCardComponent)
+card: QueryList<CourseCardComponent>
+
+displayCard(ev){
+  console.log(this.card) //Outputs Query List
+}
+
+-Also we can subscribe to the change event of query list so that whenever the state is changed the new query
+list is gained.
+
+this.card.changes.subscribe(card => console.log(card));

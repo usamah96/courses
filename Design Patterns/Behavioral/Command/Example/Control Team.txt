@@ -1,0 +1,74 @@
+class Camera {
+  
+        // This method starts recording.
+        public void startRecording() {
+             System.out.println("Recording started.");
+        }
+  
+        //This method stops recording
+        public void stopRecording() {
+            System.out.println("Recording stopped.");
+        }
+    }
+
+class Light {
+  
+        // This method switches the light on.
+        public void turnOn() {
+            System.out.println("the Light is on now");
+        }
+  
+        // This method switches the light off.
+        public void turnOff() {
+            System.out.println("the Light is off now");
+        }
+    }
+
+ interface Command {
+        void execute();
+        void undo();
+    }
+
+class CameraStartRecordingCommand implements Command {
+
+    private Camera camera;
+
+    public CameraStartRecordingCommand(Camera camera) {
+        this.camera = camera;
+    }
+
+    @Override
+    public void execute() {
+        camera.startRecording();
+    }
+
+    @Override
+    public void undo() {
+        camera.stopRecording();
+    }
+}
+
+// Similar Classes For LightOn and Off
+
+class DashboardScreen {
+    
+        // the list of the commands
+        private List<Command> commands = new ArrayList<>();
+    
+        // this attribute stores the command that was last executed.
+        // it is used for undo
+        private Command lastCommand;
+    
+        public void addCommand(Command command) {
+            commands.add(command);
+        }
+    
+        public void executeCommand(int i) {
+            commands.get(i).execute();
+            lastCommand = commands.get(i);
+        }
+    
+        public void undo() {
+            lastCommand.undo();
+        }
+    }

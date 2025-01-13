@@ -1,0 +1,237 @@
+ECS, ECR & Fargate Docker
+--
+
+Before looking into ECS, we must know about containers and docker
+
+Docker is a software development platform to deploy apps which are packaged in containers that can be run on any OS. The apps run 
+in the same way regardless where they are in like on any machine, with any OS, any technology and with no compatibility issues.
+
+We can run multiple docker containers on our servers or ec2 instances. Like one docker container can contain java application, another
+docker container can run nodejs application. In the same way many docker container can be launched containing the same application.
+
+We pull images of many technologies like Mysql, Ubuntu, Kafka from docker repositories and these repositories can be public and private
+The main public docker repo is Docker Hub where we can find base images for many technologies.
+We also have private repo provided by Amazon which ECR (Elastic Container Registery) where we can run our private images in there. 
+There is also a public repo provided by Amazon which is Public ECR Gallery.
+
+
+ECS
+..
+Elastic Container Service helps us to launch Docker containers on AWS. These are called ECS tasks on ECS Cluster. The ECS Cluster is made 
+up of EC2 instances.
+
+When we choose EC2 Launch Type for our ECS Cluster, we must provision and maintain the infrastructure. For EC2 instance to be registed 
+in ECS Cluster, the instance must run the ECS Agent. When we run the ECS task and launch a new docker container, AWS will place these 
+containers and take care of starting and stopping these containers on the instances over time.
+
+When we choose Fargate Launch Type for our ECS Cluster, there are no EC2 instances running because it is serverless. We just define 
+our ECS task and specify how much RAM and CPU is needed. SO when we launch a docker container, it just run magically without any server.
+To scale, we just add more ECS task and no EC2 instances need to be maintained.
+
+We can define IAM roles for our ECS Task. 
+One way of assiging is to use EC2 instance profiles when using EC2 Launch Type which will be used 
+by the ECS agent. It will be used to make api call to ECS Service to register the ECS task, send container logs to CloudWatch logs,
+pull docker images from ECR, reference sensitive data from Secret Manager. 
+Another way is to assign ECS Task Role. This can be used with EC2 Launch Type and Fargate Launch Type as well. Since ECS task can 
+be linked with multiple ECS Service, we should assign a separate ECS Task Role for different ECS Service, like ECS Task A role 
+can be used to execute api call against S3 and ECS Task B role can be used to execute api call against DynamoDB
+
+We can also create an Application Load Balancer which can directly route the traffic to ECS Task running on EC2 Instances. Also we 
+can attach EFS volume for both EC2 and Fargate launch type. These ECS tasks will share the same data in EFS File System no matter in 
+which AZ they are running.
+Fargate + EFS is the best combo for Serverless architecture since EFS is also serverless. It is pay as you go
+
+
+Hands On
+***
+
+We can go to ECS Service, click on cluster and create new cluster
+We can give our cluster a name and under infrastructure, we can choose either Fargate, EC2 instance or External isnstances (personal 
+datacenters with enabled ECS)
+With EC2 selected, we then select the OS, Instance type, Root EBS Volume, and many other configuration for our instances. We also 
+define the Auto Scaling Group for our EC2 isntances to be launched in ECS Cluster.
+After creating the cluster, we can see an ASG created by the ECS cluster in the ASG service.
+The ASG will create EC2 isntance for us and these isntance will be registered in our newly created cluster and can be seen under the 
+containter instances. After that we are ready to launch our first service.
+
+Now to create ECS Service, we will have to first create ECS Task Definition
+For task definition, we will choose a docker image nginixdemos/hello which is from docker hub repository
+We will give a name to our service as nginix-demo-hello and choose fargate as launch type. If we choose EC2 as launch type then this 
+service will be running on EC2 service as well. For now we can choose fargate to launch our containers into serverless compute mode.
+Then we choose the OS, CPU and memory for our task and also assign a task role which is the IAM role. This role will be needed if we 
+want our task to execute any api call to any AWS service like S3, DynamoDB, SQS, etc.
+Now when specifying fields for our container, we choose a name for our container and specify the image name which will be pulled 
+directly from docker hub. The name will be nginixdemos/hello
+We can make a container essential by choosing Yes or No from Essential Container dropdown. Essential means that this container is 
+essential to be launched and if not then all ECS tasks will not be started until this container is started.
+By default, the image is pulled from public registery and if we want to pull the image from private registery, we can switch on the 
+Private Registery option and place the arn for our SecretManager where the secret repository lies.
+We can leave all other fields as default and click on create.
+
+After that we can go to our created cluster and under services, we can create a new service
+Under compute option we will choose Lunch Type as Fargate
+For deployment configuration, we have 2 options either choos as Service which will act as a long time running service like a web 
+application or choose as a Task which will be executed and terminated like a batch job.
+Then under task defininton, we will pick our created task (nginixdemos/hello)
+Under networking, we will pick our VPC and subnets and also create a separate security group for it with inbound rule of HTTP from
+anywhere.
+We also pick a Load Balancer which will be Application Load Balancer for our nginixdemos/hello container
+Finally we create our service by clicking on create.
+
+After creating it, we can click on the service and see that it is linked with a target group and by going inside the target group we 
+will see our container ip address under registered targets. Also inside a Load Balancer, we can see the ALB created with a dns name
+and by querying the dns name we will be served with Nginix Home Page.
+Now we have ALB which is routing to our ECS Container serving the nginix web server. We can update our service and set the desired 
+task to be 3 and click on save. We will see 2 more ECS Tasks will be launched and then ALB will load balance among these 3 nginx 
+servers.
+
+***
+
+We have seen that we can set the desired number of tasks when creating a service manually but we can set up some metrics to 
+automatically scale ECS Tasks. These metrics can be
+  .Avg CPU Utilization
+  .Avg Memory Utilization
+  .ALB request per count
+  
+The different type of auto scaling can be based on
+  .Target Tracking, scale based on some target value from CloudWatch Alaram
+  .Step Scaling, scale based on some CloudWatch Alarm
+  .Scheduled Scaling, scale based on some date time value 
+  
+Fargate Scaling is much better and easier than EC2 Scaling. We should not confuse ECS Task scaling with EC2 instance scaling on the 
+cluster level when using EC2 Launch Type. These are different from each other. We should use Fargate as the recommended approach
+
+For ECS Rolling updates, we can define a minimum and maximum healthy percentage for our ECS Task to be updated from V1 to V2.
+..
+Example 1
+Min 50% and Max 100% and we start with 4 ECS task initially with V1.
+Since we have 4 tasks running and healthy, we can terminate 2 tasks because we have defined to have 50% healthy tasks.
+The 2 new tasks with V2 will be launched
+Now we have 4 tasks (2 of V1 and 2 of V2)
+Then 2 more V1 tasks will be terminated and we will be back to 50% tasks which will be of V2
+Then 2 more tasks will be launched of V2 and at this point we have the desired 100% tasks all of V2.
+
+Example 2
+Min 100% and Max 150% with 4 ECS task initially with V1.
+2 more tasks will be launched of V2 and we will have a total of 6 tasks (4 V1 and 2 V2) to be at max capacity 150%
+Then 2 tasks of V1 can be terminated and we will be at minimum 100% 4 tasks (2 V1 and 2 V2)
+Then 2 more tasks will be launched to be at 6 tasks (4 V2 and 2 V1) and max capaciy of 150%
+Then 2 V1 tasks can be terminated to be at 100% capacity of 4 tasks all of V2.
+
+
+One of the architecture of ECS Task can be that we have ECS CLuster with ECS Service using the Fargate Launch Type. We have an S3 bucket
+that user uses to upload the objects inside it. Whenever an object is uploaded, an event is triggered inside EventBridge service which 
+contains some rules. One of the rule is to run ECS Task inside ECS Service. This task retrieves the object from S3, processes it 
+and store the data inside Amazon DynamoDB
+
+Another architecture can be that on Amazon EventBridge we define a rule that every one 1 hour, a new task is created in Amazon ECS 
+Service with S3 roles. This task will do some batch processing using the S3 data.
+
+Another architecture can be to integrate SQS service in such a way that we create 2 ECS Task inside ECS Service which polls for 
+messages from SQS queue and process it. We can assign an ECS Auto Scaling to scale more tasks if there are many number of messages in 
+the queue.
+
+We can also trigger events whenever any task is stopped or terminated. An event can be fired to EventBridge which can trigger an 
+SNS topic which can send an email to the admin.
+
+ECS Task Definition
+..
+Task definition are metadata in JSON format to tell ECS how to run a Docker Container. Tasks can be created from the UI Console as well.
+The task definition contains crucial information like image name, container and host port, memory and cpu, env variables, network 
+configuration, roles, etc
+We can define upto 10 container per task definition
+
+So if we have an EC2 instance inside our ECS Cluster and we want to run a docker container that contains apache web server then we can 
+define a container port to be 80 and if we want this container to be exposed to the internet, then we should define a host port lets say
+8080 which will redirect users to container port 80. SO host port is only neccessary if using EC2 Launcy Type. This is not needed 
+when using Fargate Launch Type.
+
+When using Load Balancer with EC2 Launch Type, defining the task when we only set the container port and not the host port,
+we get dynamic host port mapping for our ECS tasks. It means that there is no single port for our ECS task to be defined for our 
+ALB taget group. Using the dynamic host port mapping, the ALB finds the right port to our EC2 instances and for that we must allow 
+this in EC2 isntance's security group also to allow ALB's security group to any port.
+Similarly for the Fargate launch type, there is no host port because it is serverless. We only define the container port. Each ECS 
+Task will be assigned a private ip via Elastic Network Interface (ENI) and all will contain a container port of 80. The ALB will be 
+linked to all these ips. In the ECS ENI Security Group, we will have to allow inbound from ALB Security Group so that ALB can access 
+our ECS Tasks.
+
+To define environment variables for our ECS Task, we have multiple options
+We can either hardcode them, use SSM Parameter Store, or Secret Manager to store sensitive variables like db passwords, secret keys, etc.
+Another option could be load the whole env file from S3 bucket.
+
+Now as we know that we can launch multiple containers per ECS Task. There can be multiple application containers or some separate 
+containers launched just for the purpose of logging, moniroting also known as Side Cars. For this, we need to have a shared storage 
+between multiple containers because obviously the application container will write the application results and the monitoring and 
+logging container will read those data for some operations.
+So when usig EC2 instance as launch type, the shared storage can be EC2 instance storage itself because containers will be running 
+in them.
+For Fargate launch type, we will have to use ephermal storage. We get 20GB - 200GB storage size for it.
+
+
+ECS Task Placement and Constraints
+..
+When using EC2 launch type, we have multiple Ec2 isntances running on our ECS Cluster. SO when a new container or task needs to be 
+launched or terminated, ECS needs to determine which task needs to be termintaed from what instance. Similarly for launching, on 
+which instance the task needs to be launched.
+For this, we have ECS Task placement Strategy and Task Placement Constraint. This is only possible for EC2 launch type and not 
+for Fargate.
+
+Some of the placement strategies are,
+  1) Binpack where the task are placed based on least amount of memory or cpu available. This minimized the number of instances 
+     in use. Lets say we want to launch a task, ECS will launch it on instance #1 initially. Now ECS will launch more tasks on 
+	 instance #1 till it is our of CPU and memory that it cannot launch more task on it. Then it will launch another instance and 
+	 run the task there.
+	 The Json is like,  {"placementStrategy": {"field": "memory", "type": "binpack"}}
+	 
+  2) Random, where the task are placed randomly on the instances. Not the optimal strategy.
+     The Json is like, {"placementStrategy": {"type": "random"}}
+	 
+  3) Spread, where the task are placed evenly between the instances. If there are 3 instances then first task will be placed on
+     instance 1, second on instance 2, third on instance 3, fourth on instance 1, fifth on instance 2 and so on...
+	 The instance can be in different availability zone so in this way we can maximize the high availability of our ECS Tasks.
+	 The Json is like, {"placementStrategy": {"field": "attrivutres:ecs.availability-zone", "type": "spread"}}
+	 
+We can also mix the strategies like spread and binpack, spread and memory, etc.
+
+Some of the placement constraints are,
+  1) distinctInstance, where no 2 tasks are placed on a single instance. If one task is placed on instance #1 then another launched 
+     task will not be on instance #1.
+	 The Json is like, {"placementStrategy": {"type": "distinctInstance"}}
+	 
+  2) memberOf, where the task are placed on instances that satisfy an expression. It uses the cluster query language. Lets say we 
+     define an expression to place the task on instances where the type of instance starts from t2.
+	 The Json is like, {"placementStrategy": {"expression": "attributes:ecs.instance-type =~ t2.*", "type": "memberOf"}}
+	 
+
+
+ECR
+..
+It stands for Elastic Container Registery used to store and manage Docker Images.
+ECR can be a private repository or a public repository and is fully integrated with Amazon S3. All the images are stored on S3.
+
+On our ECS Cluster, our EC2 instance can pull images from Amazon ECR and launch ECS Tasks as a docker container.
+
+We go to repositories section, then we can see private and public repositories. For private repositories, we can pull any public 
+repo from docker hub and push it inside our private repo. For now we can pull nginixdemos/hello from docker hub using docker pull 
+command on machine. Then on AWS ECR, we create a new private repo and give it a name. After creating the repo, we can click on it 
+to go inside it and see we have 0 images. For pushing the image, we can click on View Push Command to see list of command that we 
+will have to execute using the CLI to push image into private aws registery.
+The commands are,
+  1) First to retrive the token from aws and authenticate it using docker 
+     aws ecr get-login-password --region us-east-1a | docker login --username AWS --pasword-stdin <repo-url>
+  2) Then we tag our image. If we have pull image from docker hub then we can tag it as,
+     docker tag <docker hub image name> <repo url with image name>
+  3) We then push the image using the command,
+     docker push <repo url with image name>
+	 
+	 
+	 
+Copilot
+..
+AWS copilot is a CLI tool that helps build, release and operate production ready containerized apps. It helps us focus on building 
+the apps rather than worrying about the infrastructure. It provisions all requirement like ECS, ELB, VPC, ECR, etc...
+
+We use CLI or YAML to describe the structure of our application like if we have a microservice architecutre, we define it there and 
+then using AWS Copilot, we can deploy it on EC2, Fargate or AppRunner. It will be well architectured and integrated deployment 
+pipeline (CodePipeline Service) with provided operations and troubleshooting.
+

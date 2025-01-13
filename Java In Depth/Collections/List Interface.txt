@@ -1,0 +1,96 @@
+List Interface
+--
+-Useful when sequence and positioning matters
+-It is like an array but is resizable
+-Can allow duplicates
+-Zero based indexed
+
+public List<E> extends Collection<E>{}
+
+-It comes with its own set of methods that comes under,
+..
+Positional
+*E get(int index) -> returns element at specified index
+*E set(int index, E element) -> sets the element at specified index. returns previous element stored at this index	
+*void add(int index, E element) -> adds new element at specified index
+*boolean add(E element) -> adds new element at end of list. returns if element is added or not
+*E remove(int index) -> removes element at specified index. returns removed element
+*boolean addAll(index, Collection<E> elements) -> concats new collecction.
+
+Search
+int indexOf(Object o) -> returns the index of the element if found at first occurences. return -1 if not found.
+int lastIndexOf(Object o) -> returns the index of the element if found at last occurences. return -1 if not found.
+
+Iterational
+-ListIterator is the sub-interface of Iterator interface provides few more specialized methods.
+*ListIterator<E> listIterator()
+*ListIterator<E> listIterator(int index)
+
+Range-View
+*List<E> subList(int fromIndex, int toIndex) -> returns subset of the original list. The toIndex is exclusive and not included. The list
+                                                returned is backed by the original list which means that any changes inside the original or
+                                                subset list will be reflected on both sides.
+*For original list, we cannot do any structural changes. Like if we extracted sublist from original list and then we added new element
+in the original list. Now when accessing sublist or any of its method, it will throw ConcurrentModificationException because we cannot do any
+structural changes inside original list. It is fine to modify the sublist but not when it comes to original list. Any elements added or
+removed from original list will throw exception inside second list when we try to access it.
+
+
+ArrayList
+--
+Resizable array implementation of List interface.
+-Default capacity is 10. 
+-If the size is reached then the capacity is increased by 50% by creating a new array. Old array contents are then copied to new array
+-We can define initial capacity of array either by using the ArrayList constructor or ensureCapacity method to avoid resizing array operations
+if we are dealing with high array list capacity
+-It allows storing duplicates and null values
+
+Typical Use cases
+-When using simple iterations
+-Fast random access -> O(1)
+-Appending from last and Deleting elements from last -> O(1)
+*Note that when appending elements, if capacity is reached then array resizing operation is performed which can take a bit of more time.
+
+Operations
+-ArrayList has its own implementation of add and remove
+*add(int index, E element) -> adds the element at specified index, all other elements are shifted right. O(n) time
+*remove(int index) -> removes the element at specified index, all other elements are shifted left. O(n) time
+
+-ArrayList has the implementation for contains() and indexOf
+*Both these method iterates the array from the start so it takes O(n) time
+*Both these methods uses the equal() method from the Object class to compare the elements. For custom class we can override equals() method
+ for comparison.
+*Use Set if dealing with frequent searches because it takes constant time in searching.
+
+-ArrayList has removeAll and retainAll implementations
+*Internally both of them do these steps (example of removeAll)
+   -Traverse the whole list -> O(n) times
+   -Invoke collection.contains() on every element to check if element is present if the collection is list implementation -> O(n) times
+   -If element is present, remove it and then shift left all the elements -> O(n) times
+*Both these methods can go worst than O(n^2) so avoid using it for large collections. LinkedList and HashSet implementations are much better
+
+-ArrayList O(1) method implementation
+*size()
+*isEmpty()
+*set() and get()
+*iterator() and listIterator()
+
+
+
+LinkedList
+---
+-Implementation of both List and Deque interface.
+-Java linked list is referred to as doubly linked list
+-It has one benefit that when we want to search for an element, it will only traverse half of the list, because as we specify the index
+it will check whether the index is close to first element or the last element. So the head will allow us to traverse either forward or
+backward due to its doubly behavior.
+
+Typical Use Cases
+-If you want to add or remove elements during iterations, because all we need to do is just to adjust the links between the nodes. So there is
+no shifting of elements like in ArrayList.
+-LinkedList is good for removeAll() and retainAll() operations since these operations remove elements during the iterations.
+
+-LinkedList get(int i), add(int i, E element), remove(int i) operations are O(n/2) since we know that these operations are index specified
+and the implementation will first check if the index is close to first or last element so it will only traverse half the list only.
+-It also supports LIFO and FIFO operations in O(1) time with addFirst(), addLast(), removeFirst() and removeLast() operations provided by
+Deque interface.

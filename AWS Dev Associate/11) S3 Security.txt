@@ -1,0 +1,146 @@
+S3 Security
+--
+
+We can encrypt our objects stored inside S3 bucket using one of the 4 methods
+
+1) Server Side encryption with amazon managed S3 encryption keys (SS3-S3) and it is enabled by default
+    .The keys are managed, handled and owned by AWS and we dont have access to it
+	.The encryption type is AES-256
+	.We need to send a header value as "x-amz-server-side-encryption":"AES-256" to enable the encryption
+	.This is valid for new objects and new buckets.
+
+2) Server Side encryption using KMS Keys stored in AWS KMS (SSE-KMS)
+    .The keys are provided from AWS KMS service which is a Key Management Service 
+	.We have the control over keys and also whenever the key is being utilized, it is logged into AWS CloudTrail where everything is 
+	 logged whenever anything happens in AWS.
+	.We need to set the header value as "x-amz-server-side-encryption":"aws:kms"
+	.For reading the object, the user needs to have permission to read the object as well as the aws KMS key as well. So it is an 
+	 additional layer of security as well.
+	.When creating a S3 bucket and chosing SSE-KMS option for encryption settings, we can see that in the dropdown of chosing keys
+	 there is already a default KMS key provided by AWS with name aws/s3. By chosing this we not be charged as it is the default key
+	 but if we create a new key in KMS Service we will be charged every month.
+	.The limitation for SSE KMS is that, we can be impacted by KMS limits. Whenever we upload the object, S3 need to execute an api
+	 GenerateDataKey for encryption and whenever we retrieve the object S3 execute an api Decrypt for decryption. This will utlized 
+	 the KMS api call quota per second which is 5500, 10000, 30000 request per second based on regions. SO if we have high throughput
+	 to S3 objects that our api limit count can be throttled. We can request increase quota using the Service Quota Console.
+
+3) Server side encryption using customer provided keys (SSE-C) and we provide the custom keys in it.
+    .They keys are provided by the client and that key is never stored in AWS. AWS uses the key and discards it immediately
+	.The key needs to be provided in the header request and the client must use HTTPs only to transmit any encryption keys to AWS.
+	.When retrieving the object, client need to provide the key again for AWS to decrypt the object.
+	.We need to set the header value as "x-amz-server-side-encryption-customer-algorith":"true"
+
+
+4) Client side encryption where we upload the objects encrypted.
+    .The encryption and decryption cycle along with keys are all managed by the client itself
+	.The objects are encrypted before sending to AWS, and decrypted after retrieving from AWS.
+	
+	
+It is recommended to always use HTTPs for Amazon S3 and to force users to use https we can attach a policy to S3 bucket to Deny
+Actions like s3:GetObject when the condition aws:SecureTransport is false
+Example
+..
+{
+  Effect: Deny
+  Principal: *
+  Action: s3:GetObject
+  Resource: <bucket-location-arn>
+  Condition: {
+    Bool:{
+	  aws:SecureTransport: false
+	}
+  }
+}
+..
+
+When using encryption for our objects, make sure to enable versioning because if we want to edit the encryption settings in future 
+for a specific object, this will create new version of our objects with updated encryption settings and will override the default 
+bucket behaviour.
+
+If we need to force our users to use the encryption then we can assign some bucket policies like,
+When using AWS KMS strategy, we can use bucket policy to DENY s3:PutObject action where the Condition is 
+StringNotEquals:{s3:x-ams-server-side-encryption:aws:kms}
+Or When using SSE-C we can use the bucket policy to DENY se:PutObject where the COndition is,
+NULL:{s3-x-amz-server-side-encryption-customer-algorithm:true}
+
+
+To enable CORS setting on our bucket, we just need to add the CORS policy under bucket permission settings
+The CORS policy Json is as followsm
+{
+  AllowHeaders:[Authorization],
+  AllowedMethods:[GET],
+  AllowedOrigins:[https://example.com],
+  ExposedHeaders:[],
+  MaxAgeSeconds:3000
+}
+
+This will come into picutre when for example if we have S3 bucket hosting a static website and the images and other assets living in 
+other bucket with staic website being enabled. The first bucket will have a index.html with some generated url as 
+https://my-bucket.amazonaws.com and when the user visit this url, the index.html will be loaded. Now there will be some images that 
+is needed to be loaded from other bucket with url https://my-another-bucket.amazonaws.com but it will fail because it will be a 
+CORS request. We will need to go to my-aother-bucket CORS polciy permission and add the polciy to allow the origin my-bucket.amazonaws.com
+so that the assets can be loaded.
+
+
+MFA Delete
+..
+This is a extra layer of protection where we can disallow the deletion of object version or suspend any object version without the 
+use of MFA. Since these are destructuve operation and for such destructive operations the bucket owner (root account) can enable MFA
+Delete feature
+
+Other calls like listing versioning or enable versioning will not required MFA since these are not destructive operations.
+
+Under bucket permissions, we can see that MFA Delete is disabled and from console there is no option to enable it. This an only be
+enabled using the AWS CLi, SDK or some REST api with some commands
+
+
+S3 Access Logs
+..
+For audit purposes we can enable access logs for our bucket that whenever any requests comes in whether authorized or denied, this can 
+be logged into another S3 bucket withing the same region. This data can then further be analysed by any tool.
+
+For access logs, donot set app bucket and logging bucket to be the same bucket because this will create an infinite loop and our 
+bucket will grow exponentially and will cost huge amount of money.
+
+To enable it, we can create a separate bucket for logging and then choose any of our existing bucket to enable server access logging
+by going under permissions and server access logging section. When enabling it, it will ask for destination bucket and the logging 
+format. We can choose the destination bucket we created for logging and any log format we want.
+Now when we perform any activity like listing object, uploading new object, this will be logged into logging bucket and it will be 
+reflected after sometime.
+
+
+
+Presigned Urls
+..
+Pre signed urls are a way to give temporary access to those users who does not have access to either list or uploading objects to 
+our private S3 buckets.
+
+If the URL is generated from the console, the expiration can be upto 12 hours and if generated from CLI or SDK then we can set the expiry
+till 168 hours. The users who are given the pre-signed url inherit the permission of the user that generated the url for a specific 
+time duration.
+
+
+Access Points
+..
+It simplifies security management for S3 in comparison with S3 Bucket polciy which can grow over time by adding new policies.
+
+If we have S3 bucket where we have prefixes like /sales/  where users from sales can view the data, /finance/ where users from finance
+can view the data, etc. We can create access points like Sales Access Point and then attach a policy to it. This policy is very 
+much similar like the bucket policy. Then with proper IAM roles, we can grant Sales Point access to users from sales group, Finance 
+Point access to users from finance groups.
+
+Each access point has its own DNS name
+
+
+One of the main feature of access point is S3 Object Lambda which we can use to retrieve objects from S3, modify it using the object 
+lambda and then return it back to the requested application. In this way there is no need to store multiple versions of objects for 
+different applications. We can change the object according to the requested application.
+For example we have analytics application which needs data for generating reports and we have all the user related data on S3 bucket.
+When the analytics application will request for users data, it will communicate with Object Lambda Access Point which will 
+communicate with a Lambda Function. This lambda function will retrieve the data from S3, redact all the user information (remove sensitive
+information like bank balance, credit card number, address, etc) and then return the result to Object Lambda Access Point which will
+in turn return the response to the analytics application. In this way we have modified the data for analytics application but the 
+original data kept remains in the bucket.
+
+One of the main use case is to add watermarks to images where the requested user is on trial version.
+Another use case can be to convert data from XML to JSON where JSON is required.

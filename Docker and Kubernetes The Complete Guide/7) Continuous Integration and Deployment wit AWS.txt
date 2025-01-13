@@ -1,0 +1,63 @@
+Continuous Integration and Deployment wit AWS
+---
+
+We can use Travis CI or Github Actions for our continuous integration workflow.
+If we take example of travis, whenever we push our code to github travis will pull our code and then we can do whatever we want like run all the tests and when every test is 
+passed then deploy it to digital ocean, aws, etc.
+
+In the assets folder, head to project "frontend-gh-actions-and-travis" where there will be a file .travis.yaml which contain scripts of configuration
+When we create an account on travis, we allow travis to keep track of our repository. If our root folder contains .travis.yaml file, the build process automatically kicks in 
+whenever there is any push to our main branch of repository.
+
+The travis configuration looks like this,
+..
+sudo: required
+language: generic
+
+services:
+  - docker
+
+before_install:
+  - docker build -t stephengrider/docker-react -f Dockerfile.dev .
+
+script:
+  - docker run -e CI=true stephengrider/docker-react npm run test
+..
+
+The sudo:required means that root permission is needed to execute commands
+With services section, we specify that we need docker to run our application
+With before_install, we specify what needs to be done before actually executing script. Here we build the image using image tag
+With script, we run our image as a container by providing the default command npm run test
+   .Here -e CI=true is neccessary because npm run test command does not exists by default. After it has run, it waits for user to press any key to provide further action. But for 
+    travis, it will wait for the status code returned from npm run test commnad. If success status is returned then travis identify it as a successful build otherwise a fail build.
+    So providing -e CI=true will exit npm run test command when all tests are executed.	
+	
+	
+	
+Now for deployment, we can have a EC2 instance running docker inside of it or for simplicity, we can create AWS Elastic Beanstalk which will provide us with Application Load Balancer
+in front of our EC2 instance that is running Docker Contianer inside of it wit our application hosted.
+For deployment, we need to give Travic CI access to our ELastic Beanstalk environment for deployment and for that we will create an IAM user with a polcy attach to it. This polciy 
+will only contain full access to Elastic Beanstalk. Once the IAM user is created, we can generated secret key and access key and add it in our .tavis.yaml file
+..
+deploy:
+ provider: elasticbeanstalk
+ region: us-east-1
+ app: docker
+ env: Docker-env
+ bucket-name: elasticbeanstalk-us-east-1-123456
+ bucket-path: docker
+ on:
+   branch: master
+ access_key_id: $AWS_ACCESS_KEY
+ secret_access_key: $AWS_SECRET_KEY
+..
+We will select provider as elasticbeanstalk. Here there can be multiple providers like digital ocean, microsoft azure etc.
+The region will be the value where our elasticbeanstalk environment is
+The app and env value should be the exact value provided by aws elasticbeanstalk. These both are the names we have given when setting up elasticbeanstalk in aws
+The bucket-name is the default bucket created by elasticbeanstalk so here our code repo will get pulled and stored
+The bucket path is the path which we want to hold our code repo
+The branch specifies the target where we want to start our deployment process whenever anything gets pushed in it.
+The access key and the secret key are being fetched from environment variables where we can set it directly in Travis CI console.
+
+The deploy part in .travis.yml does not care about what happened before. It will by default go to Dockerfile in current working directory and create an image and run in the EBS.
+So, we did not mentioned anything about what dockerfile to use and how to create and run the image, EB will do it by itself.

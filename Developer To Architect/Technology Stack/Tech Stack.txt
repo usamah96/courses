@@ -1,0 +1,99 @@
+Technology Stack
+--
+
+We have make decisions on certain platforms for which technology to use at what point based on its features and use cases
+
+Considering a system where we have a Web App Layer, Service Layer, Database Layer, Analytics Layer, we will have to consider 2 aspects for
+every individual component
+  1) Functional Aspect, that if our component is functioning correctly or not
+  2) Non Functional Aspect, that if our component is resilient, scalable, secured, reliable, etc.
+  
+
+
+There are multiple things we need to consider which are
+  1) Web Application
+  2) Services
+  3) Databases.
+  4) Analytics
+  
+
+Web Application Stack
+--
+
+There are some challenges involved in this step
+  1) Web App needs to deal with many number of load because the client's first interaction with the system is through web application so 
+     the number of requests are the highest at this level. As we go down the system, the load decreases like at services, databases but that
+	 does not mean life at database is easy.
+	 
+  2) Web App needs to deal with long distance clients. For services, the client are web app which can be located much closer which can be and
+     local client. For databases the client can be services, but for web application the client can be located anywhere in the world 
+	 because thats the customer
+	 
+  3) The communication between the client and the web app needs to be secure to prevent any attack.
+  
+  
+There are many solutions for web application in which we have to deal with,
+  1) Static Content (Apache Web Server, Nginix Web Server, Cloud Storage)
+  2) Dynamic Content (Web Server like Apache HTTPD/NodeJs, Java Web Containers like Tomcat, Jetty, Spring Boot)
+  3) Content Caching (Nginix)
+  4) Content Distribution (CDN)
+  
+  
+  
+Services Stack
+--
+
+Services are the components which covers most of our complex business logic
+For services the main thing we need to consider is 
+  .How we cache our data (memcached / redis)
+  .How we use asynchronous processing (redis, rabbitmq, kafka)
+  .How we host our system using containers (already discussed before)
+  .Service Mesh (Nerflix / Istio) - Not discussed 
+  
+      
+   
+Datastore
+--
+
+At datastore layer, we read and write the data unlike the analytics layer where the data is also stored but that data is in the final shape. The
+data is not modified there and is read only. The modification at that level is very rare
+
+Some of the challenges at datastore level are,
+  .The design should cater simultaneous read and write loads
+  .The data stored is on disk so disk latency needs to be managed.
+  
+Some of the Datastore Solutions include
+  RDBMS (Oracle, SQL Server, etc)
+  Distributed Databases (Dynamo in Key Value - Cassandra, HBase, Big Table in Column Family - MongoDB in Document Oriented)
+  
+There is also a Graph database (not discussed)
+
+There were some scalability issues in RDBMS and that was the reason NoSql database came into existence
+
+
+
+Analytics
+--
+
+This layer is not part of the transaction so no user is actively connected to it
+This layer is to analyse the data which we have gathered around days, months, and years
+
+The challenge is that both structured and unstructured data continuely are written to logs by the databases or services which is very huge and also
+unstrucuted data is to be dealt in a different way because there is no structure for it
+
+Now analytics can be done wither in batch processing or in streaming processing
+In batch processing, we gather the amount of data and when enough data is gathered we do a batch processing to generate the analtics for it
+In stream processing, we donot wait for enough amount of data rather we pass the data to analytics layer as soon as it is available In the logs.
+Preferably stream processing is used in real time data like social media applications or IoT based application where real time data is important.
+
+Some of the analytics solutions are,
+  Data Movement
+    .When enough data is generated in log files then these data needs to be moved to analytics layer and that task is done by products like
+	 Logstash, Fluentd
+  Storage
+    .When the data is moved then it need to be stored it somewhere and for that we can use Hadoop HDFS using Map Reduce or Elastic Search where
+	 fast searching can be achieved
+  Stream Processing
+    .For stream processing, we can use Kafka, Storm or Flink (Not Discussed)
+	
+  

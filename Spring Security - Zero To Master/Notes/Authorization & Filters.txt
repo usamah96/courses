@@ -1,0 +1,107 @@
+Authorization
+--
+
+Authentication refers to permission to enter in system
+  .Comes before Authorization
+  .Throws 401 (Forbidden) error
+  .Needs user credentials.
+  
+Authorization refers to permissions of system resources.
+  .Comes after authentication
+  .Throws 403 (Unauthorized) error
+  .Needs user priviliges
+  
+
+Authorities and Roles are stored inside spring security using the interface GrantedAuthority
+They both have different meaning for spring security and there are scenarios when to use authority and when to use role
+
+The authorities are stored in the authentication object like UsernamePasswordAuthenticationToken and in this class we have the getAuthorities()
+method which will return the authorities of the user.
+Similarly the authorities are also stored when using the UserDetailsService loadUserByUsername() which returns UserDetails object (User). 
+
+Spring security allow us to store single and multiple authorities so we can store list of authorities for a single user in a separate table and
+then load those authorities and convert them to SimpleGrantedAuthority.
+Example
+..
+  private List<GrantedAuthority> convert(Set<Authority> authorities){
+    List<GrantedAuthority> values = new ArrayList<>();
+	for(Authority a : authorities){
+	  values.add(new SimpleGrantedAuthority(a.getName()))
+	}
+	return values;
+  }
+..
+
+Spring security provides 3 methods to configure authorities
+  1) hasAuthority, to define single authority to access the endpoint.
+  2) hasAnyAuthority, to define multiple authorities to access the endpoint
+  3) access, to define spring expression language (SpEL) to provide rules using AND, OR, NOT operator to access the endpoint.
+  
+Authority vs Roles
+..
+In spring security, authority is referred to as single individual priviliges whereas role is referred to as group of authorities.
+Obviosuly in a enterprise level application there will be 100s of authorities. So we group these authorities into roles.
+
+Spring will use the prefix "ROLE_" by default to identify whether a particular value is an authority or role.
+It provides 3 methods to configure role
+  1) hasRole, to define single role to access the endpoint
+  2) hasAnyRole, to define multiple roles to access the endpoint
+  3) access, to define spring expression language (SpEL) to provide rules using AND, OR, NOT operator to access the endpoint.
+  
+  
+  
+  
+  
+Filters
+--
+
+Filters intercept each and every request that goes through spring security
+We may want to do some house keeping activities during authentication and authorization process and thats where filters come in like,
+  1) Tracing, Logging
+  2) Validation
+  3) Encryption and Decryption
+  4) Multi factor authentication using OTP
+  
+There are by default several filters more than 10 20 which are executed during the authentication process
+Some of the default filters include,
+  1) UsernameNotFoundException
+  2) BasicAuthenticationFilter
+  3) DefaulLoginPageGeneratingFilter
+  4) CorsFilter
+  5) CsrfFilter()
+They all execute in a specified order defined by spring security itself
+  
+
+The very first entry point when the request comes is the DelegatingFilterProxy class which calls FilterChainProxy class to execute all the filters  
+If we want to see all the default filters and their order, we need 2 changes
+  1) Add @EnableWebSecurity(debig = true) on main application class
+  2) Add this property, logging.level.org.springframework.security.web.FilterChainProxy=DEBUG
+  
+Go to FilterChainProxy class and there will be inner class name as VirtualFilterChain. Its doFilter method is where all execution takes place
+for all the filters.
+
+To create a custom filter, we need to implement the Filter interface from jakarta.servlet package.
+There are 3 methods inside Filter interface.
+  1) init, which is the default empty method and we can override it to execute some task when filter is instantiated.
+  2) destroy, which is the default empty method and we can override it to execute some task when filter is destroyed.
+  3) doFilter, abstract method which is the actual method containing business logic of our custom filter.
+After implementing it, we will have to write the business login inside doFilter method.
+
+After writing our logic, we can inject this filter in 3 different ways.
+  1) addFilterBefore, which will add our filter before the already defined spring security filter
+  2) addFilterAfter, which will add our filter after the already defined spring security filter
+  1) addFilterAt, which will add our filter at the same position of the already defined spring security filter  
+
+These methods takes 2 parameter, first is the custom filter object and the second one is the name of the already built in spring security filter 
+class from which where we need to adjust our filter.
+The addFilterAt is not recommended to use that much because it will not guarentee in which order it will get executed. If we place this filter
+with respect to BasicAuthenticationFilter.class then it is not guarenteed which will be executed first. Spring security only guarentees for
+filter executing before and after with addFilterAfter and addFilterBefore.
+
+There is also a separate class called OncePerRequestFilter which we can leverage. When we are executing filters in spring security there are 
+possibilites that filters are execute more than once so this class will make sure that filter will be executed only once.
+We need to override the doFilterInternal() method for custom business logic
+There also other utility methods like shouldNotFilter() which returns false by default which means to execute the filter. If we return true from 
+this method it will mean that filter must not be executed, so for some cases we can return true also.
+
+Study about GenericFilterBean.

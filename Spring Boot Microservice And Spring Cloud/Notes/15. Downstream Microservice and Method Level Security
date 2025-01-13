@@ -1,0 +1,42 @@
+Downstream Microservice and Method Level Security
+---
+
+Secure microservice in a much more granual way
+  .Extract the information from the user's token at the method level and then secure it.
+  
+To pass sensitive information from gateway to the microservices, we need to add zuul sentitive header property to the application property file.
+For Spring Cloud, it is by default
+
+To Enable method level security at the service level
+1) Add Spring Security dependency
+2) Create AuthorizationFilter class that will be called for every endpoint and it will set the SecurityContext
+3) Configure this filter class in HttpSecurity
+4) Enable method level security with adding @EnableGlobalMethodSecurity(prePostEnabled = true) annotation at the WebSecurity class
+5) Now ready to use @PreAuthorized and @PostAuthorized annotation at the method or class level
+       .Priority for Method Level is greater than Class Level.
+
+**When returning new UsernamePasswordAuthenticationToken, the first argument is referred to as the principal of our SecurityContext
+
+When we use @PreAuthorize we can specify any expression to be matched
+Example,
+
+@PreAuthorize("principal == #id")
+@GetMapping(value = "/user/{id}")
+public UserDto getUserById(@PathVariable("id") String id){}
+
+This method will be called if the embedded userId inside the token matched with the id that comes on request, which means the user can only see
+and view his detail and not other users.
+
+
+@PostAuthorize has the access to the principal object as well as the returnObject that is returned by the method
+Example,
+
+@PostAuthorize("#id == #returnObject.body.userId")
+@GetMapping(value = "/user/{id}")
+public ResponseEntity<UserDto> getUserById(@PathVariable("id") String id){
+   ....
+   return ResponseEntity.status(HttpStatus.OK).body(new UserDto(());
+}
+
+
+Many annotations we can access like @Secured(<ROLE>) etc..

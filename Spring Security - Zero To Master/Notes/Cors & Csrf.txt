@@ -1,0 +1,96 @@
+CORS and CSRF
+..
+
+CORS stands for Cross Origin Resource Sharing which means that 2 separate origins trying to share their resources.
+The origin is the combination of http protocol, host and domain name with the port number i.e: http://localhost:4200
+This is the inbuilt feature in browsers that blocks the resource sharing on 2 different origins.
+
+If we have UI application hosted on localhost:4200 and a backend appliation running on localhost:8080 then UI sending any HTTP request to backend
+will be blocked by CORS policy by default
+
+How the browser works is it will send a preflight request before sending the actual request. The purpose of preflight request is to know
+whether the backend server accepts the incoming request with headers, cookies, methods from the source address. If the preflight reuqest gets
+successful then only the actual request goes otherwise CORS error is displayed.
+
+So, CORS is not a security attach. It is just a layer from browser to prevent from security related issues
+
+There are 2 ways we can handle the CORS issue on our backend
+  1) Either we use @CrossOrigin on each of our controller
+  2) Use Spring Security configuration globally to handle CORS
+  
+Spring Security configuration is much more feasible because if we have 100 of controller then we dont want to apply @CrossOrigin to each one of them.
+
+The Cors Configuration is as follows
+..
+  http.cors().configurationSource(new CorsConfigurationSource() {
+  @Override
+  public CorsConfiguration getCorsConfiguration(HttpServletRequest request) {
+	CorsConfiguration config = new CorsConfiguration();
+	config.setAllowedOrigins(Collections.singletonList("https://www.youtube.com"));
+	config.setAllowedHeaders(Collections.singletonList("*"));
+	config.setAllowedMethods(Collections.singletonList("*"));
+	config.setAllowCredentials(true);
+	config.setMaxAge(3600L);
+	return config;
+  }
+..
+
+It will only allow requests from youtube.com
+It will allow all http methods
+It will allow all incoming headers
+It will allow credentials to pass through
+It will set the max age to tell the browser to remember this configuration for the next 3600s (1hr)
+
+
+Unline CORS, CRSR is a security attack which hacker take use of to gain un authorized access to your application
+By default spring security provides the protection against csrf attack in a way that it blocks all reuqests that are used to manipulate the
+database like PUT, POST, DELETE http methods. GET methods will work fine as these are just to fetch the record
+
+But we know that we cannot live with it as we want new data to come into our app so what we do in general is to disable csrf by just using
+http.csrf().disable() which is not the recommended approach because we are disabling csrf entirely
+
+CSRF is a attach in which the hacker does not steal any information like user credentials or session ids or token but he will trick the user
+to execute some operation without their will
+
+How Hacker can make use of CSRD attack
+  Suppose that I visited netflix.com and the server returns some cookie which is stored in the browser. This cookie will only be used when we are
+  using some netflix related operation as browsers are smart enough to detect from where the cookie is generated. So any other website cannot steal
+  this cookie.
+  After login into netflix, i decided to visit some other random website where the hacker is waiting to generate csrf attack. What hacker will do is
+  to tempt me to click any malicious link like showing me some ad poster like 90% flat discount on iphone. If I click this link what hacker can do
+  behind the scene is execute this example script
+  ..
+    <form action="https://netflix.com/change-email" method="POST" id="evil-form">
+	  <input type="hidden" value="user@evil.com" />
+	</form>
+	<script> document.getElementById("evil-form").submit(); </script>
+  ..
+  When the script will be executed, it will send request to netflix and also the cookies related to netflix will be sent also. This will change my
+  email address to evil email address if netflix csrf handling is not up to the mark.
+  
+How to handle this?
+  What normally done is that, the backend server also sends additional csrf token in cookie after authentication.
+  The UI application when trying to send any POST, PUT, DELETE operation, will first read this token from cookie, add this token inside header or
+  payload and then send the request to server so that server will identify the request is coming from the same accepted domain.
+  When the same approach hacker will try to do, he will not be able read the csrf token inside cookie because cookies can only be read by the 
+  accepted domains. So he will not be able to send csrf token inside header and server will identify the request is not coming from authorized source.
+  
+We can obviously ignore csrf protection for public apis that are POST, PUT Or DELTE
+Example could be Contact Us page where people send feedback and send request for help or registering new users.
+To ignore csrf then we can do it as,
+..
+  http.csrf().ignoreRequestMatchers("/contact", "/register")
+..
+
+To implement csrf we need to do 2 things
+  1) Add configuration with following code
+     ..
+	   http.csrf().csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse())
+	       .and().addFilterAfter(new CsrfCookieFilter(), BasicAuthenticationFilter.class)
+	 ..
+	 this will tell spring to send back csrf token in the cookie and withHttpOnlyFalse() means that UI can read that token with accepted domains.
+  2) Add a custom filter that will add the token into the response cookie (this is acceptable in spring security v6. Older versions did not require 
+     this. See CsrfCookieFilter class).
+
+The cookie key will be "XSRF-TOKEN" and the UI will need to send that token inside cookie key "X-XSRF-TOKEN" which is the default configuration
+of spring security.

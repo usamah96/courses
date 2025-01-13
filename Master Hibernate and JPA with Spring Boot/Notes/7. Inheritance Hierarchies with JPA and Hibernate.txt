@@ -1,0 +1,199 @@
+Inheritance Hierarchies with JPA and Hibernate
+---
+
+We have 4 options in the inheritance hierarchy mechanism
+
+1) Single Table
+2) Table Per Class
+3) Joined
+4) Mapped SuperClass
+
+
+Setting up the entities
+..
+-Creating an abstract class Employee with id and name properties.
+-Creating concrete class PartTimeEmployee extends from Employee abstract class with hourlyWage as an attribute
+-Creating concrete class FullTimeEmployee extends from Employee abstract class with salary as an attribute
+
+
+@Entity
+public abstract class Employee{
+  
+  @Id
+  @GeneratedValue
+  private Long id;
+
+  private String name;
+}
+
+@Entity
+public class PartTimeEmployee extends Employee{
+
+  public PartTimeEmployee(String name, BigDecimal hourlyWage){
+    super(name);
+    this.hourlyWage = hourlyWage; 
+  }
+  
+  private BigDecimal hourlyWage;
+}
+
+@Entity
+public class FullTimeEmployee extends Employee{
+
+  public FullTimeEmployee(String name, BigDecimal salary){
+    super(name);
+    this.salary = salary; 
+  }
+  
+  private BigDecimal salary;
+}
+
+
+Setting up the repository
+..
+-Create an EmployeeRepository class with 2 method
+   -insert employee (persist)
+   -retrieve employee (find)
+
+
+
+
+Mapping the Inheritance relationship to the table
+
+Single Table Option
+..
+-Default strategy used by hibernate
+-Will use only single table to store both part time and full time employee
+-Using this strategy will add one more column with is "DTYPE" (Distinguished type) which will store what type of record it is either
+FullTimeEmployee or PartTimeEmployee.
+-We can change the default name of DTYPE col with the @DiscriminatorColumn annotation.
+-The advantage is that data is stored in a single table and when you retrieve the employee a single select will do the job
+-The disadvantage is that you have nullable columns
+   .We have to make salary and hourlyWage nullable because for PartTimeEmployee salary column will be null and for FullTimeEmployee
+    hourlyWage will be null.
+   .To leave column nullable is dangerous because database will allow null salary for FullTimeEmployee also.
+-The strategy is good related to performance but bad related to data integrity.
+
+Usage
+..
+@Entity
+@Inheritance(InheritanceType.SINGLE_TABLE)
+@DiscriminatorColumn(name = "EMPLOYEE_TYPE")
+public abstract class Employee{
+  ..
+}
+
+Table Structure
+..
+1) Employee
+EMPLOYEE_TYPE       ID   NAME    HOURLY_WAGE   SALARY
+------------------------------------------------------------
+PartTimeEmployee     1   Usama       50         null
+FullTimeEmployee     2    Ali        null       10000
+
+
+Table Per Class Option
+..
+-Each concrete class will have a separate table in the database
+-The common columns will be repeated in each column
+-The unique column will differ in each of the table.
+-It is a good strategy for both performance wise and integrity wise but the problem is that the common columns are being repeated.
+-If we have 10 common columns with 10 concrete classes, the repeatition will be lot more.
+-When we select and retrieve the data using this strategy, hibernate will generate select statement using union clause
+-The query will be something like.
+   "Select * From (Select * From PartTimeEmployee Union Select * From FullTimeEmployee)"
+
+Usage
+..
+@Entity
+@Inheritance(InheritanceType.TABLE_PER_CLASS)
+public abstract class Employee{
+  ..
+}
+
+
+Table Structure
+..
+1) FullTimeEmployee
+ID   NAME    SALARY
+1    Usama   10000
+
+
+2) PartTimeEmployee
+ID   NAME    HOURLY_WAGE
+1    Ali        50
+
+
+
+
+
+Joined Option
+--
+-Each class will have its own table including the parent abstract class
+-The common column will be reflected in the parent class table
+-The unique columns will be reflected in the child class table with the parent class record id
+-The child class table will have an id field which will be primary and foriegn key at the same time because of one to one relationship
+with the parent class table.
+-In this strategy the data integrity is good but performance is not so much because when we retrieve the data hibernate will left outer
+join all the child tables.
+-If we have 10 concrete classes, hibernate will perform 10 left outer joins in a single query to fetch the record
+-The query will be like,
+   "Select * From employee e left outer join part_time_employee pt on e.id = pt.id left outer join full_time_employee ft on e.id = ft.id";
+
+Usage
+..
+@Entity
+@Inheritance(InheritanceType.JOINED)
+public abstract class Employee{
+  ..
+}
+
+
+Table Structure
+..
+1) Employee
+ID    NAME
+1     Usama
+2      Ali
+
+2) FullTimeEmployee
+ID    SALARY
+2     10000
+
+
+3) PartTimeEmployee
+ID    HOURLY_WAGE
+1        50
+
+
+
+
+Mapped SuperClass option
+--
+-We dont use inhertance hierarchy for this strategy
+-We only put @MappedSuperclass annotation to the base class that is only for the sake of mapping the common columns
+-When something is a mapped superclass, it cannot be an entity. We cannot query it.
+-Mapped Superclass is only something where the common definition is present. It has no inheritance relationship with its sub-classes
+at the table structure level
+-The table structure is similar to TABLE_PER_CLASS strategy but here we cannot query the Employee itself. In Table_Per_Class strategy,
+hibernate used unions to fetch the result. Here we have to make separate methods for PartTime and FullTime Employees for their retrieval
+
+
+Usage
+..
+@MappedSuperclass
+public abstract class Employee{
+  ..
+}
+
+
+Table Structure
+..
+1) FullTimeEmployee
+ID   NAME    SALARY
+1    Usama   10000
+
+
+2) PartTimeEmployee
+ID   NAME    HOURLY_WAGE
+1    Ali        50

@@ -1,0 +1,24 @@
+Command
+--
+
+You Shall Not Pass
+
+Motivation
+--
+-Ordinary Java statements are perishable which means that once you assign the value to a variable there is no going back because
+nobody saved that previous value
+-Cannot undo a field assignment
+-Cannot keep track of series of actions or calls to the member functions
+-Command can be used to undo/redo operations, macro reading etc...
+
+Example Control Team that wants to have the access to all the operation like turning on and off the light, start and stop
+recording the camera.
+And the Dashboard that keeps record of all the commands to undo the operation.
+
+Another use case where Command Pattern can come into place is that when we perform any operation like Opening the Db connection,
+saving the record into multiple tables, closing the connection etc... So if any of the operation fails we have to rollback
+all the commands that are executed.
+
+
+-Command is an object or group of objects that contains all the information necessary to perform a particulal operation.
+-We encapsulate all detail of an operation into a separate object.

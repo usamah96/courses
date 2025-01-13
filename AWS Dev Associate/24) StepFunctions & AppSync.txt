@@ -1,0 +1,135 @@
+StepFunctions and AppSync
+--
+
+StepFunctions allow to model our workflows as state machines like we define what should be done after what and define conditions to route the flow.
+
+Like:
+  Start -> Pass -> Hello World Example?
+                       -> Yes -> Wait 3 seconds
+					   -> No -> END         -> Hello
+					                                  -> Hello World -> END
+					                        -> World
+											
+Workflows are written in Json and we can start the workflow with SDK, API Gateway, Event Bridge or manually using the console.
+
+In every step, tjere are task states and the task state can be to,
+  - Invoke lambda function
+  - Run ECS Task
+  - Put data in DynamoDb
+  - Publish msg in SQS or SNS
+  - Launch another StepFunction workflow
+  - Poll for work from on-permis server and send back the result
+  
+  
+There are multiple type of StepFunction states 
+  - Choice State, test for a condition to send to a branch
+  - Fail or Succeed State, stop execution with failure or success
+  - Pass State, pass the input to its output without performing any task
+  - Wait State, provide a delay for a certain amount of time
+  - Map State, dynamically iterate steps
+  - Parallel State, begin parallel branches of execution
+  
+  
+The state can encounter runtime errors during execution and we can handle them in 2 ways
+ 1) Use Retry
+ 2) Catch
+ 
+The predefined error codes are, States.ALL, States.Timeout, States.TaskFailed, States.Permissions
+
+We can specify at what error what needs to be done like 
+"Retry": [
+  {
+    "ErrorEquals"; ["CustomError"],
+	"IntervalSeconds": 1,
+	"MaxAttempts": 2,
+	"BackoffRate": 2.0
+  }
+]
+
+The ErrorEquals matches the type of error. If lambda function throws any custom error we can define it here. The values can be States.TaskFailes, States.ALL, etc
+The IntervalSeconds is the initial delay before retrying
+The BackOffRate is same as Exponential BackOffRate
+The MaxAttempts is self explanatory
+
+When the MaxAttempts is reached, the execution will then fall into Catch block
+
+With this approach, we can see that we dont have to add exponential backoff strategy on lambda function level. Obviously, the lambda 
+function will execute for a very long time if we define all the retry logic in it and eventually it may get timeout. Also if we want 
+to change some of our retry or error handling logic then we will need to redeploy lambda.
+With StepFunctions, we can do all this outside lambda to make our lambda more cleaner and faster in execution
+
+Inside catch block, we can define the ResultPath parameter as "$.error", which means to include the error object to whatever the 
+input is.
+So if the input is like "{'foo': 'bar'}" then modified input will be "{'foo': 'bar', 'error': ['Error': 'An error occurred']}"
+
+
+We can halt out StepFunction with the use of task token in a way that if we want our task to wait for some aws services, human 
+approval or 3rd party integration, we can use '.waitForTaskToken' attribute onto the resource to tell StepFunction to wait for the 
+task token to be returned
+The task will be paused until it receives token with SendTaskSuccess or SendTaskFailure.
+Example,
+..
+ Lets say we start our StepFunction and we want to verify the credit card details of client. From SF, we can call SQS with task token
+ as input and from SQS we can have our listener in the form of Lambda, ECS or any 3rd Party service which will verify the details and 
+ upon success, will call the SendTaskSuccess api with the data. The data will include success response along with taskToken initially 
+ received in the input from SF to SQS.
+ After that, the SF can resume its workflow.
+..
+
+Similarly to TaskToken, we can create ActivityTasks which does the same thing but in a different manner
+We create ActivityTasks in the form of EC2 instances, Lambda, etc which continuously polls for any task to perform from SF. If there is 
+any task, SF will inform the ActivityTasks provider that here is the task for you and it works in a similar way as of in TaskToken. 
+SF will give taskToken to ActivityTasks provider, which will call SendTaskSuccess or SendTaskFailure api call according to the response.
+
+The difference is that, TaskToken is push based mechanism, where SF pushes the data into service, whereas ActivityTasks is a pull 
+based mechanism where it continuously polls for tasks to perform.
+
+We can set TimeoutSeconds and HearBeatSeconds configuration parameter to tell how much time the SF should wait before timeout.
+
+
+
+AppSync
+--
+
+It is a managed service that uses GraphQL which makes it east for application to get exactly the data they need.
+It has direct integration with DynamoDB, Aurora, OpenSearch, and also custom sources with Lambda.
+
+We can use AppSync to retrieve data in real time with WebSocket or MQTT on Websocket
+We need to upload a graphql schema to get started with AppSync
+
+There are 4 ways where we can authorize application to interact with AppSync GraphQL Api
+  1) API Key
+  2) AWS_IAM
+  3) Open ID COnnect
+  4) Cognito User Pools
+  
+  
+  
+  
+  
+Amplify
+--
+
+Allows us to create mobile and web application. Some of the components are,
+
+Studio
+  .Visually builds a full stack app both FE and BE
+  .It can be said as Elastic Beanstalk for mobile and web
+  .We can attach serverless BE with dynamodb, appsync, cognito and s3
+  .We can use FE libraries like React, Vue, Angular, Flutter, etc
+  . 
+  
+CLI
+  .Configure backend with cli workflow
+  .We can do the same thing as studio but using cli and commands
+  
+Libraries
+  .Connect existing app to aws services (cognito, s3, etc)
+  
+Hosting
+  .Host secure, reliable, fast apps and web apps.
+  .CICD
+  .PR Reviews
+  .Custom Domains
+  .Monitoring, Redirection, Custom Headers and Password protection
+  

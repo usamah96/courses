@@ -1,0 +1,38 @@
+Authentication Providers
+--
+
+Currently, spring security uses DaoAuthenticationProvider as a default authentication provider which loads the user from UserDetailsService and
+does the remaining authentication checks like checking for password matches, account expiry, locking.
+
+But there are many such different requirements where there is a need to built our own Authentication Provider like only allowing users to enter
+into the system with certain age group or users that belong to some certain countries etc
+
+There may be requirements where we also want to define multiple Authentication provders like
+  .Requirement 1 can be to perform authentication using username and password with some conditions.
+  .Requirement 2 can be to perform authentication and authorization using OAuth framework
+  .Requirement 3 can be to perform OTP based authentication for some part of the application.
+  
+It is the responsibility of ProviderManager class to check all Authentication Providers available and invoke all of them
+
+The AuthenticationProvider interface has 2 abstract method
+  1) authenticate, which receives and returns Authentication object where we define all our custom authentication logic. When returning the
+     Authentication object, it must contain information whether the authentication was successful or not so that our ProviderManager can decide
+	 whether to invoke other Authentication Providers or not.
+  2) supports, which is used to tell spring security what kind of authentication type we want to use with this Authentication Provider. The most
+     common type is Username and Password Authentication
+	 
+The DaoAuthenticationProvider uses UsernameAndPasswordAuthenticationToken as Authentication Type so in the supports() method we would see
+UsernameAndPasswordAuthenticationToken.class being used to tell spring security about it.
+
+Similarly, spring security also provides us with some testing authentication type to be used with unit and integration tests where we want to 
+bypass security. We have TestingAuthenticationProvider which uses TestingAuthenticationToken as Authentication Type. 
+The TestingAuthenticationProvider authenticate() method does nothing and returns what it receives.
+
+The purpose of the supports method is that, we see in ProviderManager class it fetches all the available Authentication Providers and loops
+all of them to execute it. It will first check if our provided authentication type is supported by the provider then only it will go and 
+execute it otherwise it will skip it.
+
+We can create our own class and implement it with AuthenticationProvider and override 2 methods to define our custom implementation.
+In DaoAuthenticationProvider, it makes use of UserDetailsService loadUserByUsername() to fetch username and then matches the password. In our
+implementation we can directly fetch the user from repository in our authenticate method and in this way we will not need UserDetailsService
+explicitly to call and get the username.

@@ -1,0 +1,338 @@
+Dependency Injection
+----
+
+How angular injects the dependency?
+
+-We use a property call providedIn: 'root' with @Injectable decorator in our service. 
+@Injectable({
+  providedIn: 'root'
+})
+
+By setting this property, the provider creates the dependency on behalf of the angular 
+dependency injection mechanism. The dependency injection system of the angular is provided 
+with the factory function by the provider that generates instances of the services. So the 
+dependency injection system calls the factory function to get the instance and injects into 
+different parts of the component where is needed.
+
+If we remove the providedIn property then we get the error as 'No provider found' as with
+this property we are creating a provider behind the scenz.
+@Injectable();
+
+
+
+
+
+
+
+
+Understanding providers and Injection Tokens
+
+-Every dependecy injection has 2 things
+   a) The provider factory function
+   b) The injection token that uniquely identifies that dependecy
+
+-We will create our own provider manually to understand what angular does behind the scene 
+to create a provider
+..
+@Injectable()
+export class CourserService{}
+
+We are creating a service without using the providedIn property because we will create our own
+provider.
+
+Inside app.component.ts
+-First we will create a simple function that will generate the course service instance and
+returns it. This will be our factory function
+
+function courseServiceProvider(): CourseService {
+  return new CourseService();
+}
+
+-Now to uniquely identify the dependency we need to create injection token for it
+
+export const COURSE_SERVICE = new InjectionToken<CourseService>('COURSE_SERVICE');
+
+-Now we will configure this in our @Component decorator of our app-component that is the root
+
+@Component({
+  ....
+  ....
+  ....
+  providers: [
+    {
+      provide: COURSE_SERVICE,
+      useFactory: courseServiceProvider
+    }
+  ]
+})
+
+-Now our provider is ready and to inject this we will use @Inject decorator with unique name
+set in our injection token
+..
+constructor(@Inject(COURSE_SERVICE) private courseService: CourseService){}
+
+Similarly if our course-service also has the dependecy like
+..
+@Injectable()
+export class CourserService{
+    constructor(private http: HttpClient)
+}
+Then we need to add HttpClient dependency in our configurable object
+..
+@Component({
+  ....
+  ....
+  ....
+  providers: [
+    {
+      provide: COURSE_SERVICE,
+      useFactory: courseServiceProvider,
+      deps: [HttpClient]
+    }
+  ]
+})
+
+And modify our factory function as,
+function courseServiceProvider(http: HttpClient): CourseService {
+  return new CourseService(http);
+}
+
+
+-With all these factory function and injection token, we can also simply use the class name
+inside our configurable object to tell angular about what class to instatiate at the time
+of dependency injection. Also angular will use the class name as the unique identifier for
+the injection token as well
+..
+@Component({
+  ...
+  ...
+  providers: [ CourseService ]
+})
+
+-Just by doing this, our dependency injection will also work without using @Inject() in the
+constructor as well.
+
+
+
+
+
+
+
+
+
+
+
+
+
+Hierarchical Dependency Injection
+
+-Every component has the capability to generate the instance of the dependencies that are
+being injected by using the providers array.
+Consider the example
+We have 2 components app-root and comp-one with single service test-service that connects with
+the back-end
+..
+@Injectable()
+export class TestService{}
+
+Inside app.component.html
+<h1> Hello From Root <h1>
+<div *ngFor="let number of [0,1,2,3,4]">
+  <comp-one></comp-one>
+</div>
+
+Inside app.component.ts
+@Component({
+  ..
+  ..
+  providers: [ TestService ]
+})
+
+
+Inside comp-one.component.ts
+@Component({
+  ..
+  ..
+  providers: [ TestService ]
+})
+
+-Now here we have privately injected the TestService on both the level of root(parent) and the
+comp-one(child).
+-In the hierarchical dependency injection concept, the component will first check if there is
+a separate provider of dependency for the component. If it does then it wll generate the
+instance. If it does not then it will ask its parent weather it has it or not and so on...
+-In the above example, 6 instances will be created of TestService because <comp-one> is inside
+loop and will be generated 5 times, so every time it is generated TestService dependency is
+needed for every component. Since every component has the provider itself everytime a new
+instance of TestService will be created. One instance will be created for the app-root
+component.
+Now consider not using providers array inside comp-one
+Inside comp-one.component.ts
+@Component({
+  ..
+  ..
+  ..
+})
+-Then only one instance will be created for TestServie and that is at the app-root level.
+When comp-one needed the TestServie dependency it will first check whether the component itself
+provides the dependency. It will not find it so it will ask its parent which is app-root for
+the dependency. This is useful if our service is stateless and can be shared among all.
+-Of our service is not stateless and every component needs it privately not to be shared
+by other components then better to use providers array at the component level.
+
+
+
+
+
+
+
+
+
+
+
+Tree-Shakeable Providers
+
+-Alternative and a better way of using the providers array
+-The disadvantage of using the providers array is that if you are using any service in the
+providers array that is not being used inside the component, angular still will create its
+instance that will eventually increase our bundle size.
+-Better use @Injectable({providedIn: 'root'}) that is knows as the tree-shakeable provider
+at the root level so that our injectable services are singleton.
+-The use case of using the provders array for providing services is that if our services are
+not stateless and we dont want it to be shared among all components.
+
+
+
+
+
+
+
+
+Injection Token In Detail
+
+-There are cases when we also want to inject plain simple javascript object like our 
+configuration object besides our dependency injection. So for that injection token comes into 
+picture.
+..
+Create a simple TS class i.e: config.ts
+
+export interface AppConfig{
+  apiUrl: string;
+  cacheSize: number;
+}
+
+export const APP_CONFIG: AppConfig = {
+  apiUrl: "http://localhost:9000",
+  cacheSize: 10;
+}
+
+Now creating injection token for this configuration object
+
+export const CONFIG_TOKEN = new InjectionToken<AppConfig>('CONFIG_TOKEN');
+
+-Now to inject it in our component. 2 ways to provide either by useFactory or useValue
+Inside app.component.ts
+@Component({
+  ..
+  ..
+  providers: [
+    {provide: CONFIG_TOKEN, useFactory: () => APP_CONFIG} 
+         Or 
+    {provide: CONFIG_TOKEN, useValue: APP_CONFIG}
+  ]
+})
+
+constructor(@Inject(CONFIG_TOKEN) private config: AppConfig){}
+
+-Now here is the problem. This is not Tree-Shakeable and if we remove constructor level
+injection, this AppConfig will still get injected. We can verify it in the DevTools inside main.js
+file the code will be seen.
+-To make it Tree-Shakeable so that if we dont inject it constructor level it will not get
+injected we need to modify our InjectionToken as,
+..
+export const CONFIG_TOKEN = new InjectionToken<AppConfig>(
+    'CONFIG_TOKEN', {providedIn: 'root', factory: () => APP_CONFIG}
+);
+
+
+
+
+
+
+
+
+
+
+Decorators useful in some cases
+
+1) @Optional()
+-This is useful to use when for some reason angular dont find the dependency to inject.
+Not using it will crash our program at the bootstrap level. But using it will start our 
+program but we will have to manually cater it at the program level
+
+Usage
+constructor(@Optional private t_service: TestService){}
+
+@Injectable()
+export class TestService{}
+
+-Notive we have not used providedIn property so angular wont find dependency to inject but
+by the use of @Optional we wont get error at the bootstrap level
+
+
+
+2) @Self()
+-When using hierarchical dependency, we know that by using the providers array to inject the
+dependency, angular will first look inside the component for the instance and if dont find
+it will move up level to the parent for the instance. But when using the @Self decorator,
+angular will make sure the dependency comes from the individual component and not from its
+parent.
+
+Usage
+constructor(@Self() private t_service: TestService){}
+
+-We will have to use the providers: [TestService] at the component level to make our
+dependency work otherwise it will crash at the bootstrap level. It will not take TestService
+from app-root
+
+
+
+
+3) @SkipSelf()
+-Its the opposite of @Self. Using it will ignore the dependencies injected via providers array
+from individual component and angular will make sure the dependency comes from the parent
+component.
+
+Usage
+constructor(@SkipSelf() private t_service: TestService){}
+
+-If the providers array is missing from the parent component, the program will crash.
+If the providers array is present at the component level, angular will ignore it and will still
+make sure the instance comes from the parent component.
+
+
+
+4) @Host()
+-This is useful when using the directive on our component and we want to access the same
+instance of the dependency in out directive as in the component
+
+Usage
+..
+<comp-one testDirective></comp-one>
+
+Inside comp-one.component.ts
+constructor(private t_service: TestService)
+
+Inside test-directive.ts
+constructor(private t_service: TestService)
+
+-In this example, the TestService dependency will be coming from the app-root level
+because no providers are being provided and the singleton instance will be used at every level.
+-But in the hierarchical level concept when using the providers array to inject separate
+dependencies and to inject the same instance at the directive level also we will have to use
+@Host() at the directive level
+
+constructor(@Host() private t_service: TestService)
+
+-This will give error if the providers array is not defined at the component level because the
+directive forcefully ask the instance injected to the individual component.

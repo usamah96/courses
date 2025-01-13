@@ -1,0 +1,123 @@
+public interface Pizza {
+ 
+    public String getDesc();
+    public double getPrice();
+}
+
+public class SimplyVegPizza implements Pizza{
+ 
+    @Override
+    public String getDesc() {
+        return "SimplyVegPizza (230)";
+    }
+     
+    @Override
+    public double getPrice() {
+        return 230;
+    }
+}
+
+public class SimplyNonVegPizza implements Pizza{
+     
+    @Override
+    public String getDesc() {
+        return "SimplyNonVegPizza (350)";
+    }
+ 
+    @Override
+    public double getPrice() {
+        return 350;
+    }
+}
+
+public abstract class PizzaDecorator implements Pizza {
+     
+    @Override
+    public String getDesc() {
+        return "Toppings";
+    }
+}
+
+public class Spinach extends PizzaDecorator{
+ 
+    private final Pizza pizza;
+     
+    public Spinach(Pizza pizza){
+        this.pizza = pizza;
+    }
+ 
+    @Override
+    public String getDesc() {
+        return pizza.getDesc()+", Spinach (7.92)";
+    }
+ 
+ 
+    @Override
+    public double getPrice() {
+        return pizza.getPrice()+7.92;
+    }
+}
+
+public class RomaTomatoes extends PizzaDecorator{
+ 
+    private final Pizza pizza;
+     
+    public RomaTomatoes(Pizza pizza){
+        this.pizza = pizza;
+    }
+ 
+    @Override
+    public String getDesc() {
+        return pizza.getDesc()+", Roma Tomatoes (5.20)";
+    }
+ 
+ 
+    @Override
+    public double getPrice() {
+        return pizza.getPrice()+5.20;
+    }
+}
+
+public class GreenOlives extends PizzaDecorator{
+ 
+    private final Pizza pizza;
+     
+    public GreenOlives(Pizza pizza){
+        this.pizza = pizza;
+    }
+ 
+    @Override
+    public String getDesc() {
+        return pizza.getDesc()+", Green Olives (5.47)";
+    }
+ 
+ 
+    @Override
+    public double getPrice() {
+        return pizza.getPrice()+5.47;
+    }
+}
+
+package com.javacodegeeks.patterns.decoratorpattern;
+ 
+import java.text.DecimalFormat;
+ 
+public class TestDecoratorPattern {
+     
+    public static void main(String[] args) {
+         
+        DecimalFormat dformat = new DecimalFormat("#.##");
+        Pizza pizza = new SimplyVegPizza();
+         
+        pizza = new RomaTomatoes(pizza);
+        pizza = new GreenOlives(pizza);
+        pizza = new Spinach(pizza);
+         
+        System.out.println("Desc: "+pizza.getDesc());
+        System.out.println("Price: "+dformat.format(pizza.getPrice()));
+    }
+}
+
+Output:
+Desc: SimplyVegPizza (230), Roma Tomatoes (5.20), Green Olives (5.47), Spinach (7.92)
+Price: 248.59

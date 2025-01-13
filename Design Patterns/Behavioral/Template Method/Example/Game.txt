@@ -1,0 +1,24 @@
+abstract class Game{
+  public Game(int numOfPlayers){this.numberOfPlayers  numOfPlayers}
+  public void run(){
+    start();
+    while(!haveWinner())
+        takeTurn();
+    sout("Player: " + getWinningPlayer() + " wins.");
+  }
+  public abstract void start();
+  public abstract boolean haveWinner();
+  public abstract void takeTurn();
+  public abstract int getWinningPlayer();
+}
+
+class Chess extends Game{
+  public Chess(){super(2);}
+  // Define all abstract methods
+}
+
+public class Demo{
+  public static void main(String[] args){
+    new Chess().run();
+  }
+}
